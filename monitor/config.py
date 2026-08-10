@@ -74,7 +74,7 @@ def load_profile() -> Dict[str, Any]:
 def _merge_sources(payloads: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ordered: List[str] = []
     sources: Dict[str, Dict[str, Any]] = {}
-    for payload in payloads:
+    for layer_index, payload in enumerate(payloads):
         entries = payload.get("sources", [])
         if not isinstance(entries, list):
             raise ValueError("Source configuration must contain a 'sources' list")
@@ -83,6 +83,14 @@ def _merge_sources(payloads: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 raise ValueError("Every source must be an object with a non-empty id")
             source_id = str(source["id"])
             if source_id not in sources:
+                # Local registries commonly contain small per-source toggles.
+                # If a later public catalog removes one of those sources, the
+                # orphaned toggle is not a complete private source and must not
+                # survive registration as a malformed listing.
+                if layer_index and not all(
+                    str(source.get(key, "")).strip() for key in ("name", "kind")
+                ):
+                    continue
                 ordered.append(source_id)
                 sources[source_id] = {}
             sources[source_id] = _deep_merge(sources[source_id], source)
@@ -138,7 +146,10 @@ def load_sources(include_disabled: bool = False) -> List[Dict[str, Any]]:
         if unknown:
             raise ValueError("Unknown selected source pack: {}".format(", ".join(unknown)))
         explicit_enabled: Dict[str, bool] = {}
-        for payload in payloads[selection_index:]:
+        # Pack lists replace one another by layer, while source objects merge by
+        # id. Preserve every user-layer enabled override even when a higher
+        # layer changes only the selected pack list.
+        for payload in payloads[1:]:
             for entry in payload.get("sources", []):
                 if isinstance(entry, dict) and "enabled" in entry and entry.get("id"):
                     explicit_enabled[str(entry["id"])] = bool(entry["enabled"])

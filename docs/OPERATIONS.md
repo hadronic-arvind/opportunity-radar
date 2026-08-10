@@ -52,6 +52,7 @@ python3 extras/macos-app/install.py
 ```
 
 The app goes to `~/Applications/Opportunity Radar.app` by default.
+It can use the clone directly when the private scheduled runtime is not installed.
 The installer refuses symlink destinations, repository-contained destinations, and replacement of an app with another bundle identifier.
 It builds locally with Swift, creates the icon locally, applies owner-only permissions, ad-hoc signs the bundle, and verifies the signature.
 

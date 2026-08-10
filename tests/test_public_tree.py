@@ -81,6 +81,62 @@ class PublicTreeTests(unittest.TestCase):
             self.assertTrue(any(".env.local" in failure for failure in failures))
             self.assertTrue(any("seed/private.md" in failure for failure in failures))
 
+    def test_privacy_gate_rejects_quoted_local_labels_and_matching_rule(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            (root / "config").mkdir()
+            (root / "config" / "profile.json").write_text(
+                json.dumps({"documents": {"default": "General"}}),
+                encoding="utf-8",
+            )
+            (root / "config" / "profile.local.json").write_text(
+                json.dumps(
+                    {
+                        "documents": {
+                            "default": "Private Research CV",
+                            "routes": [
+                                {
+                                    "label": "Private Systems Draft",
+                                    "terms": [
+                                        "private accelerator route",
+                                        "rare trigger pipeline",
+                                    ],
+                                }
+                            ],
+                        },
+                        "dashboard": {"document_label": "Private document map"},
+                        "priority_organizations": [
+                            "Quiet Example Laboratory",
+                            "Private Systems Cooperative",
+                        ],
+                        "matching": {
+                            "rules": [
+                                {
+                                    "label": "Private detector preference",
+                                    "terms": [
+                                        "rare lattice workflow",
+                                        "private detector stack",
+                                    ],
+                                }
+                            ]
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "README.md").write_text(
+                'Use "Private Research CV" and "Private Systems Draft" under '
+                '"Private document map" for "rare lattice workflow" and '
+                '"private detector stack". The private organization list is '
+                '"Quiet Example Laboratory" and "Private Systems Cooperative".\n',
+                encoding="utf-8",
+            )
+            module.PROJECT_ROOT = root
+            failures = module.scan()
+            self.assertIn("local application label in README.md", failures)
+            self.assertIn("local matching rule copied into README.md", failures)
+
     def test_history_gate_rejects_old_tailored_public_profile(self):
         module = load_privacy_module()
         with tempfile.TemporaryDirectory() as tempdir:

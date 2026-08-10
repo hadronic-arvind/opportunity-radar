@@ -7,6 +7,33 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+reject_writable_by_others() {
+  local path="$1"
+  local label="$2"
+  local mode
+  if ! mode="$(/usr/bin/stat -f '%Lp' "$path")" || [[ ! "$mode" =~ ^[0-7]{3,4}$ ]]; then
+    echo "Refusing to use an unsafe $label." >&2
+    return 1
+  fi
+  if (( (8#$mode & 8#22) != 0 )); then
+    echo "Refusing to use a group/world-writable $label." >&2
+    return 1
+  fi
+}
+
+service_uses_target() {
+  local description="$1"
+  local line
+  local trimmed
+  while IFS= read -r line; do
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    if [[ "$trimmed" == "path = $TARGET" ]]; then
+      return 0
+    fi
+  done <<< "$description"
+  return 1
+}
+
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
 LABEL="${OPPORTUNITY_RADAR_LABEL:-io.github.opportunity-radar.monitor}"
 RUNTIME_DIR="${OPPORTUNITY_RADAR_RUNTIME_DIR:-$HOME/Library/Application Support/OpportunityRadar}"
@@ -20,7 +47,9 @@ STAMP="$(/bin/date +%Y%m%d-%H%M%S)"
 PLIST_BACKUP="$PROJECT_DIR/data/previous-launch-agent-$STAMP.plist"
 CRON_BACKUP="$PROJECT_DIR/data/previous-crontab-$STAMP.txt"
 STAGE=""
-SWAPPED=0
+ARCHIVED_PREVIOUS_RUNTIME=0
+OLD_RUNTIME_MOVED=0
+STAGE_PROMOTED=0
 WAS_LOADED=0
 HAD_PLIST=0
 USE_LAUNCHD=0
@@ -28,6 +57,14 @@ USE_EXISTING_CRON=0
 SCHEDULER_MUTATION_STARTED=0
 CRON_SNAPSHOT_READY=0
 CRON_MUTATION_ATTEMPTED=0
+LOCK_HELD=0
+LINK_MUTATION_STARTED=0
+HAD_DASHBOARD_PATH=0
+HAD_DATABASE_PATH=0
+HAD_SCHEDULER_OUT_PATH=0
+HAD_SCHEDULER_ERR_PATH=0
+SCHEDULER_OUT_TARGET=""
+SCHEDULER_ERR_TARGET=""
 
 if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
   echo "Python 3.9 or newer is required." >&2
@@ -68,12 +105,26 @@ TARGET="$TARGET_DIR/$LABEL.plist"
 RENDERED="$PROJECT_DIR/data/$LABEL.plist"
 SERVICE="gui/$(/usr/bin/id -u)/$LABEL"
 PREVIOUS_RUNTIME="${RUNTIME_DIR}.previous"
+ARCHIVED_PREVIOUS_RUNTIME_PATH="${PREVIOUS_RUNTIME}-$STAMP"
 FAILED_RUNTIME="${RUNTIME_DIR}.failed-$STAMP"
 FAILED_TARGET="${TARGET}.failed-$STAMP"
 DASHBOARD_BACKUP="$PROJECT_DIR/dashboard/index.pre-runtime-$STAMP.html"
 DATABASE_BACKUP="$PROJECT_DIR/data/opportunities.pre-runtime-$STAMP.sqlite3"
 SCHEDULER_OUT_BACKUP="$PROJECT_DIR/logs/scheduler.pre-runtime-$STAMP.out.log"
 SCHEDULER_ERR_BACKUP="$PROJECT_DIR/logs/scheduler.pre-runtime-$STAMP.err.log"
+DASHBOARD_PATH="$PROJECT_DIR/dashboard/index.html"
+DATABASE_PATH="$PROJECT_DIR/data/opportunities.sqlite3"
+SCHEDULER_OUT_PATH="$PROJECT_DIR/logs/scheduler.out.log"
+SCHEDULER_ERR_PATH="$PROJECT_DIR/logs/scheduler.err.log"
+
+if [[ -z "${HOME:-}" || "$HOME" != /* || -L "$HOME" || ! -d "$HOME" || ! -O "$HOME" ]]; then
+  echo "Refusing to use an unsafe home directory." >&2
+  exit 1
+fi
+HOME_DIR="$(cd "$HOME" && pwd -P)"
+reject_writable_by_others "$HOME_DIR" "home directory"
+LOCK_PARENT="$HOME_DIR/Library/Application Support"
+LOCK_DIR="$LOCK_PARENT/.OpportunityRadar.lifecycle-lock"
 
 if [[ -L "$RENDERED" || ( -e "$RENDERED" && ! -O "$RENDERED" ) ]]; then
   echo "Refusing to replace an unsafe rendered launch-agent path." >&2
@@ -95,8 +146,21 @@ for reserved_path in \
   fi
 done
 
-mkdir -p "$PROJECT_DIR/data" "$PROJECT_DIR/dashboard" "$PROJECT_DIR/logs" "$RUNTIME_PARENT" "$TARGET_DIR"
-STAGE="$(/usr/bin/mktemp -d "$RUNTIME_PARENT/OpportunityRadar-stage.XXXXXX")"
+if [[ -L "$LOCK_PARENT" ]]; then
+  echo "Refusing to use a symbolic-link lifecycle-lock parent." >&2
+  exit 1
+fi
+mkdir -p "$LOCK_PARENT"
+if [[ ! -d "$LOCK_PARENT" || ! -O "$LOCK_PARENT" ]]; then
+  echo "Refusing to use an unsafe lifecycle-lock parent." >&2
+  exit 1
+fi
+reject_writable_by_others "$LOCK_PARENT" "lifecycle-lock parent"
+if ! mkdir "$LOCK_DIR"; then
+  echo "Another Opportunity Radar install or uninstall is already running." >&2
+  exit 1
+fi
+LOCK_HELD=1
 
 cleanup_stage() {
   if [[ -n "$STAGE" && -d "$STAGE" && "$STAGE" == "$RUNTIME_PARENT/OpportunityRadar-stage."* ]]; then
@@ -105,22 +169,70 @@ cleanup_stage() {
   if [[ -f "$CRON_BACKUP" && ! -L "$CRON_BACKUP" ]]; then
     /bin/rm -f "$CRON_BACKUP"
   fi
+  if [[ "$LOCK_HELD" -eq 1 && -d "$LOCK_DIR" && ! -L "$LOCK_DIR" && -O "$LOCK_DIR" ]]; then
+    /bin/rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+    LOCK_HELD=0
+  fi
+}
+
+restore_managed_link() {
+  local live_path="$1"
+  local backup_path="$2"
+  local expected_target="$3"
+  local had_previous="$4"
+  local current_target
+  if [[ "$had_previous" -eq 1 && ! -e "$backup_path" && ! -L "$backup_path" ]]; then
+    return 0
+  fi
+  if [[ -L "$live_path" ]]; then
+    current_target="$(/usr/bin/readlink "$live_path")"
+    if [[ "$current_target" != "$expected_target" ]]; then
+      return 1
+    fi
+    /bin/rm -f "$live_path"
+  elif [[ -e "$live_path" ]]; then
+    return 1
+  fi
+  if [[ "$had_previous" -eq 1 && ( -e "$backup_path" || -L "$backup_path" ) ]]; then
+    /bin/mv "$backup_path" "$live_path"
+  fi
 }
 
 rollback() {
   local exit_code="$1"
-  trap - ERR
+  trap - ERR HUP INT TERM
   echo "Installation failed; restoring the previous runtime." >&2
   if [[ "$SCHEDULER_MUTATION_STARTED" -eq 1 ]]; then
     if /bin/launchctl print "$SERVICE" >/dev/null 2>&1; then
       /bin/launchctl bootout "$SERVICE" >/dev/null 2>&1 || true
     fi
   fi
-  if [[ "$SWAPPED" -eq 1 && -d "$RUNTIME_DIR" ]]; then
+  if [[ "$LINK_MUTATION_STARTED" -eq 1 ]]; then
+    restore_managed_link \
+      "$SCHEDULER_ERR_PATH" "$SCHEDULER_ERR_BACKUP" "$SCHEDULER_ERR_TARGET" \
+      "$HAD_SCHEDULER_ERR_PATH" || true
+    restore_managed_link \
+      "$SCHEDULER_OUT_PATH" "$SCHEDULER_OUT_BACKUP" "$SCHEDULER_OUT_TARGET" \
+      "$HAD_SCHEDULER_OUT_PATH" || true
+    restore_managed_link \
+      "$DATABASE_PATH" "$DATABASE_BACKUP" "$RUNTIME_DIR/data/opportunities.sqlite3" \
+      "$HAD_DATABASE_PATH" || true
+    restore_managed_link \
+      "$DASHBOARD_PATH" "$DASHBOARD_BACKUP" "$RUNTIME_DIR/dashboard/index.html" \
+      "$HAD_DASHBOARD_PATH" || true
+  fi
+  if [[ "$STAGE_PROMOTED" -eq 1 && -d "$RUNTIME_DIR" ]]; then
     /bin/mv "$RUNTIME_DIR" "$FAILED_RUNTIME" || true
   fi
-  if [[ "$SWAPPED" -eq 1 && -d "$PREVIOUS_RUNTIME" ]]; then
-    /bin/mv "$PREVIOUS_RUNTIME" "$RUNTIME_DIR" || true
+  if [[ "$OLD_RUNTIME_MOVED" -eq 1 && -d "$PREVIOUS_RUNTIME" ]]; then
+    if [[ -e "$RUNTIME_DIR" || -L "$RUNTIME_DIR" ]]; then
+      echo "The prior runtime remains at $PREVIOUS_RUNTIME for manual recovery." >&2
+    else
+      /bin/mv "$PREVIOUS_RUNTIME" "$RUNTIME_DIR" || true
+    fi
+  fi
+  if [[ "$ARCHIVED_PREVIOUS_RUNTIME" -eq 1 && -d "$ARCHIVED_PREVIOUS_RUNTIME_PATH" && ! -e "$PREVIOUS_RUNTIME" ]]; then
+    /bin/mv "$ARCHIVED_PREVIOUS_RUNTIME_PATH" "$PREVIOUS_RUNTIME" || true
   fi
   if [[ "$SCHEDULER_MUTATION_STARTED" -eq 1 ]]; then
     if [[ "$HAD_PLIST" -eq 1 && -f "$PLIST_BACKUP" ]]; then
@@ -130,6 +242,7 @@ rollback() {
     fi
     if [[ "$CRON_MUTATION_ATTEMPTED" -eq 1 && "$CRON_SNAPSHOT_READY" -eq 1 ]]; then
       "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" restore \
+        --label "$LABEL" \
         < "$CRON_BACKUP" >/dev/null 2>&1 || true
     fi
     if [[ "$WAS_LOADED" -eq 1 && -f "$TARGET" ]]; then
@@ -142,6 +255,12 @@ rollback() {
 
 trap 'rollback $?' ERR
 trap cleanup_stage EXIT
+trap 'rollback 129' HUP
+trap 'rollback 130' INT
+trap 'rollback 143' TERM
+
+mkdir -p "$PROJECT_DIR/data" "$PROJECT_DIR/dashboard" "$PROJECT_DIR/logs" "$RUNTIME_PARENT" "$TARGET_DIR"
+STAGE="$(/usr/bin/mktemp -d "$RUNTIME_PARENT/OpportunityRadar-stage.XXXXXX")"
 
 cd "$PROJECT_DIR"
 PYTHONPYCACHEPREFIX="$PROJECT_DIR/data/pycache" "$PYTHON_BIN" -m monitor doctor >/dev/null
@@ -193,15 +312,25 @@ if [[ -f "$TARGET" ]]; then
   HAD_PLIST=1
   /bin/cp "$TARGET" "$PLIST_BACKUP"
 fi
-"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot > "$CRON_BACKUP"
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot \
+  --label "$LABEL" > "$CRON_BACKUP"
 /bin/chmod 600 "$CRON_BACKUP"
 CRON_SNAPSHOT_READY=1
 
-if /bin/launchctl print "$SERVICE" >/dev/null 2>&1; then
+SERVICE_DESCRIPTION=""
+if SERVICE_DESCRIPTION="$(
+  trap - ERR
+  /bin/launchctl print "$SERVICE" 2>/dev/null
+)"; then
   WAS_LOADED=1
+  if ! service_uses_target "$SERVICE_DESCRIPTION"; then
+    echo "The loaded launch agent was bootstrapped from a different property list." >&2
+    false
+  fi
 fi
 if [[ "$USE_LAUNCHD" -eq 1 && "$WAS_LOADED" -eq 0 && "$HAD_PLIST" -eq 0 ]] && \
   "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" verify \
+    --label "$LABEL" \
     --runtime "$RUNTIME_DIR" \
     --morning-hour "$MORNING_HOUR" \
     --morning-minute "$MORNING_MINUTE" \
@@ -247,14 +376,16 @@ fi
 
 /bin/chmod -R go-rwx "$STAGE"
 if [[ -d "$PREVIOUS_RUNTIME" ]]; then
-  /bin/mv "$PREVIOUS_RUNTIME" "${PREVIOUS_RUNTIME}-$STAMP"
+  ARCHIVED_PREVIOUS_RUNTIME=1
+  /bin/mv "$PREVIOUS_RUNTIME" "$ARCHIVED_PREVIOUS_RUNTIME_PATH"
 fi
 if [[ -d "$RUNTIME_DIR" ]]; then
+  OLD_RUNTIME_MOVED=1
   /bin/mv "$RUNTIME_DIR" "$PREVIOUS_RUNTIME"
 fi
+STAGE_PROMOTED=1
 /bin/mv "$STAGE" "$RUNTIME_DIR"
 STAGE=""
-SWAPPED=1
 
 "$PYTHON_BIN" "$PROJECT_DIR/scripts/render_launch_agent.py" \
   --runtime "$RUNTIME_DIR" \
@@ -273,12 +404,13 @@ if [[ "$USE_LAUNCHD" -eq 1 ]]; then
   /bin/launchctl enable "$SERVICE"
   /bin/launchctl print "$SERVICE" >/dev/null
   CRON_MUTATION_ATTEMPTED=1
-  "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" remove
+  "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" remove --label "$LABEL"
 elif [[ "$USE_EXISTING_CRON" -eq 1 ]]; then
   SCHEDULER_KIND="existing cron fallback"
 else
   CRON_MUTATION_ATTEMPTED=1
   "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" install \
+    --label "$LABEL" \
     --runtime "$RUNTIME_DIR" \
     --morning-hour "$MORNING_HOUR" \
     --morning-minute "$MORNING_MINUTE" \
@@ -287,38 +419,44 @@ else
   SCHEDULER_KIND="cron fallback"
 fi
 
-if [[ -e "$PROJECT_DIR/dashboard/index.html" && ! -L "$PROJECT_DIR/dashboard/index.html" ]]; then
-  /bin/mv "$PROJECT_DIR/dashboard/index.html" "$DASHBOARD_BACKUP"
+if [[ "$SCHEDULER_KIND" == *"cron fallback" ]]; then
+  SCHEDULER_OUT_TARGET="$RUNTIME_DIR/logs/cron.out.log"
+  SCHEDULER_ERR_TARGET="$RUNTIME_DIR/logs/cron.err.log"
+else
+  SCHEDULER_OUT_TARGET="$RUNTIME_DIR/logs/launchd.out.log"
+  SCHEDULER_ERR_TARGET="$RUNTIME_DIR/logs/launchd.err.log"
 fi
-/bin/ln -sfn "$RUNTIME_DIR/dashboard/index.html" "$PROJECT_DIR/dashboard/index.html"
 
-if [[ -e "$PROJECT_DIR/data/opportunities.sqlite3" && ! -L "$PROJECT_DIR/data/opportunities.sqlite3" ]]; then
-  /bin/mv "$PROJECT_DIR/data/opportunities.sqlite3" "$DATABASE_BACKUP"
+LINK_MUTATION_STARTED=1
+if [[ -e "$DASHBOARD_PATH" || -L "$DASHBOARD_PATH" ]]; then
+  HAD_DASHBOARD_PATH=1
+  /bin/mv "$DASHBOARD_PATH" "$DASHBOARD_BACKUP"
 fi
-/bin/ln -sfn "$RUNTIME_DIR/data/opportunities.sqlite3" "$PROJECT_DIR/data/opportunities.sqlite3"
+/bin/ln -s "$RUNTIME_DIR/dashboard/index.html" "$DASHBOARD_PATH"
 
-for stream in out err; do
-  project_log="$PROJECT_DIR/logs/scheduler.$stream.log"
-  if [[ "$SCHEDULER_KIND" == *"cron fallback" ]]; then
-    runtime_log="$RUNTIME_DIR/logs/cron.$stream.log"
-  else
-    runtime_log="$RUNTIME_DIR/logs/launchd.$stream.log"
-  fi
-  if [[ -e "$project_log" && ! -L "$project_log" ]]; then
-    if [[ "$stream" == "out" ]]; then
-      /bin/mv "$project_log" "$SCHEDULER_OUT_BACKUP"
-    else
-      /bin/mv "$project_log" "$SCHEDULER_ERR_BACKUP"
-    fi
-  fi
-  /bin/ln -sfn "$runtime_log" "$project_log"
-done
+if [[ -e "$DATABASE_PATH" || -L "$DATABASE_PATH" ]]; then
+  HAD_DATABASE_PATH=1
+  /bin/mv "$DATABASE_PATH" "$DATABASE_BACKUP"
+fi
+/bin/ln -s "$RUNTIME_DIR/data/opportunities.sqlite3" "$DATABASE_PATH"
+
+if [[ -e "$SCHEDULER_OUT_PATH" || -L "$SCHEDULER_OUT_PATH" ]]; then
+  HAD_SCHEDULER_OUT_PATH=1
+  /bin/mv "$SCHEDULER_OUT_PATH" "$SCHEDULER_OUT_BACKUP"
+fi
+/bin/ln -s "$SCHEDULER_OUT_TARGET" "$SCHEDULER_OUT_PATH"
+
+if [[ -e "$SCHEDULER_ERR_PATH" || -L "$SCHEDULER_ERR_PATH" ]]; then
+  HAD_SCHEDULER_ERR_PATH=1
+  /bin/mv "$SCHEDULER_ERR_PATH" "$SCHEDULER_ERR_BACKUP"
+fi
+/bin/ln -s "$SCHEDULER_ERR_TARGET" "$SCHEDULER_ERR_PATH"
 
 /usr/bin/touch "$PROJECT_DIR/data/install-complete"
+trap - ERR HUP INT TERM
 if [[ -f "$PLIST_BACKUP" ]]; then
   /bin/rm -f "$PLIST_BACKUP"
 fi
-trap - ERR
 
 echo "Installed the private runtime and verified one complete scan."
 echo "Scheduler: $SCHEDULER_KIND."

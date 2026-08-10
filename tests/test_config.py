@@ -72,7 +72,20 @@ class ConfigTests(unittest.TestCase):
 
     def test_local_sources_override_and_disable_public_source(self):
         (self.root / "config" / "sources.local.json").write_text(
-            json.dumps({"sources": [{"id": "base", "enabled": False}, {"id": "local", "enabled": True}]}),
+            json.dumps(
+                {
+                    "sources": [
+                        {"id": "base", "enabled": False},
+                        {
+                            "id": "local",
+                            "name": "Example Cooperative",
+                            "kind": "watch_page",
+                            "url": "https://example.org/opportunities",
+                            "enabled": True,
+                        },
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
         with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(os.environ, {}, clear=True):
@@ -137,6 +150,74 @@ class ConfigTests(unittest.TestCase):
                 [source["id"] for source in config.load_sources()],
                 ["existing", "future"],
             )
+
+    def test_higher_pack_selection_preserves_lower_per_source_override(self):
+        public = {
+            "packs": [{"id": "engineering"}, {"id": "design"}],
+            "sources": [
+                {"id": "engineer", "packs": ["engineering"], "enabled": True},
+                {"id": "designer", "packs": ["design"], "enabled": False},
+            ],
+        }
+        (self.root / "config" / "sources.json").write_text(json.dumps(public))
+        (self.root / "config" / "sources.local.json").write_text(
+            json.dumps(
+                {
+                    "selected_packs": ["engineering"],
+                    "sources": [{"id": "designer", "enabled": False}],
+                }
+            )
+        )
+        environment_registry = self.root / "environment-sources.json"
+        environment_registry.write_text(
+            json.dumps({"selected_packs": ["design"], "sources": []})
+        )
+        with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(
+            os.environ,
+            {"OPPORTUNITY_RADAR_SOURCES": str(environment_registry)},
+            clear=True,
+        ):
+            sources = config.load_sources(include_disabled=True)
+        enabled = {source["id"]: source["enabled"] for source in sources}
+        self.assertEqual(enabled, {"engineer": False, "designer": False})
+
+    def test_removed_catalog_source_does_not_survive_as_a_stale_local_override(self):
+        public = {
+            "packs": [{"id": "engineering"}],
+            "sources": [
+                {
+                    "id": "current",
+                    "name": "Current Example",
+                    "kind": "watch_page",
+                    "url": "https://example.org/current",
+                    "packs": ["engineering"],
+                    "enabled": False,
+                }
+            ],
+        }
+        local = {
+            "schema_version": 2,
+            "selected_packs": ["engineering"],
+            "sources": [
+                {"id": "retired", "enabled": True},
+                {
+                    "id": "private_addition",
+                    "name": "Private Example",
+                    "kind": "watch_page",
+                    "url": "https://example.net/opportunities",
+                    "packs": ["engineering"],
+                    "enabled": True,
+                },
+            ],
+        }
+        (self.root / "config" / "sources.json").write_text(json.dumps(public))
+        (self.root / "config" / "sources.local.json").write_text(json.dumps(local))
+        with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(
+            os.environ, {}, clear=True
+        ):
+            sources = config.load_sources(include_disabled=True)
+        self.assertEqual([source["id"] for source in sources], ["current", "private_addition"])
+        self.assertTrue(all(source.get("name") and source.get("kind") for source in sources))
 
     def test_private_state_link_requires_recognized_runtime(self):
         state = self.root / "data" / "opportunities.sqlite3"

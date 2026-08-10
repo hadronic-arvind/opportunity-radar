@@ -37,6 +37,14 @@ DISALLOWED_SUFFIXES = (
     ".pfx",
     ".sqlite3",
 )
+GENERIC_PUBLIC_LABELS = {
+    "application track",
+    "excluded work",
+    "general",
+    "research cv",
+    "research software",
+    "software",
+}
 
 
 def publication_paths() -> List[Path]:
@@ -168,7 +176,12 @@ def private_values() -> List[str]:
     except (OSError, ValueError):
         return []
     candidate = payload.get("candidate", {})
-    values = [candidate.get("name"), candidate.get("program"), candidate.get("expected_graduation")]
+    values = [
+        candidate.get("name"),
+        candidate.get("program"),
+        candidate.get("expected_graduation"),
+        candidate.get("target_season"),
+    ]
     dashboard = payload.get("dashboard", {})
     if isinstance(dashboard, dict):
         values.append(dashboard.get("target_season"))
@@ -178,6 +191,136 @@ def private_values() -> List[str]:
         if len(parts) > 2 and parts[1] == "Users":
             values.append(parts[2])
     return [str(value) for value in values if value and len(str(value)) >= 5]
+
+
+def _nested_strings(value: object) -> Iterable[str]:
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from _nested_strings(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _nested_strings(child)
+    elif isinstance(value, str) and value.strip():
+        yield value.strip()
+
+
+def _public_config_strings() -> set[str]:
+    values = set()
+    for name in ("profile.json", "sources.json"):
+        path = PROJECT_ROOT / "config" / name
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        values.update(value.casefold() for value in _nested_strings(payload))
+    return values
+
+
+def private_labels() -> List[str]:
+    """Return custom local labels that should never appear verbatim in public text."""
+    local_path = PROJECT_ROOT / "config" / "profile.local.json"
+    public_path = PROJECT_ROOT / "config" / "profile.json"
+    if not local_path.is_file():
+        return []
+    try:
+        local = json.loads(local_path.read_text(encoding="utf-8"))
+        public = (
+            json.loads(public_path.read_text(encoding="utf-8"))
+            if public_path.is_file()
+            else {}
+        )
+    except (OSError, ValueError):
+        return []
+    if not isinstance(local, dict):
+        return []
+
+    values = []
+    documents = local.get("documents", {})
+    if isinstance(documents, dict):
+        values.append(documents.get("default"))
+        routes = documents.get("routes", [])
+        for route in routes if isinstance(routes, list) else []:
+            if isinstance(route, dict):
+                values.append(route.get("label"))
+    matching = local.get("matching", {})
+    if isinstance(matching, dict):
+        rules = matching.get("rules", [])
+        for rule in rules if isinstance(rules, list) else []:
+            if isinstance(rule, dict):
+                values.append(rule.get("label"))
+    dashboard = local.get("dashboard", {})
+    if isinstance(dashboard, dict):
+        values.extend(
+            dashboard.get(key)
+            for key in ("title", "subtitle", "document_label", "default_reason")
+        )
+
+    public_values = _public_config_strings()
+    output = []
+    for candidate in values:
+        value = str(candidate or "").strip()
+        if (
+            len(value) >= 5
+            and value.casefold() not in public_values
+            and value.casefold() not in GENERIC_PUBLIC_LABELS
+            and value not in output
+        ):
+            output.append(value)
+    return output
+
+
+def private_preference_groups() -> List[List[str]]:
+    """Return multi-term local rules whose verbatim copy is tailored configuration."""
+    path = PROJECT_ROOT / "config" / "profile.local.json"
+    if not path.is_file():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    matching = payload.get("matching", {}) if isinstance(payload, dict) else {}
+    if not isinstance(matching, dict):
+        return []
+    public_values = _public_config_strings()
+    groups = []
+
+    def add_group(candidates: object, minimum_length: int = 8) -> None:
+        terms = []
+        for candidate in candidates if isinstance(candidates, list) else []:
+            value = str(candidate or "").strip()
+            if (
+                len(value) >= minimum_length
+                and value.casefold() not in public_values
+                and value not in terms
+            ):
+                terms.append(value)
+        if len(terms) >= 2:
+            groups.append(terms)
+        elif terms and len(terms[0]) >= 24:
+            groups.append(terms)
+
+    add_group(payload.get("priority_organizations", []), minimum_length=5)
+    rules = matching.get("rules", [])
+    for rule in rules if isinstance(rules, list) else []:
+        if not isinstance(rule, dict):
+            continue
+        add_group(rule.get("terms", []))
+    documents = payload.get("documents", {})
+    routes = documents.get("routes", []) if isinstance(documents, dict) else []
+    for route in routes if isinstance(routes, list) else []:
+        if isinstance(route, dict):
+            add_group(route.get("terms", []))
+    return groups
+
+
+def _quoted_value_present(content: str, value: str) -> bool:
+    folded = content.casefold()
+    return (
+        json.dumps(value, ensure_ascii=False).casefold() in folded
+        or "`{}`".format(value).casefold() in folded
+    )
 
 
 def content_patterns() -> Iterable[Tuple[str, re.Pattern[str]]]:
@@ -280,6 +423,8 @@ def history_failures() -> List[str]:
 def scan(include_history: bool = False) -> List[str]:
     failures = []
     dynamic_values = private_values()
+    local_labels = private_labels()
+    preference_groups = private_preference_groups()
     for relative, mode, raw_content in publication_items():
         name = Path(relative).name
         if (
@@ -307,6 +452,13 @@ def scan(include_history: bool = False) -> List[str]:
             if value.casefold() in content.casefold():
                 failures.append("local profile value in {}".format(relative))
                 break
+        if any(_quoted_value_present(content, value) for value in local_labels):
+            failures.append("local application label in {}".format(relative))
+        if any(
+            all(_quoted_value_present(content, value) for value in group)
+            for group in preference_groups
+        ):
+            failures.append("local matching rule copied into {}".format(relative))
     if include_history:
         failures.extend(history_failures())
     return sorted(set(failures))

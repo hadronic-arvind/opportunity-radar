@@ -340,6 +340,7 @@ h1 {
   text-decoration: none;
 }
 .card-button:hover, .official-link:hover { border-color: var(--line-strong); }
+.card-button:disabled { cursor: wait; opacity: .52; }
 .official-link { color: #fff; border-color: var(--pine-deep); background: var(--pine-deep); }
 .card-button.selected { color: var(--pine-deep); border-color: color-mix(in srgb, var(--pine) 35%, var(--line)); background: var(--mint); }
 .card-button.danger:hover { color: var(--coral); border-color: var(--coral); }

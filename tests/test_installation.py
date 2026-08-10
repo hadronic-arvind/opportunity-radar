@@ -238,6 +238,42 @@ class InstallationTests(unittest.TestCase):
         ):
             self.assertEqual(module.main(), 1)
 
+    def test_cron_labels_are_isolated(self):
+        _project, module = load_script("manage_cron_labels", "manage_cron.py")
+        label_a = "io.github.opportunity-radar.alpha"
+        label_b = "io.github.opportunity-radar.beta"
+        schedule_a = module.build_crontab(
+            "",
+            Path("/tmp/runtime-alpha"),
+            [(7, 30), (16, 30)],
+            label_a,
+        )
+        both = module.build_crontab(
+            schedule_a,
+            Path("/tmp/runtime-beta"),
+            [(8, 0), (17, 0)],
+            label_b,
+        )
+        self.assertTrue(module.has_managed_block(both, label_a))
+        self.assertTrue(module.has_managed_block(both, label_b))
+        without_a = module.without_managed_block(both, label_a)
+        self.assertFalse(module.has_managed_block(without_a, label_a))
+        self.assertTrue(module.has_managed_block(without_a, label_b))
+        self.assertIn("/tmp/runtime-beta", without_a)
+
+    def test_cron_runtime_rejects_relative_and_control_character_paths(self):
+        _project, module = load_script("manage_cron_runtime", "manage_cron.py")
+        with self.assertRaisesRegex(ValueError, "absolute"):
+            module.build_crontab("", Path("relative/runtime"), [(7, 30)])
+        for character in ("\n", "\r", "\t", "\x00", "\x7f"):
+            with self.subTest(character=repr(character)):
+                with self.assertRaisesRegex(ValueError, "control characters"):
+                    module.build_crontab(
+                        "",
+                        Path("/tmp/runtime{}injected".format(character)),
+                        [(7, 30)],
+                    )
+
     def test_launch_label_is_strict_and_bounded(self):
         _project, module = load_script("render_launch_agent_labels", "render_launch_agent.py")
         self.assertEqual(
@@ -543,11 +579,11 @@ class InstallationTests(unittest.TestCase):
         ):
             self.assertIn('"${}"'.format(variable), source[reservation:first_mutation])
         self.assertIn(
-            '/bin/mv "$PROJECT_DIR/dashboard/index.html" "$DASHBOARD_BACKUP"',
+            '/bin/mv "$DASHBOARD_PATH" "$DASHBOARD_BACKUP"',
             source,
         )
         self.assertIn(
-            '/bin/mv "$PROJECT_DIR/data/opportunities.sqlite3" "$DATABASE_BACKUP"',
+            '/bin/mv "$DATABASE_PATH" "$DATABASE_BACKUP"',
             source,
         )
         for asset in ("template.html", "styles.css", "app.js"):
@@ -572,6 +608,71 @@ class InstallationTests(unittest.TestCase):
         self.assertIn("cannot switch safely to the cron fallback", source.lower())
         self.assertIn('manage_cron.py" verify', source)
         self.assertIn('SCHEDULER_KIND="existing cron fallback"', source)
+
+    def test_scheduler_lifecycle_has_phase_rollback_locking_and_signal_guards(self):
+        project = Path(__file__).resolve().parents[1]
+        installer = (project / "scripts" / "install_launch_agent.sh").read_text(
+            encoding="utf-8"
+        )
+        uninstaller = (project / "scripts" / "uninstall_launch_agent.sh").read_text(
+            encoding="utf-8"
+        )
+        lock = 'LOCK_DIR="$LOCK_PARENT/.OpportunityRadar.lifecycle-lock"'
+        self.assertIn(lock, installer)
+        self.assertIn(lock, uninstaller)
+        for source in (installer, uninstaller):
+            self.assertIn("trap 'rollback 129' HUP", source)
+            self.assertIn("trap 'rollback 130' INT", source)
+            self.assertIn("trap 'rollback 143' TERM", source)
+            self.assertIn("bootstrapped from a different property list", source)
+            self.assertIn("trap - ERR\n  /bin/launchctl print", source)
+            self.assertIn('mkdir "$LOCK_DIR"', source)
+            self.assertIn('/bin/rmdir "$LOCK_DIR"', source)
+            self.assertIn('--label "$LABEL"', source)
+
+        self.assertLess(
+            installer.rindex("ARCHIVED_PREVIOUS_RUNTIME=1"),
+            installer.index('/bin/mv "$PREVIOUS_RUNTIME" "$ARCHIVED_PREVIOUS_RUNTIME_PATH"'),
+        )
+        self.assertLess(
+            installer.rindex("OLD_RUNTIME_MOVED=1"),
+            installer.index('/bin/mv "$RUNTIME_DIR" "$PREVIOUS_RUNTIME"'),
+        )
+        self.assertLess(
+            installer.rindex("OLD_RUNTIME_MOVED=1"),
+            installer.index('/bin/mv "$STAGE" "$RUNTIME_DIR"'),
+        )
+        self.assertLess(
+            installer.rindex("STAGE_PROMOTED=1"),
+            installer.index('/bin/mv "$STAGE" "$RUNTIME_DIR"'),
+        )
+        for flag, move in (
+            ("HAD_DASHBOARD_PATH=1", '/bin/mv "$DASHBOARD_PATH" "$DASHBOARD_BACKUP"'),
+            ("HAD_DATABASE_PATH=1", '/bin/mv "$DATABASE_PATH" "$DATABASE_BACKUP"'),
+            (
+                "HAD_SCHEDULER_OUT_PATH=1",
+                '/bin/mv "$SCHEDULER_OUT_PATH" "$SCHEDULER_OUT_BACKUP"',
+            ),
+            (
+                "HAD_SCHEDULER_ERR_PATH=1",
+                '/bin/mv "$SCHEDULER_ERR_PATH" "$SCHEDULER_ERR_BACKUP"',
+            ),
+        ):
+            self.assertLess(installer.rindex(flag), installer.index(move))
+        self.assertLess(
+            uninstaller.rindex("MOVED_TARGET=1"),
+            uninstaller.index('/bin/mv "$TARGET" "$TRASH_TARGET"'),
+        )
+        self.assertIn('if [[ "$OLD_RUNTIME_MOVED" -eq 1', installer)
+        self.assertIn('if [[ "$ARCHIVED_PREVIOUS_RUNTIME" -eq 1', installer)
+        self.assertIn("restore_managed_link", installer)
+        for path in (
+            "$DASHBOARD_PATH",
+            "$DATABASE_PATH",
+            "$SCHEDULER_OUT_PATH",
+            "$SCHEDULER_ERR_PATH",
+        ):
+            self.assertIn(path, installer)
 
     def test_shell_uninstaller_validates_before_launchctl_mutation(self):
         project = Path(__file__).resolve().parents[1]
@@ -709,8 +810,59 @@ class InstallationTests(unittest.TestCase):
             )
             self.assertNotEqual(completed.returncode, 0)
             self.assertEqual(target.read_text(encoding="utf-8"), "prior launchd state")
-            self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["remove", "restore"])
+            self.assertEqual(
+                log.read_text(encoding="utf-8").splitlines(),
+                ["remove", "restore"],
+                completed.stderr,
+            )
             self.assertEqual(list(trash.iterdir()), [])
+
+    @unittest.skipUnless(platform.system() == "Darwin", "macOS scheduler paths only")
+    def test_uninstaller_refuses_an_existing_lifecycle_lock_before_scheduler_access(self):
+        project = Path(__file__).resolve().parents[1]
+        script = project / "scripts" / "uninstall_launch_agent.sh"
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            home = root / "home"
+            launch_agents = home / "Library" / "LaunchAgents"
+            trash = home / ".Trash"
+            lock = home / "Library" / "Application Support" / ".OpportunityRadar.lifecycle-lock"
+            launch_agents.mkdir(parents=True, mode=0o700)
+            trash.mkdir(mode=0o700)
+            lock.mkdir(parents=True, mode=0o700)
+            home.chmod(0o700)
+
+            log = root / "fake-python.log"
+            fake_python = root / "python"
+            fake_python.write_text(
+                "#!/bin/bash\n"
+                'printf "%s\\n" "${2:-missing}" >> "$FAKE_PYTHON_LOG"\n'
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake_python.chmod(0o700)
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "HOME": str(home),
+                    "FAKE_PYTHON_LOG": str(log),
+                    "OPPORTUNITY_RADAR_LABEL": "io.github.opportunity-radar.lock-test",
+                    "OPPORTUNITY_RADAR_LAUNCH_AGENTS_DIR": str(launch_agents),
+                    "OPPORTUNITY_RADAR_PYTHON": str(fake_python),
+                }
+            )
+            completed = subprocess.run(
+                ["/bin/bash", str(script)],
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("already running", completed.stderr)
+            self.assertTrue(lock.is_dir())
+            self.assertFalse(log.exists())
 
 
 if __name__ == "__main__":

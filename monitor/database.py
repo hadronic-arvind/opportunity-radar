@@ -413,19 +413,32 @@ class Database:
     def dashboard_payload(self) -> Dict[str, Any]:
         application_rows = self.connection.execute(
             """
-            SELECT opportunities.* FROM opportunities
+            SELECT opportunities.*, sources.enabled AS source_enabled
+            FROM opportunities
             JOIN sources ON sources.id = opportunities.source_id
             WHERE opportunities.status IN ('apply', 'applied')
             ORDER BY score DESC, COALESCE(deadline_at, '9999') ASC, first_seen_at DESC
             """
         ).fetchall()
+        bookmarked_rows = self.connection.execute(
+            """
+            SELECT opportunities.*, sources.enabled AS source_enabled
+            FROM opportunities
+            JOIN sources ON sources.id = opportunities.source_id
+            WHERE opportunities.bookmarked=1
+              AND opportunities.status NOT IN ('apply', 'applied')
+            ORDER BY score DESC, COALESCE(deadline_at, '9999') ASC, first_seen_at DESC
+            """
+        ).fetchall()
         discovery_rows = self.connection.execute(
             """
-            SELECT opportunities.* FROM opportunities
+            SELECT opportunities.*, sources.enabled AS source_enabled
+            FROM opportunities
             JOIN sources ON sources.id = opportunities.source_id
             WHERE opportunities.active=1
               AND opportunities.tier != 'skip'
               AND opportunities.status NOT IN ('apply', 'applied')
+              AND opportunities.bookmarked=0
               AND sources.enabled=1
             ORDER BY score DESC, COALESCE(deadline_at, '9999') ASC, first_seen_at DESC
             LIMIT ?
@@ -445,8 +458,15 @@ class Database:
             ).fetchone()[0]
         )
         opportunities = [
-            self._dashboard_row(row) for row in application_rows + discovery_rows
+            self._dashboard_row(row)
+            for row in application_rows + bookmarked_rows + discovery_rows
         ]
+        available_bookmarks = sum(
+            bool(row["active"])
+            and row["tier"] != "skip"
+            and bool(row["source_enabled"])
+            for row in bookmarked_rows
+        )
         sources = [
             dict(row)
             for row in self.connection.execute(
@@ -496,10 +516,7 @@ class Database:
                                      AND sources.enabled=1 THEN 1 ELSE 0 END) AS new,
                        SUM(CASE WHEN status='apply' THEN 1 ELSE 0 END) AS applying,
                        SUM(CASE WHEN status='applied' THEN 1 ELSE 0 END) AS applied,
-                       SUM(CASE WHEN bookmarked=1 AND (
-                                    (active=1 AND tier != 'skip' AND sources.enabled=1)
-                                    OR status IN ('apply', 'applied')
-                                ) THEN 1 ELSE 0 END) AS bookmarked
+                       SUM(CASE WHEN bookmarked=1 THEN 1 ELSE 0 END) AS bookmarked
                 FROM opportunities
                 JOIN sources ON sources.id = opportunities.source_id
                 """
@@ -515,7 +532,8 @@ class Database:
             "display": {
                 "discovery_limit": MAX_DASHBOARD_DISCOVERY_ITEMS,
                 "discovery_total": discovery_total,
-                "discovery_truncated": discovery_total > len(discovery_rows),
+                "discovery_truncated": discovery_total
+                > len(discovery_rows) + available_bookmarks,
             },
         }
 
@@ -555,6 +573,7 @@ class Database:
             "commitment",
             "eligibility",
             "active",
+            "source_enabled",
         }
         output = {key: value for key, value in item.items() if key in allowed}
         output["match"] = match if isinstance(match, dict) else {}

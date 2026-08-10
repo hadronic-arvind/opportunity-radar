@@ -42,6 +42,33 @@ class SeedTests(unittest.TestCase):
         self.assertEqual(items[0].organization, "Acme Research Labs")
         self.assertEqual(items[1].organization, "Example Institute")
 
+    def test_structured_seed_columns_drive_organization_and_type(self):
+        content = """# Pipeline
+## Programs
+| Opportunity | Organization | Opportunity type | Notes |
+|---|---|---|---|
+| [Summer Scholars](https://example.com/scholars) | Example Institute | Internship | Laboratory research |
+"""
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = Path(tempdir) / "pipeline.md"
+            path.write_text(content)
+            items = parse_pipeline(path)
+        self.assertEqual(items[0].organization, "Example Institute")
+        self.assertEqual(items[0].opportunity_type, "internship")
+
+    def test_seed_heading_provides_type_evidence_when_title_is_generic(self):
+        content = """# Pipeline
+## Fellowships
+| Opportunity | Notes |
+|---|---|
+| [Example Scholars Program](https://example.com/program) | Public-interest research |
+"""
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = Path(tempdir) / "pipeline.md"
+            path.write_text(content)
+            items = parse_pipeline(path)
+        self.assertEqual(items[0].opportunity_type, "fellowship")
+
 
 if __name__ == "__main__":
     unittest.main()

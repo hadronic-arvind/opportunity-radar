@@ -41,6 +41,8 @@ It opens the dashboard directly and enables the in-dashboard Refresh, Scan all, 
 python3 extras/macos-app/install.py
 ```
 
+The schedule and app are independent, so you can omit either one.
+
 Add `--desktop-shortcut` only if you want an icon on the Desktop.
 
 ```bash

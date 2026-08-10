@@ -75,6 +75,7 @@ private func bridgeBoolean(_ value: Any?) -> Bool? {
 
 private struct AppConfiguration {
     let runtimeRoot: URL
+    let bundledPythonExecutable: URL
 
     static func load() throws -> AppConfiguration {
         guard let resource = Bundle.main.url(forResource: "config", withExtension: "plist") else {
@@ -89,7 +90,11 @@ private struct AppConfiguration {
                 format: nil
             ) as? [String: Any],
             let configuredRoot = payload["runtimeRoot"] as? String,
-            configuredRoot.hasPrefix("/")
+            configuredRoot.hasPrefix("/"),
+            let configuredPython = payload["pythonExecutable"] as? String,
+            configuredPython.hasPrefix("/"),
+            !configuredPython.contains("\n"),
+            !configuredPython.contains("\r")
         else {
             throw AppConfigurationError.unavailable
         }
@@ -119,7 +124,19 @@ private struct AppConfiguration {
         else {
             throw AppConfigurationError.unavailable
         }
-        return AppConfiguration(runtimeRoot: root)
+        let bundledPython = URL(fileURLWithPath: configuredPython, isDirectory: false)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        guard
+            regularFile(bundledPython, allowSymbolicLink: true),
+            FileManager.default.isExecutableFile(atPath: bundledPython.path)
+        else {
+            throw AppConfigurationError.unavailable
+        }
+        return AppConfiguration(
+            runtimeRoot: root,
+            bundledPythonExecutable: bundledPython
+        )
     }
 
     func dashboardURLIfPresent() throws -> URL? {
@@ -167,6 +184,9 @@ private struct AppConfiguration {
         let pathFile = runtimeRoot
             .appendingPathComponent("config", isDirectory: true)
             .appendingPathComponent("python-path", isDirectory: false)
+        guard pathEntryExists(pathFile) else {
+            return bundledPythonExecutable
+        }
         let attributes = try FileManager.default.attributesOfItem(atPath: pathFile.path)
         let size = (attributes[.size] as? NSNumber)?.intValue ?? Int.max
         guard
@@ -280,7 +300,7 @@ private final class OutputDrainer {
 }
 
 private enum CommandPurpose {
-    case bridge(BridgeAction)
+    case bridge(BridgeAction, String)
     case initialDashboard
 }
 
@@ -703,6 +723,7 @@ private final class AppDelegate: NSObject,
         } catch {
             complete(
                 action: action,
+                requestID: nil,
                 ok: false,
                 message: "The dashboard could not be reloaded."
             )
@@ -774,48 +795,83 @@ private final class AppDelegate: NSObject,
 
     private func handleScan(_ payload: [String: Any]) {
         guard
-            Set(payload.keys) == Set(["version", "action", "mode"]),
+            let requestID = payload["request"] as? String,
+            validRequestID(requestID)
+        else {
+            return
+        }
+        guard
+            Set(payload.keys) == Set(["version", "action", "mode", "request"]),
             let mode = payload["mode"] as? String,
             ["due", "all"].contains(mode)
         else {
-            complete(action: .scan, ok: false, message: "The refresh request was rejected.")
+            complete(
+                action: .scan,
+                requestID: requestID,
+                ok: false,
+                message: "The refresh request was rejected."
+            )
             return
         }
         let arguments = mode == "all"
             ? ["-m", "monitor", "scan", "--quiet", "--force"]
             : ["-m", "monitor", "scan", "--quiet"]
-        startCommand(action: .scan, arguments: arguments)
+        startCommand(action: .scan, requestID: requestID, arguments: arguments)
     }
 
     private func handleStatus(_ payload: [String: Any]) {
         guard
-            Set(payload.keys) == Set(["version", "action", "id", "status"]),
+            let requestID = payload["request"] as? String,
+            validRequestID(requestID)
+        else {
+            return
+        }
+        guard
+            Set(payload.keys) == Set(["version", "action", "id", "status", "request"]),
             let identifier = payload["id"] as? String,
             validIdentifier(identifier),
             let value = payload["status"] as? String,
             ApplicationStatus(rawValue: value) != nil
         else {
-            complete(action: .status, ok: false, message: "The status request was rejected.")
+            complete(
+                action: .status,
+                requestID: requestID,
+                ok: false,
+                message: "The status request was rejected."
+            )
             return
         }
         startCommand(
             action: .status,
+            requestID: requestID,
             arguments: ["-m", "monitor", "status", identifier, value, "--quiet"]
         )
     }
 
     private func handleBookmark(_ payload: [String: Any]) {
         guard
-            Set(payload.keys) == Set(["version", "action", "id", "bookmarked"]),
+            let requestID = payload["request"] as? String,
+            validRequestID(requestID)
+        else {
+            return
+        }
+        guard
+            Set(payload.keys) == Set(["version", "action", "id", "bookmarked", "request"]),
             let identifier = payload["id"] as? String,
             validIdentifier(identifier),
             let bookmarked = bridgeBoolean(payload["bookmarked"])
         else {
-            complete(action: .bookmark, ok: false, message: "The bookmark request was rejected.")
+            complete(
+                action: .bookmark,
+                requestID: requestID,
+                ok: false,
+                message: "The bookmark request was rejected."
+            )
             return
         }
         startCommand(
             action: .bookmark,
+            requestID: requestID,
             arguments: [
                 "-m",
                 "monitor",
@@ -833,20 +889,34 @@ private final class AppDelegate: NSObject,
             let value = payload["theme"] as? String,
             let theme = Theme(rawValue: value)
         else {
-            complete(action: .theme, ok: false, message: "The theme request was rejected.")
+            complete(
+                action: .theme,
+                requestID: nil,
+                ok: false,
+                message: "The theme request was rejected."
+            )
             return
         }
         theme.persist()
         setPageTheme(theme)
-        complete(action: .theme, ok: true, message: "Theme updated.")
+        complete(action: .theme, requestID: nil, ok: true, message: "Theme updated.")
     }
 
-    private func startCommand(action: BridgeAction, arguments: [String]) {
+    private func startCommand(
+        action: BridgeAction,
+        requestID: String,
+        arguments: [String]
+    ) {
         guard runningCommand == nil else {
-            complete(action: action, ok: false, message: "Another action is already running.")
+            complete(
+                action: action,
+                requestID: requestID,
+                ok: false,
+                message: "Another action is already running."
+            )
             return
         }
-        launchCommand(purpose: .bridge(action), arguments: arguments)
+        launchCommand(purpose: .bridge(action, requestID), arguments: arguments)
     }
 
     private func startInitialDashboardGeneration() {
@@ -892,8 +962,13 @@ private final class AppDelegate: NSObject,
             standardOutput.stop()
             standardError.stop()
             switch purpose {
-            case .bridge(let action):
-                complete(action: action, ok: false, message: "The action could not be started.")
+            case .bridge(let action, let requestID):
+                complete(
+                    action: action,
+                    requestID: requestID,
+                    ok: false,
+                    message: "The action could not be started."
+                )
             case .initialDashboard:
                 showDashboardPreparationFailure()
             }
@@ -926,12 +1001,20 @@ private final class AppDelegate: NSObject,
             } catch {
                 showDashboardPreparationFailure()
             }
-        case .bridge(let action):
-            finishBridgeCommand(action: action, succeeded: succeeded)
+        case .bridge(let action, let requestID):
+            finishBridgeCommand(
+                action: action,
+                requestID: requestID,
+                succeeded: succeeded
+            )
         }
     }
 
-    private func finishBridgeCommand(action: BridgeAction, succeeded: Bool) {
+    private func finishBridgeCommand(
+        action: BridgeAction,
+        requestID: String,
+        succeeded: Bool
+    ) {
         let message: String
         switch action {
         case .scan:
@@ -944,7 +1027,12 @@ private final class AppDelegate: NSObject,
             message = succeeded ? "Theme updated." : "The theme could not be updated."
         }
 
-        complete(action: action, ok: succeeded, message: message) { [weak self] in
+        complete(
+            action: action,
+            requestID: requestID,
+            ok: succeeded,
+            message: message
+        ) { [weak self] in
             if succeeded && action != .theme {
                 self?.reloadDashboard(after: action)
             }
@@ -970,6 +1058,7 @@ private final class AppDelegate: NSObject,
 
     private func complete(
         action: BridgeAction,
+        requestID: String?,
         ok: Bool,
         message: String,
         completion: (() -> Void)? = nil
@@ -979,7 +1068,11 @@ private final class AppDelegate: NSObject,
             "ok": ok,
             "message": message,
         ]
-        guard let json = jsonLiteral(payload) else {
+        var response = payload
+        if let requestID {
+            response["request"] = requestID
+        }
+        guard let json = jsonLiteral(response) else {
             completion?()
             return
         }
@@ -1014,6 +1107,15 @@ private final class AppDelegate: NSObject,
         guard value.utf8.count == 24 else { return false }
         return value.utf8.allSatisfy { byte in
             (48...57).contains(byte) || (97...102).contains(byte)
+        }
+    }
+
+    private func validRequestID(_ value: String) -> Bool {
+        guard (2...32).contains(value.utf8.count), value.first == "r" else {
+            return false
+        }
+        return value.dropFirst().utf8.allSatisfy { byte in
+            (48...57).contains(byte)
         }
     }
 

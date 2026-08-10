@@ -42,11 +42,15 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn("ApplicationStatus(rawValue: value) != nil", self.source)
         self.assertIn('let bookmarked = bridgeBoolean(payload["bookmarked"])', self.source)
         self.assertIn('let theme = Theme(rawValue: value)', self.source)
+        self.assertIn('validRequestID(requestID)', self.source)
+        self.assertIn('response["request"] = requestID', self.source)
         self.assertIn("window.OpportunityRadarNative?.complete(", self.source)
         self.assertIn("window.OpportunityRadarNative?.setTheme(", self.source)
 
     def test_runtime_python_lookup_and_process_boundary_are_explicit(self):
         self.assertIn('appendingPathComponent("python-path"', self.source)
+        self.assertIn('payload["pythonExecutable"] as? String', self.source)
+        self.assertIn("return bundledPythonExecutable", self.source)
         self.assertIn("process.executableURL = try configuration.pythonExecutable()", self.source)
         self.assertIn("process.arguments = arguments", self.source)
         self.assertIn("process.environment = commandEnvironment()", self.source)

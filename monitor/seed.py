@@ -10,6 +10,27 @@ from .text import canonical_url, clean_text, infer_opportunity_type, stable_hash
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)]+)\)")
 BACKTICK_RE = re.compile(r"`([^`]+)`")
+ORGANIZATION_COLUMNS = {
+    "company",
+    "employer",
+    "host",
+    "host organization",
+    "institution",
+    "organization",
+}
+TYPE_COLUMNS = {"opportunity type", "program type", "type"}
+TITLE_COLUMNS = {"job", "opportunity", "position", "posting", "program", "role"}
+
+
+def _cells(line: str) -> List[str]:
+    return [clean_text(cell.replace("`", "")) for cell in line.strip("|").split("|")]
+
+
+def _column_value(headers: List[str], cells: List[str], names: set[str]) -> str:
+    for index, header in enumerate(headers):
+        if header.casefold().rstrip(":") in names and index < len(cells):
+            return cells[index]
+    return ""
 
 
 def _organization(title: str) -> str:
@@ -52,18 +73,22 @@ def parse_pipeline(
     lines = path.read_text(encoding="utf-8").splitlines()
     allowed_codes = {code for code in resume_codes if code}
     heading = ""
+    headers: List[str] = []
     items: List[Opportunity] = []
     for line in lines:
         if line.startswith("## ") or line.startswith("### "):
             heading = line.lstrip("# ").strip()
+            headers = []
             if "open postings that look attractive" in heading.lower():
                 break
             continue
         if not line.startswith("|") or "---" in line:
             continue
-        cells = [clean_text(cell.replace("`", "")) for cell in line.strip("|").split("|")]
+        cells = _cells(line)
         raw_match = LINK_RE.search(line)
         if not raw_match:
+            if any(cell.casefold().rstrip(":") in TITLE_COLUMNS for cell in cells):
+                headers = cells
             continue
         title, url = raw_match.groups()
         if title.lower() in {"opportunity", "program", "posting", "published rates"}:
@@ -73,13 +98,20 @@ def parse_pipeline(
         description = " ".join(cell for cell in cells if title not in cell and url not in cell)
         deadline = _extract_deadline(description, default_year=default_year)
         commitment = _extract_commitment(description)
-        opportunity_type = infer_opportunity_type(title, default="job")
+        organization = _column_value(headers, cells, ORGANIZATION_COLUMNS)
+        declared_type = _column_value(headers, cells, TYPE_COLUMNS)
+        opportunity_type = infer_opportunity_type(
+            title,
+            (heading,),
+            explicit=declared_type,
+            default="job",
+        )
         items.append(
             Opportunity(
                 source_id="curated_pipeline",
                 external_id=stable_hash(canonical_url(url)),
                 title=clean_text(title),
-                organization=_organization(title),
+                organization=organization or _organization(title),
                 url=canonical_url(url),
                 description=description,
                 category=heading,

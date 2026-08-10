@@ -21,6 +21,19 @@ reject_writable_by_others() {
   fi
 }
 
+service_uses_target() {
+  local description="$1"
+  local line
+  local trimmed
+  while IFS= read -r line; do
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    if [[ "$trimmed" == "path = $TARGET" ]]; then
+      return 0
+    fi
+  done <<< "$description"
+  return 1
+}
+
 LABEL="${OPPORTUNITY_RADAR_LABEL:-io.github.opportunity-radar.monitor}"
 if [[ ${#LABEL} -gt 128 || ! "$LABEL" =~ ^[A-Za-z0-9]+([.-][A-Za-z0-9]+)*$ ]]; then
   echo "The launch label contains unsafe characters." >&2
@@ -94,25 +107,44 @@ if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
   exit 1
 fi
 
-CRON_BACKUP="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/opportunity-radar-crontab.XXXXXX")"
+LOCK_PARENT="$HOME_DIR/Library/Application Support"
+LOCK_DIR="$LOCK_PARENT/.OpportunityRadar.lifecycle-lock"
+if [[ -L "$LOCK_PARENT" ]]; then
+  echo "Refusing to use a symbolic-link lifecycle-lock parent." >&2
+  exit 1
+fi
+mkdir -p "$LOCK_PARENT"
+if [[ ! -d "$LOCK_PARENT" || ! -O "$LOCK_PARENT" ]]; then
+  echo "Refusing to use an unsafe lifecycle-lock parent." >&2
+  exit 1
+fi
+reject_writable_by_others "$LOCK_PARENT" "lifecycle-lock parent"
+
+CRON_BACKUP=""
 CRON_SNAPSHOT_READY=0
 CRON_MUTATION_ATTEMPTED=0
 SCHEDULER_MUTATION_STARTED=0
 WAS_LOADED=0
 MOVED_TARGET=0
+LOCK_HELD=0
 
 cleanup() {
   if [[ -n "$CRON_BACKUP" && -f "$CRON_BACKUP" && ! -L "$CRON_BACKUP" ]]; then
     /bin/rm -f "$CRON_BACKUP"
   fi
+  if [[ "$LOCK_HELD" -eq 1 && -d "$LOCK_DIR" && ! -L "$LOCK_DIR" && -O "$LOCK_DIR" ]]; then
+    /bin/rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+    LOCK_HELD=0
+  fi
 }
 
 rollback() {
   local exit_code="$1"
-  trap - ERR
+  trap - ERR HUP INT TERM
   echo "Uninstall failed; restoring the previous scheduler state." >&2
   if [[ "$CRON_MUTATION_ATTEMPTED" -eq 1 && "$CRON_SNAPSHOT_READY" -eq 1 ]]; then
     "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" restore \
+      --label "$LABEL" \
       < "$CRON_BACKUP" >/dev/null 2>&1 || true
   fi
   if [[ "$MOVED_TARGET" -eq 1 && -n "$TRASH_TARGET" && -f "$TRASH_TARGET" ]]; then
@@ -127,11 +159,30 @@ rollback() {
 
 trap 'rollback $?' ERR
 trap cleanup EXIT
+trap 'rollback 129' HUP
+trap 'rollback 130' INT
+trap 'rollback 143' TERM
 
-"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot > "$CRON_BACKUP"
+if ! mkdir "$LOCK_DIR"; then
+  echo "Another Opportunity Radar install or uninstall is already running." >&2
+  exit 1
+fi
+LOCK_HELD=1
+CRON_BACKUP="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/opportunity-radar-crontab.XXXXXX")"
+
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot \
+  --label "$LABEL" > "$CRON_BACKUP"
 CRON_SNAPSHOT_READY=1
-if /bin/launchctl print "$SERVICE" >/dev/null 2>&1; then
+SERVICE_DESCRIPTION=""
+if SERVICE_DESCRIPTION="$(
+  trap - ERR
+  /bin/launchctl print "$SERVICE" 2>/dev/null
+)"; then
   WAS_LOADED=1
+  if ! service_uses_target "$SERVICE_DESCRIPTION"; then
+    echo "The loaded launch agent was bootstrapped from a different property list." >&2
+    false
+  fi
 fi
 if [[ "$WAS_LOADED" -eq 1 && ! -f "$TARGET" ]]; then
   echo "The loaded launch agent has no restorable property list." >&2
@@ -143,12 +194,13 @@ if [[ "$WAS_LOADED" -eq 1 ]]; then
   /bin/launchctl bootout "$SERVICE"
 fi
 if [[ -f "$TARGET" ]]; then
-  /bin/mv "$TARGET" "$TRASH_TARGET"
   MOVED_TARGET=1
+  /bin/mv "$TARGET" "$TRASH_TARGET"
 fi
 CRON_MUTATION_ATTEMPTED=1
-"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" remove >/dev/null
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" remove \
+  --label "$LABEL" >/dev/null
 
-trap - ERR
+trap - ERR HUP INT TERM
 echo "Opportunity Radar scheduling is disabled."
 echo "The runtime and database remain in Library/Application Support/OpportunityRadar for recovery."

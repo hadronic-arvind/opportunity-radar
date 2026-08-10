@@ -198,6 +198,44 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(len(payload["opportunities"]), 3)
         self.assertIn("applied", {item["status"] for item in payload["opportunities"]})
 
+    def test_dashboard_cap_preserves_active_and_inactive_bookmarks(self):
+        identifiers = {}
+        for external_id, score in (
+            ("high-one", 100),
+            ("high-two", 90),
+            ("low-saved", 1),
+            ("inactive-saved", 2),
+        ):
+            self.database.upsert_opportunity(
+                Opportunity(
+                    "test",
+                    external_id,
+                    external_id.title(),
+                    "Example",
+                    "https://example.com/{}".format(external_id),
+                    score=score,
+                )
+            )
+        for row in self.database.connection.execute(
+            "SELECT id, external_id FROM opportunities"
+        ).fetchall():
+            identifiers[row["external_id"]] = row["id"]
+        self.database.set_bookmarked(identifiers["low-saved"], True)
+        self.database.set_bookmarked(identifiers["inactive-saved"], True)
+        self.database.mark_source_stale(
+            "test", ["high-one", "high-two", "low-saved"]
+        )
+
+        with patch("monitor.database.MAX_DASHBOARD_DISCOVERY_ITEMS", 1):
+            payload = self.database.dashboard_payload()
+
+        rendered = {item["id"]: item for item in payload["opportunities"]}
+        self.assertIn(identifiers["low-saved"], rendered)
+        self.assertIn(identifiers["inactive-saved"], rendered)
+        self.assertFalse(rendered[identifiers["inactive-saved"]]["active"])
+        self.assertEqual(payload["counts"]["bookmarked"], 2)
+        self.assertTrue(payload["display"]["discovery_truncated"])
+
     def test_disabled_source_is_hidden_without_deleting_history(self):
         self.database.upsert_opportunity(
             Opportunity("test", "one", "Research Intern", "Lab", "https://example.com/one")

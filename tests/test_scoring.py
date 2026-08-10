@@ -144,6 +144,43 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(item.score, 20)
         self.assertEqual(item.reasons, [])
 
+    def test_unlisted_or_metadata_fields_cannot_affect_matching(self):
+        item = Opportunity(
+            "hidden-term-source",
+            "hidden-term-id",
+            "Example role",
+            "Example organization",
+            "https://example.com/hidden-term",
+            posted_at="hidden-term",
+            deadline_at="hidden-term",
+            commitment="hidden-term",
+            metadata={"private_context": "hidden-term"},
+        )
+        profile = {
+            "matching": {
+                "base_score": 20,
+                "rules": [
+                    {
+                        "id": "unsupported_fields",
+                        "label": "Unsupported fields",
+                        "weight": 50,
+                        "fields": [
+                            "source_id",
+                            "external_id",
+                            "posted_at",
+                            "deadline_at",
+                            "commitment",
+                            "metadata",
+                        ],
+                        "terms": ["hidden-term"],
+                    }
+                ],
+            }
+        }
+        score_opportunity(item, profile)
+        self.assertEqual(item.score, 20)
+        self.assertEqual(item.reasons, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,12 +22,15 @@
     filter: "all",
     query: "",
     sort: "fit",
-    limit: PAGE_SIZE,
+    visibleItems: [],
+    rendered: 0,
     busy: false,
+    pendingRequest: null,
     workflow: loadWorkflow(),
   };
   let observer = null;
   let toastTimer = null;
+  let requestSequence = 0;
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -111,33 +114,71 @@
     toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4800);
   }
 
-  function setBusy(value, label) {
+  function setBusy(value, label, request) {
     state.busy = Boolean(value);
+    state.pendingRequest = state.busy ? String(request || "") : null;
     document.getElementById("refresh-button").disabled = state.busy;
     document.getElementById("scan-all-button").disabled = state.busy;
     document.getElementById("scan-state").textContent = state.busy ? String(label || "Working...") : "";
+    document.getElementById("opportunity-list").setAttribute("aria-busy", String(state.busy));
+    document.querySelectorAll("#opportunity-list button[data-action]").forEach((button) => {
+      button.disabled = state.busy;
+    });
+  }
+
+  function nextRequest() {
+    requestSequence = requestSequence >= 999999999 ? 1 : requestSequence + 1;
+    return "r" + requestSequence;
+  }
+
+  function startNativeAction(message, label) {
+    if (state.busy) {
+      showToast("Wait for the current action to finish.");
+      return false;
+    }
+    const request = nextRequest();
+    setBusy(true, label, request);
+    if (!postNative(Object.assign({}, message, {request}))) {
+      setBusy(false);
+      return false;
+    }
+    return true;
   }
 
   function scan(mode) {
-    if (state.busy) return;
-    if (!postNative({action: "scan", mode})) {
+    if (state.busy) {
+      showToast("Wait for the current action to finish.");
+      return;
+    }
+    if (!hasNativeBridge()) {
       showToast(mode === "all" ? "Terminal: python3 -m monitor scan --force" : "Terminal: python3 -m monitor scan");
       return;
     }
-    setBusy(true, mode === "all" ? "Scanning all..." : "Refreshing...");
+    startNativeAction(
+      {action: "scan", mode},
+      mode === "all" ? "Scanning all..." : "Refreshing..."
+    );
   }
 
   function updateWorkflow(id, change) {
     if (!validId(id) || !byId.has(id)) return;
     const item = byId.get(id);
     if (hasNativeBridge()) {
-      let sent = false;
-      if (Object.prototype.hasOwnProperty.call(change, "status")) {
-        sent = STATUS_VALUES.has(change.status) && postNative({action: "status", id, status: change.status});
-      } else if (Object.prototype.hasOwnProperty.call(change, "bookmarked")) {
-        sent = postNative({action: "bookmark", id, bookmarked: Boolean(change.bookmarked)});
+      if (state.busy) {
+        showToast("Wait for the current action to finish.");
+        return;
       }
-      if (!sent) showToast("The update could not be sent to the app.");
+      let message = null;
+      if (Object.prototype.hasOwnProperty.call(change, "status")) {
+        if (STATUS_VALUES.has(change.status)) {
+          message = {action: "status", id, status: change.status};
+        }
+      } else if (Object.prototype.hasOwnProperty.call(change, "bookmarked")) {
+        message = {action: "bookmark", id, bookmarked: Boolean(change.bookmarked)};
+      }
+      if (!message || !startNativeAction(message, "Updating...")) {
+        showToast("The update could not be sent to the app.");
+      }
       return;
     }
     const previous = Object.assign({}, state.workflow[id] || {});
@@ -182,11 +223,16 @@
     return status === "apply" || status === "applied";
   }
 
+  function isAvailable(item) {
+    return Boolean(item.active) && item.source_enabled !== 0 && item.tier !== "skip";
+  }
+
   function filteredItems() {
     const query = state.query.toLowerCase();
     const items = (data.opportunities || []).filter((item) => {
       const workflow = effective(item);
       if (state.view === "discover" && isApplication(workflow.status)) return false;
+      if (state.view === "discover" && !isAvailable(item) && !["saved", "dismissed"].includes(state.filter)) return false;
       if (state.view === "discover" && workflow.status === "skip" && state.filter !== "dismissed") return false;
       if (state.view === "applications" && !isApplication(workflow.status)) return false;
       if (state.filter === "saved" && !workflow.bookmarked) return false;
@@ -249,6 +295,7 @@
     if (item.recommended_resume) addTag(tags, (settings.document_label || "Application track") + ": " + item.recommended_resume, "track");
     if (workflow.status === "apply") addTag(tags, "Preparing application", "stage");
     if (workflow.status === "applied") addTag(tags, "Applied", "stage");
+    if (!isAvailable(item)) addTag(tags, "Listing no longer active", "warning");
     const warning = Array.isArray(item.warnings) ? item.warnings[0] : "";
     if (warning) addTag(tags, String(warning).slice(0, 120), "warning");
     if (tags.childNodes.length) article.appendChild(tags);
@@ -302,25 +349,15 @@
     remove.dataset.action = isDismissed || state.view === "applications" ? "new" : "skip";
     remove.dataset.id = item.id;
     actions.appendChild(remove);
+    actions.querySelectorAll("button[data-action]").forEach((button) => {
+      button.disabled = state.busy;
+    });
     article.appendChild(actions);
     return article;
   }
 
-  function renderList() {
-    const list = document.getElementById("opportunity-list");
-    const items = filteredItems();
-    const visible = items.slice(0, state.limit);
-    list.replaceChildren();
-    if (!visible.length) {
-      const empty = element("div", "empty");
-      empty.append(element("strong", "", state.view === "applications" ? "No applications here yet." : "Nothing matches this view."));
-      empty.append(document.createTextNode(state.view === "applications" ? " Choose Plan application on a listing to start tracking it." : " Try a broader search or clear the filters."));
-      list.appendChild(empty);
-    } else {
-      const fragment = document.createDocumentFragment();
-      visible.forEach((item) => fragment.appendChild(cardFor(item)));
-      list.appendChild(fragment);
-    }
+  function updateListMeta() {
+    const items = state.visibleItems;
     const display = data.display || {};
     const countLabel = items.length + (items.length === 1 ? " opportunity" : " opportunities");
     document.getElementById("results-note").textContent = (
@@ -329,12 +366,45 @@
         : countLabel
     );
     const zone = document.getElementById("load-zone");
-    const remaining = Math.max(0, items.length - visible.length);
+    const remaining = Math.max(0, items.length - state.rendered);
     zone.hidden = remaining === 0;
     document.getElementById("load-note").textContent = remaining ? remaining + " more" : "";
     document.getElementById("load-more").disabled = remaining === 0;
     document.getElementById("clear-filters").hidden = !state.query && state.filter === "all";
+  }
+
+  function appendNextPage() {
+    if (state.rendered >= state.visibleItems.length) {
+      updateListMeta();
+      installObserver();
+      return;
+    }
+    const end = Math.min(state.rendered + PAGE_SIZE, state.visibleItems.length);
+    const fragment = document.createDocumentFragment();
+    state.visibleItems.slice(state.rendered, end).forEach((item) => {
+      fragment.appendChild(cardFor(item));
+    });
+    document.getElementById("opportunity-list").appendChild(fragment);
+    state.rendered = end;
+    updateListMeta();
     installObserver();
+  }
+
+  function renderList() {
+    if (observer) observer.disconnect();
+    const list = document.getElementById("opportunity-list");
+    state.visibleItems = filteredItems();
+    state.rendered = 0;
+    list.replaceChildren();
+    if (!state.visibleItems.length) {
+      const empty = element("div", "empty");
+      empty.append(element("strong", "", state.view === "applications" ? "No applications here yet." : "Nothing matches this view."));
+      empty.append(document.createTextNode(state.view === "applications" ? " Choose Plan application on a listing to start tracking it." : " Try a broader search or clear the filters."));
+      list.appendChild(empty);
+      updateListMeta();
+      return;
+    }
+    appendNextPage();
   }
 
   function installObserver() {
@@ -342,8 +412,8 @@
     if (!("IntersectionObserver" in window) || document.getElementById("load-zone").hidden) return;
     observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
-        state.limit += PAGE_SIZE;
-        renderList();
+        observer.disconnect();
+        appendNextPage();
       }
     }, {rootMargin: "500px 0px"});
     observer.observe(document.getElementById("load-zone"));
@@ -377,8 +447,8 @@
     const applied = applications.filter((item) => effective(item).status === "applied").length;
     document.getElementById("stat-active").textContent = String((data.counts || {}).active ?? open);
     document.getElementById("stat-new").textContent = String((data.counts || {}).new ?? newest);
-    document.getElementById("stat-saved").textContent = String(saved);
-    document.getElementById("stat-applied").textContent = String(applied);
+    document.getElementById("stat-saved").textContent = String((data.counts || {}).bookmarked ?? saved);
+    document.getElementById("stat-applied").textContent = String((data.counts || {}).applied ?? applied);
     document.getElementById("application-count").textContent = String(applications.length);
   }
 
@@ -444,6 +514,7 @@
 
   window.OpportunityRadarNative = {
     complete(result) {
+      if (!result || String(result.request || "") !== state.pendingRequest) return;
       setBusy(false);
       if (result && result.message) showToast(result.message);
     },
@@ -474,31 +545,26 @@
     if (event.target.returnValue === "confirm") scan("all");
   });
   document.getElementById("load-more").addEventListener("click", () => {
-    state.limit += PAGE_SIZE;
-    renderList();
+    appendNextPage();
   });
   document.getElementById("search").addEventListener("input", (event) => {
     state.query = String(event.target.value || "").trim();
-    state.limit = PAGE_SIZE;
     renderList();
   });
   document.getElementById("sort").addEventListener("change", (event) => {
     state.sort = event.target.value;
-    state.limit = PAGE_SIZE;
     renderList();
   });
   document.getElementById("filter-row").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
     if (!button) return;
     state.filter = button.dataset.filter;
-    state.limit = PAGE_SIZE;
     renderAll();
   });
   document.getElementById("clear-filters").addEventListener("click", () => {
     state.filter = "all";
     state.query = "";
     document.getElementById("search").value = "";
-    state.limit = PAGE_SIZE;
     renderAll();
   });
   document.querySelector(".view-switcher").addEventListener("click", (event) => {
@@ -506,7 +572,6 @@
     if (!button || !["discover", "applications"].includes(button.dataset.view)) return;
     state.view = button.dataset.view;
     state.filter = "all";
-    state.limit = PAGE_SIZE;
     document.querySelectorAll(".view-button").forEach((entry) => {
       const active = entry === button;
       entry.classList.toggle("active", active);
