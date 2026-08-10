@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.14"]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run release gate
+        run: ./scripts/check.sh
+
+  macos-plist:
+    name: macOS launchd validation
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Render and validate launch agent
+        run: |
+          python3 scripts/render_launch_agent.py \
+            --runtime "$RUNNER_TEMP/Runtime & Data" \
+            --output "$RUNNER_TEMP/opportunity-radar.plist"
+          plutil -lint "$RUNNER_TEMP/opportunity-radar.plist"
+      - name: Validate shell scripts
+        run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+      - name: Build optional native app
+        run: |
+          python3 extras/macos-app/install.py \
+            --destination "$RUNNER_TEMP/Opportunity Radar.app"
+          plutil -lint "$RUNNER_TEMP/Opportunity Radar.app/Contents/Info.plist"
+          codesign --verify --deep --strict "$RUNNER_TEMP/Opportunity Radar.app"

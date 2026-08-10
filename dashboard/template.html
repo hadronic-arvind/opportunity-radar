@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-__OPPORTUNITY_NONCE__'; style-src 'nonce-__OPPORTUNITY_NONCE__'; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Opportunity Radar</title>
+  <style nonce="__OPPORTUNITY_NONCE__">/*__OPPORTUNITY_STYLES__*/</style>
+</head>
+<body>
+  <a class="skip-link" href="#results">Skip to opportunities</a>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="brand" href="#top" aria-label="Opportunity Radar home">
+        <span class="brand-mark" aria-hidden="true"><i></i></span>
+        <span id="dashboard-title">Opportunity Radar</span>
+      </a>
+      <div class="header-actions">
+        <span class="scan-state" id="scan-state" role="status" aria-live="polite"></span>
+        <button class="control subtle" id="refresh-button" type="button">Refresh</button>
+        <button class="control accent" id="scan-all-button" type="button">Scan all</button>
+        <label class="theme-control">
+          <span class="sr-only">Color theme</span>
+          <select id="theme-select" aria-label="Color theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="intro" aria-labelledby="intro-title">
+        <div>
+          <p class="context" id="search-context">Opportunity search</p>
+          <h1 id="intro-title">Your opportunities, organized.</h1>
+          <p class="subtitle" id="dashboard-subtitle">Find and track opportunities from the sources you choose.</p>
+        </div>
+        <div class="updated" id="last-scan">Preparing dashboard</div>
+      </section>
+
+      <section class="summary" aria-label="Search summary">
+        <div class="metric"><strong id="stat-active">0</strong><span>Open</span></div>
+        <div class="metric"><strong id="stat-new">0</strong><span>New</span></div>
+        <div class="metric"><strong id="stat-saved">0</strong><span>Saved</span></div>
+        <div class="metric"><strong id="stat-applied">0</strong><span>Applied</span></div>
+      </section>
+
+      <nav class="view-switcher" aria-label="Opportunity views">
+        <button type="button" class="view-button active" data-view="discover" aria-pressed="true">Discover</button>
+        <button type="button" class="view-button" data-view="applications" aria-pressed="false">Applications <span id="application-count">0</span></button>
+      </nav>
+
+      <section class="workspace" id="results">
+        <div class="results-panel">
+          <div class="toolbar">
+            <label class="search-field">
+              <span class="search-icon" aria-hidden="true"></span>
+              <span class="sr-only">Search opportunities</span>
+              <input id="search" type="search" placeholder="Search roles, organizations, places..." autocomplete="off">
+            </label>
+            <label>
+              <span class="sr-only">Sort opportunities</span>
+              <select id="sort" class="sort" aria-label="Sort opportunities">
+                <option value="fit">Best fit</option>
+                <option value="newest">Newest</option>
+                <option value="deadline">Deadline</option>
+                <option value="organization">Organization</option>
+              </select>
+            </label>
+          </div>
+          <div class="filter-row" id="filter-row" aria-label="Opportunity filters"></div>
+          <div class="results-meta">
+            <span id="results-note">0 opportunities</span>
+            <button class="text-button" id="clear-filters" type="button" hidden>Clear filters</button>
+          </div>
+          <div class="opportunity-list" id="opportunity-list" aria-live="polite"></div>
+          <div class="load-zone" id="load-zone" hidden>
+            <button class="control subtle" id="load-more" type="button">Load more</button>
+            <span id="load-note"></span>
+          </div>
+        </div>
+
+        <aside class="side-column" aria-label="Source status and help">
+          <section class="side-card source-health">
+            <div class="side-heading">
+              <div>
+                <p class="kicker">Sources</p>
+                <h2 id="health-summary">Not scanned yet</h2>
+              </div>
+              <span class="health-mark" id="health-mark" aria-hidden="true"></span>
+            </div>
+            <div class="source-overview" id="source-overview"></div>
+            <details>
+              <summary>View source details</summary>
+              <div class="source-list" id="source-list"></div>
+            </details>
+            <div class="event-section" id="event-section" hidden>
+              <p class="kicker">Recent page changes</p>
+              <div class="event-list" id="event-list"></div>
+            </div>
+          </section>
+          <section class="side-card guidance" id="guidance-card">
+            <p class="kicker">How scoring works</p>
+            <h2>Fit, not probability.</h2>
+            <p>Scores compare each listing with your own rules. They do not estimate whether you will be accepted.</p>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+  <dialog id="scan-dialog">
+    <form method="dialog">
+      <p class="kicker">Full scan</p>
+      <h2>Check every enabled source now?</h2>
+      <p>This ignores each source's normal schedule and may take a few minutes.</p>
+      <div class="dialog-actions">
+        <button class="control subtle" value="cancel">Cancel</button>
+        <button class="control accent" id="confirm-scan" value="confirm">Scan all sources</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script id="opportunity-data" type="application/json" nonce="__OPPORTUNITY_NONCE__">/*__OPPORTUNITY_DATA__*/</script>
+  <script nonce="__OPPORTUNITY_NONCE__">/*__OPPORTUNITY_APP__*/</script>
+</body>
+</html>

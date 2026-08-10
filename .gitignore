@@ -1,0 +1,42 @@
+# Private configuration and project-local agent memory
+/config/profile.local.json
+/config/sources.local.json
+/.agents/
+/.env*
+
+# Generated Python and test state
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/.mypy_cache/
+/coverage/
+
+# Local development artifacts from older dashboard previews
+/node_modules/
+/.next/
+/.vinext/
+/dist/
+/.wrangler/
+/.runtime/
+*.app/
+*.dSYM/
+
+# Local operating-system and credential files
+.DS_Store
+*.pem
+*.key
+*.p12
+*.pfx
+/seed/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local runtime and monitor state
+/data/
+/logs/
+/reports/
+/dashboard/index.html
+/dashboard/index.pre-runtime-*.html
+/public/dashboard/

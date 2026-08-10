@@ -1,0 +1,154 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "The automatic scheduler uninstaller currently supports macOS only." >&2
+  exit 1
+fi
+
+reject_writable_by_others() {
+  local path="$1"
+  local label="$2"
+  local mode
+  if ! mode="$(/usr/bin/stat -f '%Lp' "$path")" || [[ ! "$mode" =~ ^[0-7]{3,4}$ ]]; then
+    echo "Refusing to use an unsafe $label." >&2
+    return 1
+  fi
+  if (( (8#$mode & 8#22) != 0 )); then
+    echo "Refusing to use a group/world-writable $label." >&2
+    return 1
+  fi
+}
+
+LABEL="${OPPORTUNITY_RADAR_LABEL:-io.github.opportunity-radar.monitor}"
+if [[ ${#LABEL} -gt 128 || ! "$LABEL" =~ ^[A-Za-z0-9]+([.-][A-Za-z0-9]+)*$ ]]; then
+  echo "The launch label contains unsafe characters." >&2
+  exit 1
+fi
+
+if [[ -z "${HOME:-}" || "$HOME" != /* || -L "$HOME" || ! -d "$HOME" || ! -O "$HOME" ]]; then
+  echo "Refusing to use an unsafe home directory." >&2
+  exit 1
+fi
+HOME_DIR="$(cd "$HOME" && pwd -P)"
+reject_writable_by_others "$HOME_DIR" "home directory"
+
+TARGET_DIR="${OPPORTUNITY_RADAR_LAUNCH_AGENTS_DIR:-$HOME_DIR/Library/LaunchAgents}"
+if [[ "$TARGET_DIR" != /* || -L "$TARGET_DIR" ]]; then
+  echo "Refusing to use an unsafe LaunchAgents directory." >&2
+  exit 1
+fi
+if [[ -e "$TARGET_DIR" ]]; then
+  if [[ ! -d "$TARGET_DIR" ]]; then
+    echo "Refusing to use a non-directory LaunchAgents path." >&2
+    exit 1
+  fi
+  TARGET_DIR="$(cd "$TARGET_DIR" && pwd -P)"
+  reject_writable_by_others "$TARGET_DIR" "LaunchAgents directory"
+fi
+TARGET="$TARGET_DIR/$LABEL.plist"
+SERVICE="gui/$(/usr/bin/id -u)/$LABEL"
+
+if [[ -L "$TARGET" ]]; then
+  echo "Refusing to mutate a symbolic-link launch-agent path." >&2
+  exit 1
+fi
+
+TRASH_DIR="$HOME_DIR/.Trash"
+if [[ -L "$TRASH_DIR" ]]; then
+  echo "Refusing to use a symbolic-link Trash directory." >&2
+  exit 1
+fi
+if [[ -e "$TRASH_DIR" ]]; then
+  if [[ ! -d "$TRASH_DIR" || ! -O "$TRASH_DIR" ]]; then
+    echo "Refusing to use a Trash directory owned by another user." >&2
+    exit 1
+  fi
+  reject_writable_by_others "$TRASH_DIR" "Trash directory"
+fi
+
+TRASH_TARGET=""
+if [[ -e "$TARGET" ]]; then
+  if [[ ! -f "$TARGET" || ! -O "$TARGET" || ! -O "$TARGET_DIR" || ! -w "$TARGET_DIR" ]]; then
+    echo "Refusing to mutate an unsafe launch-agent destination." >&2
+    exit 1
+  fi
+  mkdir -p "$TRASH_DIR"
+  if [[ ! -d "$TRASH_DIR" || ! -O "$TRASH_DIR" ]]; then
+    echo "Refusing to use a Trash directory owned by another user." >&2
+    exit 1
+  fi
+  reject_writable_by_others "$TRASH_DIR" "Trash directory"
+  TRASH_TARGET="$TRASH_DIR/$LABEL-$(/bin/date +%Y%m%d-%H%M%S).plist"
+  if [[ -e "$TRASH_TARGET" || -L "$TRASH_TARGET" ]]; then
+    echo "Refusing to replace an existing Trash item." >&2
+    exit 1
+  fi
+fi
+
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
+PYTHON_BIN="${OPPORTUNITY_RADAR_PYTHON:-${OPPORTUNITY_MONITOR_PYTHON:-$(command -v python3 || true)}}"
+if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
+  echo "Python is unavailable to inspect the cron fallback safely." >&2
+  exit 1
+fi
+
+CRON_BACKUP="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/opportunity-radar-crontab.XXXXXX")"
+CRON_SNAPSHOT_READY=0
+CRON_MUTATION_ATTEMPTED=0
+SCHEDULER_MUTATION_STARTED=0
+WAS_LOADED=0
+MOVED_TARGET=0
+
+cleanup() {
+  if [[ -n "$CRON_BACKUP" && -f "$CRON_BACKUP" && ! -L "$CRON_BACKUP" ]]; then
+    /bin/rm -f "$CRON_BACKUP"
+  fi
+}
+
+rollback() {
+  local exit_code="$1"
+  trap - ERR
+  echo "Uninstall failed; restoring the previous scheduler state." >&2
+  if [[ "$CRON_MUTATION_ATTEMPTED" -eq 1 && "$CRON_SNAPSHOT_READY" -eq 1 ]]; then
+    "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" restore \
+      < "$CRON_BACKUP" >/dev/null 2>&1 || true
+  fi
+  if [[ "$MOVED_TARGET" -eq 1 && -n "$TRASH_TARGET" && -f "$TRASH_TARGET" ]]; then
+    /bin/mv "$TRASH_TARGET" "$TARGET" || true
+  fi
+  if [[ "$WAS_LOADED" -eq 1 && -f "$TARGET" ]]; then
+    /bin/launchctl bootstrap "gui/$(/usr/bin/id -u)" "$TARGET" >/dev/null 2>&1 || true
+  fi
+  cleanup
+  exit "$exit_code"
+}
+
+trap 'rollback $?' ERR
+trap cleanup EXIT
+
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot > "$CRON_BACKUP"
+CRON_SNAPSHOT_READY=1
+if /bin/launchctl print "$SERVICE" >/dev/null 2>&1; then
+  WAS_LOADED=1
+fi
+if [[ "$WAS_LOADED" -eq 1 && ! -f "$TARGET" ]]; then
+  echo "The loaded launch agent has no restorable property list." >&2
+  false
+fi
+
+SCHEDULER_MUTATION_STARTED=1
+if [[ "$WAS_LOADED" -eq 1 ]]; then
+  /bin/launchctl bootout "$SERVICE"
+fi
+if [[ -f "$TARGET" ]]; then
+  /bin/mv "$TARGET" "$TRASH_TARGET"
+  MOVED_TARGET=1
+fi
+CRON_MUTATION_ATTEMPTED=1
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" remove >/dev/null
+
+trap - ERR
+echo "Opportunity Radar scheduling is disabled."
+echo "The runtime and database remain in Library/Application Support/OpportunityRadar for recovery."

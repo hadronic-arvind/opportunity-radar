@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "dashboard": {
+    "title": "Opportunity Radar",
+    "subtitle": "Find and track opportunities from the sources you choose.",
+    "target_season": "",
+    "default_reason": "Matched by your configured preferences.",
+    "document_label": "Application track"
+  },
+  "curated_pipeline_path": "",
+  "curated_pipeline_name": "Curated opportunities",
+  "selected_source_packs": ["starter-diverse"],
+  "polite_delay_seconds": 0.15,
+  "priority_organizations": [],
+  "matching": {
+    "base_score": 50,
+    "priority_organization_bonus": 10,
+    "tier_thresholds": {
+      "priority": 80,
+      "strong": 65,
+      "watch": 25
+    },
+    "rules": []
+  },
+  "documents": {
+    "default": "General",
+    "routes": []
+  },
+  "positive_rules": [],
+  "negative_rules": [],
+  "default_resume_code": "General",
+  "resume_routing": []
+}

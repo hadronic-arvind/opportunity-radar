@@ -1,0 +1,7 @@
+[project]
+name = "opportunity-radar"
+version = "0.3.0"
+description = "A local-first, low-overhead opportunity monitoring pipeline"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
