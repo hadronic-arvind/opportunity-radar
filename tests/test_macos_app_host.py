@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from monitor.profile import MAX_EDITOR_BYTES
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE = PROJECT_ROOT / "extras" / "macos-app" / "OpportunityRadar.swift"
@@ -39,6 +41,15 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn('["-m", "monitor", "scan", "--quiet"]', self.source)
         self.assertIn('"monitor", "status", identifier, value, "--quiet"', self.source)
         self.assertIn('"monitor",\n                "bookmark",', self.source)
+        self.assertIn('"monitor",\n                "profile",\n                "apply",', self.source)
+        self.assertIn('"--stdin",', self.source)
+        self.assertIn('let profile = payload["profile"] as? [String: Any]', self.source)
+        self.assertIn("boundedProfileValue(profile)", self.source)
+        self.assertIn("numeric.isFinite && abs(numeric) <= 1_000_000", self.source)
+        self.assertEqual(MAX_EDITOR_BYTES, 256 * 1024)
+        self.assertIn("private let maximumProfilePayloadBytes = 256 * 1024", self.source)
+        self.assertIn("process.standardInput = standardInput.pipe", self.source)
+        self.assertIn("standardInput?.start()", self.source)
         self.assertIn("ApplicationStatus(rawValue: value) != nil", self.source)
         self.assertIn('let bookmarked = bridgeBoolean(payload["bookmarked"])', self.source)
         self.assertIn('let theme = Theme(rawValue: value)', self.source)
@@ -46,6 +57,7 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn('response["request"] = requestID', self.source)
         self.assertIn("window.OpportunityRadarNative?.complete(", self.source)
         self.assertIn("window.OpportunityRadarNative?.setTheme(", self.source)
+        self.assertIn("action == .scan || action == .profile", self.source)
 
     def test_runtime_python_lookup_and_process_boundary_are_explicit(self):
         self.assertIn('appendingPathComponent("python-path"', self.source)
@@ -56,9 +68,57 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn("process.environment = commandEnvironment()", self.source)
         self.assertIn('"PYTHONNOUSERSITE": "1"', self.source)
         self.assertIn('environment["OPPORTUNITY_RADAR_CURATED_PATH"]', self.source)
-        self.assertIn("readabilityHandler", self.source)
+        self.assertIn("let data = try handle.read(upToCount: 8_192)", self.source)
         self.assertNotIn("ProcessInfo.processInfo.environment", self.source)
         self.assertNotIn('executableURL = URL(fileURLWithPath: "/bin/sh")', self.source)
+
+    def test_command_io_is_bounded_async_and_closes_unused_pipe_ends(self):
+        self.assertIn("private let maximumCapturedOutputBytes = 32 * 1024", self.source)
+        self.assertIn("private final class BoundedOutputCapture", self.source)
+        self.assertIn("captured = Data(data.suffix(maximumBytes))", self.source)
+        self.assertIn("captured.removeFirst(overflow)", self.source)
+        self.assertIn("standardOutput.closeParentWriteEnd()", self.source)
+        self.assertIn("standardError.closeParentWriteEnd()", self.source)
+        self.assertIn("private func closeParentReadEnd()", self.source)
+        self.assertIn("closeParentReadEnd()", self.source)
+        self.assertIn("private final class AsyncInputWriter", self.source)
+        self.assertIn("writerQueue.async", self.source)
+        self.assertIn("try pipe.fileHandleForWriting.write(contentsOf: input)", self.source)
+        self.assertIn("inputSucceeded: standardInput?.finish() ?? true", self.source)
+        self.assertNotIn("standardInput.fileHandleForWriting.write(input)", self.source)
+
+    def test_profile_failures_are_classified_without_returning_raw_output(self):
+        self.assertIn("private func profileFailureMessage(_ diagnostics: CommandDiagnostics)", self.source)
+        self.assertIn("profile changed after it was opened", self.source)
+        self.assertIn("Reload the dashboard and try again.", self.source)
+        self.assertIn("busy with another scan or profile update", self.source)
+        self.assertIn("could not be validated", self.source)
+        self.assertIn("standardError: standardError.finish()", self.source)
+        self.assertIn("standardOutput: standardOutput.finish()", self.source)
+        self.assertNotIn("return diagnostics.standardError", self.source)
+        self.assertNotIn("return diagnostics.standardOutput", self.source)
+
+    def test_quit_waits_for_helpers_and_cancels_safely_after_a_deadline(self):
+        self.assertIn("private let terminationDeferralSeconds = 30.0", self.source)
+        self.assertIn("NSWindowDelegate,", self.source)
+        self.assertIn("window.delegate = self", self.source)
+        self.assertIn("func applicationShouldTerminate(", self.source)
+        self.assertIn("return .terminateLater", self.source)
+        self.assertIn("DispatchQueue.main.asyncAfter(", self.source)
+        self.assertIn("NSApp.reply(toApplicationShouldTerminate: true)", self.source)
+        self.assertIn("NSApp.reply(toApplicationShouldTerminate: false)", self.source)
+        self.assertIn("func windowShouldClose(_ sender: NSWindow) -> Bool", self.source)
+        self.assertIn("NSApp.terminate(sender)", self.source)
+        self.assertIn("Quit was canceled to avoid interrupting", self.source)
+        self.assertNotIn("process.terminate()", self.source)
+
+        finish_start = self.source.index("private func finishCommand(")
+        finish_end = self.source.index("private func finishBridgeCommand(", finish_start)
+        finish = self.source[finish_start:finish_end]
+        self.assertLess(
+            finish.index("runningCommand = nil"),
+            finish.index("completeDeferredTerminationIfNeeded()"),
+        )
 
     @unittest.skipUnless(platform.system() == "Darwin", "native app compiles only on macOS")
     def test_native_source_compiles_with_appkit_and_webkit(self):

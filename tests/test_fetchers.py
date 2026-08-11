@@ -1,9 +1,13 @@
 import json
+import signal
+import time
 import unittest
 import urllib.request
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from monitor.fetchers import (
+    MAX_RESPONSE_BYTES,
+    READ_CHUNK_BYTES,
     ResponseTooLargeError,
     _PublicHTTPSConnection,
     _SafeRedirectHandler,
@@ -19,15 +23,18 @@ from monitor.fetchers import (
     filter_items,
 )
 from monitor.models import FetchResult, Opportunity
+from monitor.onboarding import build_profile
+from monitor.scoring import score_opportunity
 
 
 class FakeResponse:
-    def __init__(self, payload, headers=None, url="https://example.com"):
+    def __init__(self, payload, headers=None, url=None):
         self.payload = payload
         self.offset = 0
         self.headers = headers or {}
         self.read_sizes = []
         self.url = url
+        self.closed = False
 
     def __enter__(self):
         return self
@@ -45,6 +52,9 @@ class FakeResponse:
 
     def geturl(self):
         return self.url
+
+    def close(self):
+        self.closed = True
 
 
 class FetcherTests(unittest.TestCase):
@@ -86,10 +96,129 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(item.external_id, "42")
         self.assertEqual(item.description, "SQL and Python")
         self.assertEqual(item.opportunity_type, "internship")
-        self.assertIn("data", item.category)
+        self.assertEqual(item.category, "Data")
+        self.assertNotIn("software", item.category.casefold())
         self.assertEqual(item.metadata["domains"], ["data", "software"])
         self.assertEqual(item.metadata["ats"], "greenhouse")
+        self.assertEqual(item.metadata["departments"], ["Data"])
+        self.assertEqual(item.metadata["offices"], ["New York Office"])
+        self.assertIsNone(item.posted_at)
+        self.assertEqual(item.metadata["dates"]["posted"]["state"], "unknown")
+        self.assertEqual(
+            item.metadata["dates"]["source_updated"]["provenance"],
+            "greenhouse.updated_at",
+        )
         self.assertNotIn("base_score", item.metadata)
+        self.assertTrue(urlopen.call_args.args[0].full_url.endswith("?content=true"))
+
+    @patch("monitor.fetchers._open_remote")
+    def test_greenhouse_uses_published_and_deadline_fields_when_present(self, urlopen):
+        payload = {
+            "jobs": [
+                {
+                    "id": 45,
+                    "title": "Research Intern",
+                    "absolute_url": "https://example.com/jobs/45",
+                    "content": "Technical research",
+                    "first_published": "2026-08-08T12:00:00Z",
+                    "updated_at": "2026-08-09T12:00:00Z",
+                    "application_deadline": "2026-09-15T23:59:00Z",
+                }
+            ]
+        }
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+        item = fetch_greenhouse(
+            {"id": "firm", "name": "Firm", "board": "firm"}
+        ).opportunities[0]
+        self.assertEqual(item.posted_at, "2026-08-08T12:00:00+00:00")
+        self.assertEqual(item.deadline_at, "2026-09-15")
+        self.assertEqual(item.metadata["dates"]["posted"]["kind"], "posted")
+        self.assertEqual(
+            item.metadata["dates"]["posted"]["provenance"],
+            "greenhouse.first_published",
+        )
+        self.assertEqual(item.metadata["dates"]["deadline"]["state"], "date")
+
+    @patch("monitor.fetchers._open_remote")
+    def test_greenhouse_can_skip_large_description_payloads(self, urlopen):
+        payload = {
+            "jobs": [{
+                "id": 44,
+                "title": "Manufacturing Engineer",
+                "absolute_url": "https://example.com/jobs/44",
+                "location": {"name": "California"},
+                "metadata": [
+                    {"name": "Discipline", "value": "Manufacturing"},
+                    {"name": "Employment Type", "value": "Full-time"},
+                ],
+            }]
+        }
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+        result = fetch_greenhouse({
+            "id": "large_board",
+            "name": "Large Board",
+            "board": "large-board",
+            "include_content": False,
+            "category_metadata_names": ["Discipline"],
+        })
+
+        item = result.opportunities[0]
+        self.assertEqual(item.title, "Manufacturing Engineer")
+        self.assertEqual(item.description, "")
+        self.assertEqual(item.category, "Manufacturing")
+        self.assertEqual(
+            item.metadata["category_metadata"],
+            {"Discipline": "Manufacturing"},
+        )
+        self.assertEqual(
+            urlopen.call_args.args[0].full_url,
+            "https://boards-api.greenhouse.io/v1/boards/large-board/jobs",
+        )
+
+    @patch("monitor.fetchers._open_remote")
+    def test_source_domains_do_not_pollute_onboarding_category_matches(self, urlopen):
+        payload = {
+            "jobs": [
+                {
+                    "id": 1,
+                    "title": "Commercial Counsel",
+                    "absolute_url": "https://example.com/jobs/1",
+                    "departments": [{"name": "Legal"}],
+                    "content": "Review contracts and advise the business",
+                },
+                {
+                    "id": 2,
+                    "title": "Platform Engineer",
+                    "absolute_url": "https://example.com/jobs/2",
+                    "departments": [{"name": "Cybersecurity"}],
+                    "content": "Build reliable internal platforms",
+                },
+            ]
+        }
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+        result = fetch_greenhouse({
+            "id": "broad_employer",
+            "name": "Broad Employer",
+            "board": "broad-employer",
+            "domains": ["software", "cybersecurity"],
+        })
+        profile = build_profile(
+            ["cybersecurity"],
+            include_terms=["cybersecurity"],
+        )
+        unrelated, relevant = result.opportunities
+        score_opportunity(unrelated, profile)
+        score_opportunity(relevant, profile)
+
+        self.assertEqual(unrelated.category, "Legal")
+        self.assertEqual(unrelated.metadata["domains"], ["software", "cybersecurity"])
+        self.assertEqual(unrelated.score, 25)
+        self.assertEqual(unrelated.tier, "skip")
+        self.assertEqual(unrelated.reasons, [])
+        self.assertEqual(relevant.category, "Cybersecurity")
+        self.assertEqual(relevant.score, 46)
+        self.assertEqual(relevant.tier, "watch")
+        self.assertTrue(relevant.reasons)
 
     @patch("monitor.fetchers._open_remote")
     def test_greenhouse_full_time_role_is_a_job(self, urlopen):
@@ -144,7 +273,33 @@ class FetcherTests(unittest.TestCase):
         self.assertIn("Scientific computing", item.description)
         self.assertEqual(item.opportunity_type, "job")
         self.assertEqual(item.commitment, "Full-time")
+        self.assertEqual(item.category, "Research Engineering")
+        self.assertNotIn("data", item.category.casefold())
+        self.assertEqual(item.metadata["team"], "Research")
+        self.assertEqual(item.metadata["department"], "Engineering")
         self.assertEqual(item.metadata["workplace_type"], "remote")
+
+    @patch("monitor.fetchers._open_remote")
+    def test_lever_extracts_explicit_deadline_with_provenance(self, urlopen):
+        payload = [{
+            "id": "deadline",
+            "text": "Research Intern",
+            "hostedUrl": "https://jobs.lever.co/firm/deadline",
+            "createdAt": 1786233600000,
+            "descriptionPlain": "Applications close on September 15, 2027.",
+            "categories": {"commitment": "Intern"},
+            "lists": [],
+        }]
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+        item = fetch_lever(
+            {"id": "firm", "name": "Firm", "site": "firm"}
+        ).opportunities[0]
+        self.assertEqual(item.deadline_at, "2027-09-15")
+        self.assertEqual(
+            item.metadata["dates"]["posted"]["provenance"],
+            "lever.createdAt",
+        )
+        self.assertEqual(item.metadata["dates"]["posted"]["confidence"], "medium")
 
     @patch("monitor.fetchers._open_remote")
     def test_html_link_filters_navigation(self, urlopen):
@@ -158,6 +313,107 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual([item.title for item in result.opportunities], ["ML Graduate Intern"])
         self.assertEqual(result.opportunities[0].opportunity_type, "internship")
         self.assertNotIn("base_score", result.opportunities[0].metadata)
+
+    @patch("monitor.fetchers._open_remote")
+    def test_html_links_support_bounded_page_query_pagination_and_deduplication(self, urlopen):
+        first = b'<a href="/jobs/1">Software Intern</a>'
+        second = (
+            b'<a href="/jobs/1">Software Intern</a>'
+            b'<a href="/jobs/2">Research Intern</a>'
+        )
+        urlopen.side_effect = [FakeResponse(first), FakeResponse(second)]
+        source = {
+            "id": "google",
+            "name": "Google",
+            "kind": "html_links",
+            "url": "https://careers.google.com/jobs/results/?q=intern",
+            "include": ["intern"],
+            "same_domain": True,
+            "pages": 2,
+        }
+        result = fetch_html_links(source)
+        self.assertEqual(
+            [item.title for item in result.opportunities],
+            ["Software Intern", "Research Intern"],
+        )
+        self.assertEqual(result.opportunities[0].metadata["page_count"], 2)
+        self.assertEqual(len(urlopen.call_args_list), 2)
+        self.assertNotIn("page=", urlopen.call_args_list[0].args[0].full_url)
+        self.assertIn("page=2", urlopen.call_args_list[1].args[0].full_url)
+
+    @patch("monitor.fetchers._open_remote")
+    def test_html_links_honor_safe_html_base_for_relative_job_links(self, urlopen):
+        urlopen.return_value = FakeResponse(
+            b'<base href="https://www.google.com/about/careers/applications/">'
+            b'<a href="jobs/results/123">Software Intern</a>'
+        )
+        source = {
+            "id": "google",
+            "name": "Google",
+            "kind": "html_links",
+            "url": "https://www.google.com/about/careers/applications/jobs/results/?q=intern",
+            "include": ["intern"],
+            "same_domain": True,
+        }
+
+        item = fetch_html_links(source).opportunities[0]
+
+        self.assertEqual(
+            item.url,
+            "https://www.google.com/about/careers/applications/jobs/results/123",
+        )
+
+    @patch("monitor.fetchers._open_remote")
+    def test_html_links_use_bounded_accessible_title_when_anchor_text_is_empty(self, urlopen):
+        urlopen.return_value = FakeResponse(
+            b'<base href="https://www.google.com/about/careers/applications/">'
+            b'<a href="jobs/results/456" '
+            b'aria-label="Learn more about Strategy Associate, YouTube"></a>'
+        )
+        source = {
+            "id": "google",
+            "name": "Google",
+            "kind": "html_links",
+            "url": "https://www.google.com/about/careers/applications/jobs/results/?q=associate",
+            "include": ["associate"],
+            "same_domain": True,
+        }
+
+        item = fetch_html_links(source).opportunities[0]
+
+        self.assertEqual(item.title, "Strategy Associate, YouTube")
+        self.assertEqual(
+            item.url,
+            "https://www.google.com/about/careers/applications/jobs/results/456",
+        )
+
+    @patch("monitor.fetchers._open_remote")
+    def test_html_links_reject_cross_host_configured_link_base_before_fetch(self, urlopen):
+        with self.assertRaisesRegex(ValueError, "link_base_url"):
+            fetch_html_links(
+                {
+                    "id": "invalid-base",
+                    "name": "Invalid base",
+                    "kind": "html_links",
+                    "url": "https://example.com/jobs",
+                    "link_base_url": "https://other.example/jobs/",
+                }
+            )
+        urlopen.assert_not_called()
+
+    @patch("monitor.fetchers._open_remote")
+    def test_html_links_reject_invalid_page_bounds_before_fetch(self, urlopen):
+        with self.assertRaisesRegex(ValueError, "pages must be an integer"):
+            fetch_html_links(
+                {
+                    "id": "bad-pages",
+                    "name": "Bad pages",
+                    "kind": "html_links",
+                    "url": "https://example.com/jobs",
+                    "pages": 21,
+                }
+            )
+        urlopen.assert_not_called()
 
     @patch("monitor.fetchers._open_remote")
     def test_jibe_normalization(self, urlopen):
@@ -176,9 +432,46 @@ class FetcherTests(unittest.TestCase):
             "opportunity_types": ["internship"],
         }
         result = fetch_jibe(source)
-        self.assertEqual(result.opportunities[0].external_id, "60001")
-        self.assertEqual(result.opportunities[0].url, "https://careers.example.org/jobs/60001?lang=en-us")
-        self.assertEqual(result.opportunities[0].opportunity_type, "internship")
+        item = result.opportunities[0]
+        self.assertEqual(item.external_id, "60001")
+        self.assertEqual(item.url, "https://careers.example.org/jobs/60001?lang=en-us")
+        self.assertEqual(item.opportunity_type, "internship")
+        self.assertEqual(item.category, "Operations")
+        self.assertNotIn("public interest", item.category.casefold())
+        self.assertEqual(item.metadata["categories"], ["Operations"])
+        self.assertEqual(
+            item.metadata["domains"],
+            ["operations", "public_interest"],
+        )
+        self.assertEqual(item.posted_at, "2027-08-09T00:00:00+00:00")
+        self.assertEqual(
+            item.metadata["dates"]["posted"]["provenance"],
+            "jibe.posted_date",
+        )
+
+    @patch("monitor.fetchers._open_remote")
+    def test_jibe_prefers_structured_deadline(self, urlopen):
+        payload = {"jobs": [{"data": {
+            "slug": "deadline",
+            "req_id": "deadline",
+            "title": "Research Intern",
+            "description": "Apply when ready.",
+            "application_deadline": "October 1, 2027",
+        }}]}
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+        item = fetch_jibe(
+            {
+                "id": "example",
+                "name": "Example",
+                "api_url": "https://example.com/api/jobs",
+                "job_url_template": "https://example.com/jobs/{slug}",
+            }
+        ).opportunities[0]
+        self.assertEqual(item.deadline_at, "2027-10-01")
+        self.assertEqual(
+            item.metadata["dates"]["deadline"]["provenance"],
+            "jibe.structured_deadline",
+        )
 
     @patch("monitor.fetchers._open_remote")
     def test_jibe_follows_bounded_pagination(self, urlopen):
@@ -337,6 +630,23 @@ class FetcherTests(unittest.TestCase):
         self.assertNotIn("tier", item.metadata)
 
     @patch("monitor.fetchers._open_remote")
+    def test_published_watch_page_exposes_open_until_filled_state(self, urlopen):
+        source = {
+            "id": "program",
+            "name": "Research Program",
+            "url": "https://example.com",
+            "kind": "watch_page",
+            "publish_as_opportunity": True,
+        }
+        urlopen.return_value = FakeResponse(b"<p>Applications are open until filled.</p>")
+        item = fetch_watch_page(source).opportunities[0]
+        self.assertIsNone(item.deadline_at)
+        self.assertEqual(
+            item.metadata["dates"]["deadline"]["state"],
+            "open_until_filled",
+        )
+
+    @patch("monitor.fetchers._open_remote")
     def test_request_accepts_body_at_limit(self, urlopen):
         response = FakeResponse(b"12345")
         urlopen.return_value = response
@@ -370,6 +680,26 @@ class FetcherTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(TimeoutError, "wall-clock"):
                 _request("https://example.com", timeout=1)
+
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "bounded resolver requires Unix signals")
+    @patch("monitor.fetchers._open_remote")
+    def test_request_deadline_bounds_dns_and_restores_signal_state(self, open_remote):
+        previous_handler = signal.getsignal(signal.SIGALRM)
+
+        def stalled_resolver(*_args, **_kwargs):
+            time.sleep(1)
+            return []
+
+        started = time.monotonic()
+        with (
+            patch("monitor.fetchers.socket.getaddrinfo", side_effect=stalled_resolver),
+            self.assertRaisesRegex(TimeoutError, "resolution exceeded"),
+        ):
+            _request("https://resolver.example/jobs", timeout=0.1)
+        self.assertLess(time.monotonic() - started, 0.5)
+        self.assertEqual(signal.getsignal(signal.SIGALRM), previous_handler)
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0.0, 0.0))
+        open_remote.assert_not_called()
 
     def test_request_rejects_plain_http_and_url_credentials(self):
         with self.assertRaisesRegex(ValueError, "HTTPS"):
@@ -412,6 +742,57 @@ class FetcherTests(unittest.TestCase):
                 "https://redirect.example/jobs",
             )
 
+    def test_redirect_handler_bounds_every_intermediate_response_body(self):
+        handler = _SafeRedirectHandler()
+        handler.parent = Mock()
+        payload = b"x" * (MAX_RESPONSE_BYTES + 1)
+
+        for code in (301, 302, 303, 307, 308):
+            with self.subTest(code=code):
+                request = urllib.request.Request("https://careers.example/jobs")
+                request.timeout = 5
+                response = FakeResponse(payload)
+                with self.assertRaisesRegex(ResponseTooLargeError, "redirect response"):
+                    getattr(handler, "http_error_{}".format(code))(
+                        request,
+                        response,
+                        code,
+                        "Redirect",
+                        {"location": "https://careers.example/next"},
+                    )
+                self.assertTrue(response.closed)
+                self.assertNotIn(None, response.read_sizes)
+                self.assertNotIn(-1, response.read_sizes)
+                self.assertTrue(
+                    response.read_sizes
+                    and max(response.read_sizes) <= READ_CHUNK_BYTES
+                )
+        handler.parent.open.assert_not_called()
+
+    def test_redirect_handler_preserves_bounded_same_host_redirects(self):
+        handler = _SafeRedirectHandler()
+        handler.parent = Mock()
+        marker = object()
+        handler.parent.open.return_value = marker
+        request = urllib.request.Request("https://careers.example/jobs")
+        request.timeout = 5
+        response = FakeResponse(b"small redirect body")
+
+        result = handler.http_error_302(
+            request,
+            response,
+            302,
+            "Found",
+            {"location": "https://careers.example/next"},
+        )
+
+        self.assertIs(result, marker)
+        self.assertTrue(response.closed)
+        self.assertNotIn(None, response.read_sizes)
+        self.assertNotIn(-1, response.read_sizes)
+        followed = handler.parent.open.call_args.args[0]
+        self.assertEqual(followed.full_url, "https://careers.example/next")
+
     def test_https_connection_pins_the_validated_numeric_address(self):
         connection = _PublicHTTPSConnection("careers.example", timeout=5)
         with patch("monitor.fetchers.socket.create_connection") as create_connection:
@@ -427,6 +808,41 @@ class FetcherTests(unittest.TestCase):
             create_connection.call_args.args[0],
             ("93.184.216.34", 443),
         )
+
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "aggregate connect guard requires Unix signals")
+    def test_https_connection_shares_one_deadline_across_addresses(self):
+        connection = _PublicHTTPSConnection("careers.example", timeout=0.1)
+        connection._pinned_addresses = ["93.184.216.34", "93.184.216.35", "93.184.216.36"]
+
+        def stalled_connect(*_args, **_kwargs):
+            time.sleep(0.08)
+            raise OSError("synthetic timeout")
+
+        started = time.monotonic()
+        with (
+            patch("monitor.fetchers.socket.create_connection", side_effect=stalled_connect),
+            self.assertRaisesRegex(TimeoutError, "connection exceeded"),
+        ):
+            connection._create_pinned_connection(
+                ("careers.example", 443),
+                timeout=0.1,
+                source_address=None,
+            )
+        self.assertLess(time.monotonic() - started, 0.2)
+
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "aggregate request guard requires Unix signals")
+    @patch("monitor.fetchers._open_remote")
+    def test_request_deadline_interrupts_stalled_open_phase(self, open_remote):
+        def stalled_open(*_args, **_kwargs):
+            time.sleep(1)
+            return FakeResponse(b"late")
+
+        open_remote.side_effect = stalled_open
+        started = time.monotonic()
+        with self.assertRaisesRegex(TimeoutError, "request exceeded"):
+            _request("https://example.com/jobs", timeout=0.1)
+        self.assertLess(time.monotonic() - started, 0.5)
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0.0, 0.0))
 
     @patch("monitor.fetchers._open_remote")
     def test_request_rejects_unsafe_final_url(self, open_remote):

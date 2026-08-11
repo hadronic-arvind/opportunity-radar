@@ -109,6 +109,7 @@ fi
 
 LOCK_PARENT="$HOME_DIR/Library/Application Support"
 LOCK_DIR="$LOCK_PARENT/.OpportunityRadar.lifecycle-lock"
+LOCK_OWNER="$LOCK_DIR/owner.pid"
 if [[ -L "$LOCK_PARENT" ]]; then
   echo "Refusing to use a symbolic-link lifecycle-lock parent." >&2
   exit 1
@@ -133,6 +134,9 @@ cleanup() {
     /bin/rm -f "$CRON_BACKUP"
   fi
   if [[ "$LOCK_HELD" -eq 1 && -d "$LOCK_DIR" && ! -L "$LOCK_DIR" && -O "$LOCK_DIR" ]]; then
+    if [[ -f "$LOCK_OWNER" && ! -L "$LOCK_OWNER" && -O "$LOCK_OWNER" ]]; then
+      /bin/rm -f "$LOCK_OWNER"
+    fi
     /bin/rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
     LOCK_HELD=0
   fi
@@ -163,11 +167,16 @@ trap 'rollback 129' HUP
 trap 'rollback 130' INT
 trap 'rollback 143' TERM
 
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/recover_lifecycle_lock.py"
 if ! mkdir "$LOCK_DIR"; then
   echo "Another Opportunity Radar install or uninstall is already running." >&2
   exit 1
 fi
 LOCK_HELD=1
+if ! /usr/bin/printf '%s\n%s\n' "$$" "$(/bin/date +%s)" > "$LOCK_OWNER" || \
+   ! /bin/chmod 600 "$LOCK_OWNER"; then
+  false
+fi
 CRON_BACKUP="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/opportunity-radar-crontab.XXXXXX")"
 
 "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot \

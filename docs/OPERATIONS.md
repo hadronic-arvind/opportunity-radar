@@ -12,6 +12,7 @@ Both paths show the latest dashboard immediately.
 Neither waits for a network scan before first paint.
 
 The native dashboard buttons can check due sources or force all enabled sources.
+The native profile editor updates keywords, targets, timeframes, source packs, preferred organizations, score visibility, and document routes without opening a terminal.
 In a normal browser, run one of these terminal commands:
 
 ```bash
@@ -21,6 +22,17 @@ python3 -m monitor scan
 
 The first command respects source cadences.
 The second forces every enabled source and omits notifications.
+
+Use the CLI for the same profile workflow when the app is not installed:
+
+```bash
+python3 -m monitor profile show
+python3 -m monitor profile set --include "research software,physics" --timeframe "Summer 2028"
+python3 -m monitor profile validate
+```
+
+A successful profile change immediately rescores the local database and rebuilds the dashboard.
+The next scheduled or forced scan loads that saved revision before collecting sources.
 
 ## macOS schedule
 
@@ -41,7 +53,8 @@ If the user's LaunchAgents directory is not writable, the installer uses a bound
 Malformed managed markers fail closed and never remove unrelated crontab content.
 If an exact managed cron schedule already exists and no launchd installation exists, upgrades preserve that working backend instead of forcing a protected crontab rewrite.
 
-Run the installer again after pulling code changes or changing source or profile configuration.
+Run the installer again after pulling code changes.
+Profile and source-pack edits made through the app or CLI use the canonical installed settings and do not require an upgrade.
 
 ## Optional app
 
@@ -73,6 +86,7 @@ After installation, these project paths point into the private runtime:
 
 The runtime, database, profile, source overrides, seed, dashboard, logs, and Python cache use private permissions.
 The previous runtime remains beside the current runtime as a recovery copy after an upgrade.
+Installer upgrades preserve the current runtime's local profile and source preferences before swapping the replaceable code and assets.
 
 ## Health and troubleshooting
 

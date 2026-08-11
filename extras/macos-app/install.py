@@ -254,6 +254,19 @@ def validate_destination(destination: Path, project_root: Path = PROJECT_ROOT) -
     return resolved_destination
 
 
+def _remove_tree_best_effort(path: Path) -> None:
+    """Remove disposable installer artifacts without changing the outcome."""
+    if not path.exists() and not path.is_symlink():
+        return
+    try:
+        if path.is_symlink():
+            path.unlink()
+        else:
+            shutil.rmtree(path)
+    except OSError:
+        pass
+
+
 def build_app(
     destination: Path,
     project_root: Path = PROJECT_ROOT,
@@ -332,9 +345,6 @@ def build_app(
         os.replace(staged_app, destination)
         installed = True
         verify_app(destination)
-        if backup.exists():
-            shutil.rmtree(backup)
-        return destination
     except Exception:
         if installed and destination.exists():
             shutil.rmtree(destination)
@@ -342,9 +352,11 @@ def build_app(
             if not destination.exists():
                 os.replace(backup, destination)
         raise
+    else:
+        _remove_tree_best_effort(backup)
+        return destination
     finally:
-        if stage_root.exists():
-            shutil.rmtree(stage_root)
+        _remove_tree_best_effort(stage_root)
 
 
 def main() -> int:

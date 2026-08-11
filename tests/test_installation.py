@@ -51,6 +51,22 @@ def project_artifact_tree(root):
     return project
 
 
+def private_runtime(path, version):
+    markers = (
+        "monitor/__main__.py",
+        "config/profile.json",
+        "dashboard/template.html",
+        "scripts/run_monitor.sh",
+    )
+    for marker in markers:
+        private_file(path / marker, version.encode("utf-8"))
+    private_file(path / "version.txt", version.encode("utf-8"))
+    for directory in (path, *path.rglob("*")):
+        if directory.is_dir():
+            directory.chmod(0o700)
+    return path
+
+
 class InstallationTests(unittest.TestCase):
     def test_rendered_launch_agent_is_low_priority_and_twice_daily(self):
         project = Path(__file__).resolve().parents[1]
@@ -446,6 +462,66 @@ class InstallationTests(unittest.TestCase):
                     "../unsafe",
                 )
 
+    def test_successful_upgrades_keep_only_one_previous_runtime(self):
+        _project, module = load_script(
+            "remove_superseded_runtime",
+            "remove_superseded_runtime.py",
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            runtime = private_runtime(root / "OpportunityRadar", "current-1")
+            previous = private_runtime(
+                root / "OpportunityRadar.previous",
+                "previous-0",
+            )
+            unrelated = private_runtime(
+                root / "Unrelated.previous-20260810-010101",
+                "unrelated",
+            )
+
+            for generation, stamp in enumerate(
+                ("20260810-020202", "20260810-030303"),
+                start=2,
+            ):
+                archived = root / "OpportunityRadar.previous-{}".format(stamp)
+                previous.rename(archived)
+                runtime.rename(previous)
+                runtime = private_runtime(
+                    root / "OpportunityRadar",
+                    "current-{}".format(generation),
+                )
+
+                removed = module.remove_superseded_runtime(runtime, stamp)
+
+                self.assertEqual(removed, archived.resolve(strict=False))
+                self.assertFalse(archived.exists())
+                self.assertTrue(runtime.is_dir())
+                self.assertTrue(previous.is_dir())
+                self.assertTrue(unrelated.is_dir())
+                self.assertEqual(
+                    list(root.glob("OpportunityRadar.previous-*")),
+                    [],
+                )
+
+    def test_runtime_archive_is_retained_until_upgrade_commit(self):
+        project = Path(__file__).resolve().parents[1]
+        source = (project / "scripts" / "install_launch_agent.sh").read_text(
+            encoding="utf-8"
+        )
+        archive_move = '/bin/mv "$PREVIOUS_RUNTIME" "$ARCHIVED_PREVIOUS_RUNTIME_PATH"'
+        rollback_restore = (
+            '/bin/mv "$ARCHIVED_PREVIOUS_RUNTIME_PATH" "$PREVIOUS_RUNTIME" || true'
+        )
+        commit = "trap - ERR HUP INT TERM"
+        cleanup = 'remove_superseded_runtime.py"'
+
+        rollback_start = source.index("rollback()")
+        rollback_end = source.index("\n}\n\ntrap 'rollback", rollback_start)
+        final_commit = source.rindex(commit)
+        self.assertLess(source.index(archive_move), final_commit)
+        self.assertIn(rollback_restore, source[rollback_start:rollback_end])
+        self.assertGreater(source.index(cleanup), source.rindex(commit))
+
     def test_install_path_validation_rejects_unrelated_runtime_and_symlinks(self):
         project, module = load_script("render_launch_agent_paths", "render_launch_agent.py")
         with tempfile.TemporaryDirectory() as tempdir:
@@ -594,6 +670,24 @@ class InstallationTests(unittest.TestCase):
                 source,
             )
 
+    def test_upgrade_preserves_canonical_runtime_profile_settings(self):
+        project = Path(__file__).resolve().parents[1]
+        source = (project / "scripts" / "install_launch_agent.sh").read_text(
+            encoding="utf-8"
+        )
+        runtime_profile = '"$RUNTIME_DIR/config/profile.local.json"'
+        repository_profile = '"$PROJECT_DIR/config/profile.local.json"'
+        runtime_sources = '"$RUNTIME_DIR/config/sources.local.json"'
+        repository_sources = '"$PROJECT_DIR/config/sources.local.json"'
+        selection = source.index("PROFILE_LOCAL_SOURCE=")
+        promotion = source.index('/bin/mv "$STAGE" "$RUNTIME_DIR"')
+        self.assertLess(selection, promotion)
+        self.assertLess(source.index(runtime_profile, selection), source.index(repository_profile, selection))
+        self.assertLess(source.index(runtime_sources, selection), source.index(repository_sources, selection))
+        self.assertIn('/bin/cp "$PROFILE_LOCAL_SOURCE"', source[selection:promotion])
+        self.assertIn('/bin/cp "$SOURCES_LOCAL_SOURCE"', source[selection:promotion])
+        self.assertIn("8#$mode & 8#77", source)
+
     def test_shell_installer_snapshots_and_restores_scheduler_transitions(self):
         project = Path(__file__).resolve().parents[1]
         source = (project / "scripts" / "install_launch_agent.sh").read_text(
@@ -608,6 +702,31 @@ class InstallationTests(unittest.TestCase):
         self.assertIn("cannot switch safely to the cron fallback", source.lower())
         self.assertIn('manage_cron.py" verify', source)
         self.assertIn('SCHEDULER_KIND="existing cron fallback"', source)
+
+    def test_scan_idle_helper_imports_from_outside_the_project(self):
+        project = Path(__file__).resolve().parents[1]
+        scripts = (
+            project / "scripts" / "check_scan_idle.py",
+            project / "scripts" / "recover_lifecycle_lock.py",
+        )
+        for script in scripts:
+            with self.subTest(script=script.name), tempfile.TemporaryDirectory() as directory:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        (
+                            "import runpy, sys; "
+                            "runpy.run_path(sys.argv[1], run_name='helper_import_test')"
+                        ),
+                        str(script),
+                    ],
+                    cwd=directory,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_scheduler_lifecycle_has_phase_rollback_locking_and_signal_guards(self):
         project = Path(__file__).resolve().parents[1]
@@ -629,6 +748,20 @@ class InstallationTests(unittest.TestCase):
             self.assertIn('mkdir "$LOCK_DIR"', source)
             self.assertIn('/bin/rmdir "$LOCK_DIR"', source)
             self.assertIn('--label "$LABEL"', source)
+
+        idle_check = '"$PYTHON_BIN" "$PROJECT_DIR/scripts/check_scan_idle.py"'
+        recovery = '"$PYTHON_BIN" "$PROJECT_DIR/scripts/recover_lifecycle_lock.py"'
+        self.assertIn(idle_check, installer)
+        self.assertIn(recovery, installer)
+        self.assertIn(recovery, uninstaller)
+        self.assertLess(installer.index(recovery), installer.index('mkdir "$LOCK_DIR"'))
+        self.assertLess(uninstaller.index(recovery), uninstaller.index('mkdir "$LOCK_DIR"'))
+        for source in (installer, uninstaller):
+            self.assertIn('LOCK_OWNER="$LOCK_DIR/owner.pid"', source)
+            self.assertIn("/bin/rm -f \"$LOCK_OWNER\"", source)
+        self.assertLess(installer.index('mkdir "$LOCK_DIR"'), installer.index(idle_check))
+        self.assertLess(installer.index(idle_check), installer.index('DATABASE_SOURCE=""'))
+        self.assertEqual(installer.count("OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer"), 2)
 
         self.assertLess(
             installer.rindex("ARCHIVED_PREVIOUS_RUNTIME=1"),
@@ -781,6 +914,7 @@ class InstallationTests(unittest.TestCase):
             fake_python = root / "python"
             fake_python.write_text(
                 "#!/bin/bash\n"
+                'if [[ "$1" == *recover_lifecycle_lock.py ]]; then exit 0; fi\n'
                 'case "${2:-}" in\n'
                 '  snapshot) printf "17 4 * * * /usr/bin/unrelated\\n" ;;\n'
                 '  remove) printf "remove\\n" >> "$FAKE_PYTHON_LOG"; exit 1 ;;\n'
@@ -836,6 +970,7 @@ class InstallationTests(unittest.TestCase):
             fake_python = root / "python"
             fake_python.write_text(
                 "#!/bin/bash\n"
+                'if [[ "$1" == *recover_lifecycle_lock.py ]]; then exit 0; fi\n'
                 'printf "%s\\n" "${2:-missing}" >> "$FAKE_PYTHON_LOG"\n'
                 "exit 0\n",
                 encoding="utf-8",

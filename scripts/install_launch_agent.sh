@@ -21,6 +21,33 @@ reject_writable_by_others() {
   fi
 }
 
+private_local_config() {
+  local runtime_path="$1"
+  local repository_path="$2"
+  local candidate=""
+  local mode
+  if [[ -e "$runtime_path" || -L "$runtime_path" ]]; then
+    candidate="$runtime_path"
+  elif [[ -e "$repository_path" || -L "$repository_path" ]]; then
+    candidate="$repository_path"
+  else
+    return 0
+  fi
+  if [[ -L "$candidate" || ! -f "$candidate" || ! -O "$candidate" ]]; then
+    echo "Refusing to copy an unsafe local configuration file." >&2
+    return 1
+  fi
+  if ! mode="$(/usr/bin/stat -f '%Lp' "$candidate")" || [[ ! "$mode" =~ ^[0-7]{3,4}$ ]]; then
+    echo "Refusing to copy an unreadable local configuration file." >&2
+    return 1
+  fi
+  if (( (8#$mode & 8#77) != 0 )); then
+    echo "Refusing to copy a local configuration file that is not private." >&2
+    return 1
+  fi
+  /usr/bin/printf '%s\n' "$candidate"
+}
+
 service_uses_target() {
   local description="$1"
   local line
@@ -125,6 +152,7 @@ HOME_DIR="$(cd "$HOME" && pwd -P)"
 reject_writable_by_others "$HOME_DIR" "home directory"
 LOCK_PARENT="$HOME_DIR/Library/Application Support"
 LOCK_DIR="$LOCK_PARENT/.OpportunityRadar.lifecycle-lock"
+LOCK_OWNER="$LOCK_DIR/owner.pid"
 
 if [[ -L "$RENDERED" || ( -e "$RENDERED" && ! -O "$RENDERED" ) ]]; then
   echo "Refusing to replace an unsafe rendered launch-agent path." >&2
@@ -156,8 +184,16 @@ if [[ ! -d "$LOCK_PARENT" || ! -O "$LOCK_PARENT" ]]; then
   exit 1
 fi
 reject_writable_by_others "$LOCK_PARENT" "lifecycle-lock parent"
+"$PYTHON_BIN" "$PROJECT_DIR/scripts/recover_lifecycle_lock.py"
 if ! mkdir "$LOCK_DIR"; then
   echo "Another Opportunity Radar install or uninstall is already running." >&2
+  exit 1
+fi
+if ! /usr/bin/printf '%s\n%s\n' "$$" "$(/bin/date +%s)" > "$LOCK_OWNER" || \
+   ! /bin/chmod 600 "$LOCK_OWNER"; then
+  /bin/rm -f "$LOCK_OWNER"
+  /bin/rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+  echo "Could not record the lifecycle-lock owner safely." >&2
   exit 1
 fi
 LOCK_HELD=1
@@ -170,6 +206,9 @@ cleanup_stage() {
     /bin/rm -f "$CRON_BACKUP"
   fi
   if [[ "$LOCK_HELD" -eq 1 && -d "$LOCK_DIR" && ! -L "$LOCK_DIR" && -O "$LOCK_DIR" ]]; then
+    if [[ -f "$LOCK_OWNER" && ! -L "$LOCK_OWNER" && -O "$LOCK_OWNER" ]]; then
+      /bin/rm -f "$LOCK_OWNER"
+    fi
     /bin/rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
     LOCK_HELD=0
   fi
@@ -263,6 +302,10 @@ mkdir -p "$PROJECT_DIR/data" "$PROJECT_DIR/dashboard" "$PROJECT_DIR/logs" "$RUNT
 STAGE="$(/usr/bin/mktemp -d "$RUNTIME_PARENT/OpportunityRadar-stage.XXXXXX")"
 
 cd "$PROJECT_DIR"
+# The lifecycle lock prevents new scans. Verify that a scan which started just
+# before the lock is no longer using the live runtime before taking snapshots.
+PYTHONPYCACHEPREFIX="$PROJECT_DIR/data/pycache" \
+  "$PYTHON_BIN" "$PROJECT_DIR/scripts/check_scan_idle.py"
 PYTHONPYCACHEPREFIX="$PROJECT_DIR/data/pycache" "$PYTHON_BIN" -m monitor doctor >/dev/null
 
 mkdir -p \
@@ -277,11 +320,21 @@ mkdir -p \
 /usr/bin/ditto --norsrc --noextattr "$PROJECT_DIR/monitor" "$STAGE/monitor"
 /bin/cp "$PROJECT_DIR/config/profile.json" "$STAGE/config/profile.json"
 /bin/cp "$PROJECT_DIR/config/sources.json" "$STAGE/config/sources.json"
-if [[ -f "$PROJECT_DIR/config/profile.local.json" ]]; then
-  /bin/cp "$PROJECT_DIR/config/profile.local.json" "$STAGE/config/profile.local.json"
+PROFILE_LOCAL_SOURCE="$(
+  private_local_config \
+    "$RUNTIME_DIR/config/profile.local.json" \
+    "$PROJECT_DIR/config/profile.local.json"
+)"
+SOURCES_LOCAL_SOURCE="$(
+  private_local_config \
+    "$RUNTIME_DIR/config/sources.local.json" \
+    "$PROJECT_DIR/config/sources.local.json"
+)"
+if [[ -n "$PROFILE_LOCAL_SOURCE" ]]; then
+  /bin/cp "$PROFILE_LOCAL_SOURCE" "$STAGE/config/profile.local.json"
 fi
-if [[ -f "$PROJECT_DIR/config/sources.local.json" ]]; then
-  /bin/cp "$PROJECT_DIR/config/sources.local.json" "$STAGE/config/sources.local.json"
+if [[ -n "$SOURCES_LOCAL_SOURCE" ]]; then
+  /bin/cp "$SOURCES_LOCAL_SOURCE" "$STAGE/config/sources.local.json"
 fi
 /bin/cp "$PROJECT_DIR/dashboard/template.html" "$STAGE/dashboard/template.html"
 /bin/cp "$PROJECT_DIR/dashboard/styles.css" "$STAGE/dashboard/styles.css"
@@ -363,12 +416,14 @@ if [[ -f "$STAGE/seed/curated-pipeline.md" ]]; then
   (
     cd "$STAGE"
     OPPORTUNITY_RADAR_CURATED_PATH="$STAGE/seed/curated-pipeline.md" \
+      OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer \
       PYTHONPYCACHEPREFIX="$STAGE/data/pycache" \
       "$PYTHON_BIN" -m monitor scan --force --quiet
   )
 else
   (
     cd "$STAGE"
+    OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer \
     PYTHONPYCACHEPREFIX="$STAGE/data/pycache" \
       "$PYTHON_BIN" -m monitor scan --force --quiet
   )
@@ -456,6 +511,11 @@ fi
 trap - ERR HUP INT TERM
 if [[ -f "$PLIST_BACKUP" ]]; then
   /bin/rm -f "$PLIST_BACKUP"
+fi
+if [[ "$ARCHIVED_PREVIOUS_RUNTIME" -eq 1 ]]; then
+  "$PYTHON_BIN" "$PROJECT_DIR/scripts/remove_superseded_runtime.py" \
+    --runtime "$RUNTIME_DIR" \
+    --stamp "$STAMP"
 fi
 
 echo "Installed the private runtime and verified one complete scan."

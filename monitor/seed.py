@@ -4,7 +4,9 @@ import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
+from .dates import extract_deadline
 from .models import Opportunity
+from .scoring import CURATED_DOCUMENT_PROVENANCE, PROFILE_DOCUMENT_PROVENANCE
 from .text import canonical_url, clean_text, infer_opportunity_type, stable_hash
 
 
@@ -72,6 +74,8 @@ def parse_pipeline(
 ) -> List[Opportunity]:
     lines = path.read_text(encoding="utf-8").splitlines()
     allowed_codes = {code for code in resume_codes if code}
+    if default_resume:
+        allowed_codes.add(default_resume)
     heading = ""
     headers: List[str] = []
     items: List[Opportunity] = []
@@ -95,8 +99,16 @@ def parse_pipeline(
             continue
         resume_matches = [token for token in BACKTICK_RE.findall(line) if token in allowed_codes]
         recommended_resume = resume_matches[0] if resume_matches else default_resume
+        document_provenance = (
+            CURATED_DOCUMENT_PROVENANCE
+            if resume_matches
+            else PROFILE_DOCUMENT_PROVENANCE
+        )
         description = " ".join(cell for cell in cells if title not in cell and url not in cell)
-        deadline = _extract_deadline(description, default_year=default_year)
+        deadline, deadline_metadata = extract_deadline(
+            description,
+            default_year=default_year,
+        )
         commitment = _extract_commitment(description)
         organization = _column_value(headers, cells, ORGANIZATION_COLUMNS)
         declared_type = _column_value(headers, cells, TYPE_COLUMNS)
@@ -119,7 +131,11 @@ def parse_pipeline(
                 deadline_at=deadline,
                 recommended_resume=recommended_resume,
                 commitment=commitment,
-                metadata={"curated": True},
+                metadata={
+                    "curated": True,
+                    "dates": {"deadline": deadline_metadata},
+                    "document_routing": {"provenance": document_provenance},
+                },
             )
         )
     deduplicated: Dict[str, Opportunity] = {}
@@ -129,23 +145,8 @@ def parse_pipeline(
 
 
 def _extract_deadline(text: str, default_year: Optional[str] = None) -> Optional[str]:
-    match = re.search(
-        r"(?:deadline(?: is)?|close(?:s)?|by)\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:,\s*(20\d{2}))?",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if not match:
-        return None
-    month_name, day, year = match.groups()
-    months = [
-        "january", "february", "march", "april", "may", "june",
-        "july", "august", "september", "october", "november", "december",
-    ]
-    month = months.index(month_name.lower()) + 1
-    resolved_year = year or default_year
-    if not resolved_year:
-        return None
-    return "{}-{:02d}-{:02d}".format(resolved_year, month, int(day))
+    """Backward-compatible value-only wrapper for the shared date parser."""
+    return extract_deadline(text, default_year=default_year)[0]
 
 
 def _extract_commitment(text: str) -> str:

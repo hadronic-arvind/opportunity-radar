@@ -1,12 +1,10 @@
 """Small, private onboarding flow for source packs and matching preferences."""
 
-import json
-import os
-import tempfile
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .config import load_source_packs, load_sources, project_path
+from .config import load_source_packs, load_sources
+from .profile import initialize_local_configuration
 
 
 def comma_values(value: str) -> List[str]:
@@ -41,12 +39,22 @@ def validate_pack_ids(pack_ids: Iterable[str]) -> List[str]:
 
 
 def source_selection(pack_ids: Sequence[str]) -> int:
+    return source_selection_counts(pack_ids)["enabled_sources"]
+
+
+def source_selection_counts(pack_ids: Sequence[str]) -> Dict[str, int]:
     chosen = set(validate_pack_ids(pack_ids))
-    enabled_count = 0
+    counts = {"enabled_sources": 0, "listing_feeds": 0, "manual_pages": 0}
     for source in load_sources(include_disabled=True):
         source_packs = {str(value) for value in source.get("packs", [])}
-        enabled_count += int(bool(chosen.intersection(source_packs)))
-    return enabled_count
+        if not chosen.intersection(source_packs):
+            continue
+        counts["enabled_sources"] += 1
+        if source.get("kind") != "watch_page":
+            counts["listing_feeds"] += 1
+        else:
+            counts["manual_pages"] += 1
+    return counts
 
 
 def build_profile(
@@ -57,107 +65,83 @@ def build_profile(
     organizations: Sequence[str] = (),
     default_document: str = "General",
     target: str = "",
+    timeframes: Sequence[str] = (),
 ) -> Dict[str, Any]:
-    rules = []
-    if include_terms:
-        rules.append(
-            {
-                "id": "preferred_work",
-                "label": "Preferred work",
-                "weight": 24,
-                "fields": ["title", "description", "category", "opportunity_type"],
-                "terms": list(include_terms),
-                "per_term": True,
-                "max_hits": 3,
-            }
-        )
-    if locations:
-        rules.append(
-            {
-                "id": "preferred_location",
-                "label": "Preferred location",
-                "weight": 10,
-                "fields": ["location"],
-                "terms": list(locations),
-            }
-        )
-    if exclude_terms:
-        rules.append(
-            {
-                "id": "excluded_work",
-                "label": "Excluded work",
-                "weight": -45,
-                "fields": ["title", "description", "category", "opportunity_type"],
-                "terms": list(exclude_terms),
-            }
-        )
+    configured_timeframes = list(timeframes)
+    if target and target not in configured_timeframes:
+        configured_timeframes.append(target)
     profile: Dict[str, Any] = {
         "schema_version": 2,
-        "selected_source_packs": list(pack_ids),
+        "timeframes": configured_timeframes,
+        "candidate": {
+            "completed_degrees": [],
+            "skills": [],
+        },
+        "targets": {
+            "opportunity_types": [],
+            "cycles": [
+                {"label": timeframe}
+                for timeframe in configured_timeframes
+            ],
+            "role_families": list(include_terms),
+            "domains": [],
+            "supporting_skills": [],
+            "locations": list(locations),
+            "exclusions": list(exclude_terms),
+            "work_arrangements": [],
+        },
         "priority_organizations": list(organizations),
-        "matching": {"rules": rules},
+        "matching": {
+            "engine": "structured_v2",
+            "base_score": 25,
+            "minimum_display_score": 40,
+            "rules": [],
+        },
         "documents": {"default": default_document or "General", "routes": []},
     }
-    if target:
-        profile["dashboard"] = {"target_season": target}
+    if configured_timeframes:
+        profile["dashboard"] = {
+            "timeframes": configured_timeframes,
+            "target_season": (
+                configured_timeframes[0] if len(configured_timeframes) == 1 else ""
+            ),
+        }
     return profile
 
 
-def _staged_json(path: Path, payload: Dict[str, Any]) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=str(path.parent), prefix=".{}-".format(path.name), suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, ensure_ascii=False)
-        handle.write("\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.chmod(temporary, 0o600)
-    return temporary
-
-
 def write_local_configuration(
-    profile: Dict[str, Any], source_registry: Dict[str, Any], force: bool = False
+    profile: Dict[str, Any],
+    source_registry: Dict[str, Any],
+    force: bool = False,
+    known_pack_ids: Optional[Iterable[str]] = None,
 ) -> Tuple[Path, Path]:
-    profile_path = project_path("config", "profile.local.json")
-    sources_path = project_path("config", "sources.local.json")
-    existing = [path.name for path in (profile_path, sources_path) if path.exists()]
-    if existing and not force:
-        raise FileExistsError(
-            "Local configuration already exists ({}); rerun with --force only to replace it".format(
-                ", ".join(existing)
-            )
-        )
-    staged: List[Tuple[Path, Path]] = []
-    try:
-        staged.append((_staged_json(profile_path, profile), profile_path))
-        staged.append(
-            (
-                _staged_json(
-                    sources_path,
-                    source_registry,
-                ),
-                sources_path,
-            )
-        )
-        for temporary, destination in staged:
-            os.replace(temporary, destination)
-            os.chmod(destination, 0o600)
-    finally:
-        for temporary, _destination in staged:
-            if temporary.exists():
-                temporary.unlink()
-    return profile_path, sources_path
+    destinations, _refresh = initialize_local_configuration(
+        profile,
+        source_registry,
+        force=force,
+        known_pack_ids=known_pack_ids,
+    )
+    return destinations
 
 
 def interactive_values() -> Dict[str, Any]:
     packs = list(available_packs().values())
+    sources = load_sources(include_disabled=True)
     print("Choose source packs by number or id, separated by commas:")
     for index, pack in enumerate(packs, 1):
         suffix = " (default)" if pack.get("default") else ""
-        print("  {:>2}. {}{} - {}".format(index, pack["id"], suffix, pack.get("description", "")))
+        members = [source for source in sources if pack["id"] in source.get("packs", [])]
+        feeds = sum(source.get("kind") != "watch_page" for source in members)
+        print(
+            "  {:>2}. {}{} - {} feeds, {} manual pages - {}".format(
+                index,
+                pack["id"],
+                suffix,
+                feeds,
+                len(members) - feeds,
+                pack.get("description", ""),
+            )
+        )
     raw = input("Packs [{}]: ".format(",".join(default_pack_ids()))).strip()
     tokens = comma_values(raw) if raw else default_pack_ids()
     selected = []
@@ -173,7 +157,10 @@ def interactive_values() -> Dict[str, Any]:
         "locations": comma_values(input("Preferred locations or remote (optional): ")),
         "organizations": comma_values(input("Preferred organizations (optional): ")),
         "default_document": input("Default resume/CV label [General]: ").strip() or "General",
-        "target": input("Target season or cycle (optional): ").strip()[:120],
+        "timeframes": comma_values(
+            input("Target seasons or cycles, separated by commas (optional): ")
+        ),
+        "target": "",
     }
 
 
@@ -185,10 +172,11 @@ def initialize(
     organizations: Sequence[str] = (),
     default_document: str = "General",
     target: str = "",
+    timeframes: Sequence[str] = (),
     force: bool = False,
 ) -> Dict[str, Any]:
     selected = validate_pack_ids(pack_ids)
-    enabled_count = source_selection(selected)
+    source_counts = source_selection_counts(selected)
     profile = build_profile(
         selected,
         include_terms,
@@ -197,15 +185,17 @@ def initialize(
         organizations,
         default_document,
         target,
+        timeframes,
     )
     profile_path, sources_path = write_local_configuration(
         profile,
         {"schema_version": 2, "selected_packs": selected, "sources": []},
         force=force,
+        known_pack_ids=available_packs(),
     )
     return {
         "packs": selected,
-        "enabled_sources": enabled_count,
+        **source_counts,
         "profile": profile_path.name,
         "sources": sources_path.name,
     }

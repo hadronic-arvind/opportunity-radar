@@ -8,7 +8,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from .config import load_profile, project_path, resolve_private_state_path
+from .config import (
+    load_profile,
+    load_source_packs,
+    project_path,
+    resolve_private_state_path,
+)
+from .profile import profile_editor_payload
 
 
 STYLE_MARKER = "/*__OPPORTUNITY_STYLES__*/"
@@ -19,21 +25,45 @@ NONCE_MARKER = "__OPPORTUNITY_NONCE__"
 MARKER = DATA_MARKER
 
 
-def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, str]:
+def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
     dashboard = profile.get("dashboard", {})
+    configured_timeframes = profile.get("timeframes", dashboard.get("timeframes", []))
+    if not isinstance(configured_timeframes, list):
+        configured_timeframes = []
+    timeframes = [
+        str(value).strip()
+        for value in configured_timeframes
+        if str(value).strip()
+    ][:12]
+    legacy_target = str(dashboard.get("target_season", "")).strip()
+    if not timeframes and legacy_target:
+        timeframes = [legacy_target]
+    packs = [
+        {
+            "id": str(pack.get("id", "")),
+            "name": str(pack.get("name", pack.get("id", ""))),
+            "description": str(pack.get("description", ""))[:240],
+            "default": bool(pack.get("default", False)),
+        }
+        for pack in load_source_packs()
+        if str(pack.get("id", "")).strip()
+    ]
     return {
         "title": str(dashboard.get("title", "Opportunity Radar")),
         "subtitle": str(
             dashboard.get(
                 "subtitle",
-                "Find and track opportunities from the sources you choose.",
+                "Review matches and track applications from the sources you follow.",
             )
         ),
-        "target_season": str(dashboard.get("target_season", "")),
+        "timeframes": timeframes,
+        "target_season": legacy_target,
         "default_reason": str(
             dashboard.get("default_reason", "Matched by your configured preferences.")
         ),
         "document_label": str(dashboard.get("document_label", "Application track")),
+        "profile_editor": profile_editor_payload(profile),
+        "source_packs": packs,
     }
 
 
@@ -79,7 +109,9 @@ def render_dashboard(payload: Dict[str, Any], profile: Optional[Dict[str, Any]] 
         raise ValueError("Dashboard template is missing CSP nonce markers")
 
     rendered_payload = _safe_payload(payload)
-    rendered_payload["settings"] = _dashboard_settings(profile or load_profile())
+    rendered_payload["settings"] = _dashboard_settings(
+        load_profile() if profile is None else profile
+    )
     # Escaping '<' prevents an embedded closing script tag from ending the JSON block.
     data = json.dumps(rendered_payload, ensure_ascii=False, separators=(",", ":")).replace(
         "<", "\\u003c"

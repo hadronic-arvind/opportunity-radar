@@ -87,6 +87,75 @@ class MacOSAppTests(unittest.TestCase):
                 )
                 self.assertFalse(marker.exists())
 
+    def test_partial_backup_cleanup_never_rolls_back_verified_replacement(self):
+        project, module = load_installer()
+
+        def fake_compile(source, executable, swiftc, module_cache):
+            executable.write_text("new-native-binary", encoding="utf-8")
+            executable.chmod(0o700)
+
+        def fake_render(executable, directory):
+            directory.mkdir(parents=True)
+            images = {}
+            for pixels in sorted(set(size for _tag, size in module.ICON_CHUNKS)):
+                output = directory / "icon-{}.png".format(pixels)
+                output.write_bytes(b"PNG" + str(pixels).encode("ascii"))
+                images[pixels] = output
+            return images
+
+        def fake_sign(app):
+            (app / "Contents" / "new-version").write_text("verified", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            destination = root / "Opportunity Radar.app"
+            old_contents = destination / "Contents"
+            old_contents.mkdir(parents=True)
+            with (old_contents / "Info.plist").open("wb") as handle:
+                plistlib.dump(
+                    {"CFBundleIdentifier": module.EXPECTED_BUNDLE_IDENTIFIER},
+                    handle,
+                )
+            old_marker = destination / "old-version"
+            old_marker.write_text("old", encoding="utf-8")
+
+            real_rmtree = module.shutil.rmtree
+            backup_cleanup_attempts = []
+
+            def partially_remove_backup(path, *args, **kwargs):
+                candidate = Path(path)
+                if ".previous-" in candidate.name:
+                    backup_cleanup_attempts.append(candidate)
+                    damaged_marker = candidate / "old-version"
+                    if damaged_marker.exists():
+                        damaged_marker.unlink()
+                    raise OSError("injected partial backup cleanup failure")
+                return real_rmtree(path, *args, **kwargs)
+
+            verified = []
+            with (
+                patch.object(module, "compile_app", side_effect=fake_compile),
+                patch.object(module, "render_icons", side_effect=fake_render),
+                patch.object(module, "sign_app", side_effect=fake_sign),
+                patch.object(module, "verify_app", side_effect=lambda app: verified.append(Path(app))),
+                patch.object(module.shutil, "rmtree", side_effect=partially_remove_backup),
+            ):
+                installed = module.build_app(
+                    destination,
+                    project_root=project,
+                    python_executable=Path("/usr/bin/python3"),
+                    swiftc=Path("/usr/bin/true"),
+                    runtime_root=project,
+                )
+
+            self.assertEqual(installed, destination.resolve())
+            self.assertEqual(verified, [destination.resolve()])
+            self.assertEqual(len(backup_cleanup_attempts), 1)
+            self.assertTrue(backup_cleanup_attempts[0].exists())
+            self.assertFalse((backup_cleanup_attempts[0] / "old-version").exists())
+            self.assertTrue((destination / "Contents" / "new-version").is_file())
+            self.assertFalse((destination / "old-version").exists())
+
     def test_desktop_shortcut_is_explicit_and_refuses_existing_content(self):
         _project, module = load_installer()
         with tempfile.TemporaryDirectory() as tempdir:

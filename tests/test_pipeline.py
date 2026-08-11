@@ -1,9 +1,11 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from monitor import pipeline
 from monitor.database import Database
-from monitor.pipeline import _import_curated, _register_sources
+from monitor.pipeline import _import_curated, _register_sources, _target_year
 
 
 class PipelineConfigurationTests(unittest.TestCase):
@@ -57,6 +59,19 @@ class PipelineConfigurationTests(unittest.TestCase):
         self.assertEqual(row["deadline_at"], "2028-03-02")
         self.assertEqual(row["recommended_resume"], "Research")
 
+    def test_target_year_supports_multiple_structured_cycles(self):
+        profile = {
+            "timeframes": ["Fall 2029", "Summer 2028"],
+            "targets": {
+                "cycles": [
+                    {"label": "Fall 2029", "season": "fall", "year": 2029},
+                    {"label": "Summer 2028", "season": "summer", "year": 2028},
+                ]
+            },
+            "dashboard": {"target_season": "Summer 2029"},
+        }
+        self.assertEqual(_target_year(profile), "2028")
+
     def test_missing_configured_seed_reports_only_basename(self):
         missing = self.root / "private" / "missing-pipeline.md"
         profile = {"curated_pipeline_path": str(missing)}
@@ -92,6 +107,30 @@ class PipelineConfigurationTests(unittest.TestCase):
             "SELECT recommended_resume FROM opportunities"
         ).fetchone()
         self.assertEqual(row["recommended_resume"], "Data CV")
+
+    def test_scan_refuses_an_active_profile_lifecycle(self):
+        lifecycle = self.root / ".OpportunityRadar.lifecycle-lock"
+        lifecycle.mkdir(mode=0o700)
+        with (
+            patch.object(pipeline.sys, "platform", "darwin"),
+            patch("monitor.profile._lifecycle_lock_path", return_value=lifecycle),
+            patch.dict(pipeline.os.environ, {}, clear=True),
+            self.assertRaisesRegex(
+                RuntimeError, "install, uninstall, or profile update"
+            ),
+        ):
+            pipeline.ensure_profile_lifecycle_idle()
+
+        with (
+            patch.object(pipeline.sys, "platform", "darwin"),
+            patch("monitor.profile._lifecycle_lock_path", return_value=lifecycle),
+            patch.dict(
+                pipeline.os.environ,
+                {pipeline.LIFECYCLE_OWNER_ENV: "installer"},
+                clear=True,
+            ),
+        ):
+            pipeline.ensure_profile_lifecycle_idle()
 
 
 if __name__ == "__main__":

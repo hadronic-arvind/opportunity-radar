@@ -34,7 +34,7 @@ python3 -m monitor scan
 ```
 
 On macOS, the native app is optional.
-It opens the dashboard directly and enables the in-dashboard Refresh, Scan all, Save, and application-status controls.
+It opens the dashboard directly and enables profile editing, Refresh, Scan all, Save, and application-status controls.
 
 ```bash
 ./scripts/install_launch_agent.sh
@@ -60,9 +60,23 @@ Use Refresh for due sources or Scan all when you deliberately want to ignore sou
 Without the app, use `python3 -m monitor scan` for a due-only refresh or `./scripts/run_now.sh` for a full scan.
 `./scripts/open_dashboard.sh` opens immediately and does not wait for the network.
 
-The Discover view supports search, sorting, filters, saved items, dark mode, and progressive list rendering.
+The Discover view supports field-aware search, sorting, filters, saved items, dark mode, and 24-item pages.
 In the native app, Plan application and Mark applied persist the workflow in SQLite.
 In a regular browser, the same controls use bounded local browser storage because a static file cannot safely write to SQLite.
+
+Your profile can be changed at any time from the native app or the CLI.
+
+```bash
+python3 -m monitor profile show
+python3 -m monitor profile set \
+  --timeframe "Summer 2028" \
+  --include "scientific computing,machine learning" \
+  --opportunity-types "internship,research_program"
+python3 -m monitor profile validate
+```
+
+Profile changes immediately rescore the existing dashboard without a network request.
+Every later due or forced scan reads the latest saved profile.
 
 Fit scores are deterministic triage from your rules.
 They are not acceptance probabilities.
@@ -78,12 +92,15 @@ python3 -m monitor sources health
 python3 -m monitor sources test figma_greenhouse
 ```
 
-Personal settings belong only in the ignored files below:
+The app and CLI write personal settings to one canonical private location.
+Before scheduler installation that location is the clone, and afterward it is the installed private runtime.
+These ignored files hold the data:
 
 - `config/profile.local.json` for matching, organizations, labels, and document routing.
 - `config/sources.local.json` for enabled packs, source overrides, and private additions.
 
 See [Configuration](docs/CONFIGURATION.md) for the schema and examples.
+Official source names in the dashboard are clickable, including manual resources that do not expose a structured listing feed.
 
 ## Privacy and permissions
 
@@ -108,7 +125,8 @@ Read [Security](SECURITY.md) for the trust model and vulnerability reporting pro
 ./scripts/uninstall_launch_agent.sh
 ```
 
-Run the scheduler installer again after pulling code changes or changing local configuration.
+Run the scheduler installer again after pulling code changes.
+Profile and source-pack changes made through the app or CLI do not require reinstallation.
 Uninstalling the scheduler leaves the database and dashboard intact.
 
 Developer details are in [Pipeline design](docs/PIPELINE.md), [Operations](docs/OPERATIONS.md), and [Contributing](CONTRIBUTING.md).

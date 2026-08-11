@@ -5,6 +5,10 @@ import WebKit
 
 private let bridgeName = "opportunityRadar"
 private let themeDefaultsKey = "OpportunityRadarTheme"
+private let maximumProfilePayloadBytes = 256 * 1024
+private let maximumCapturedOutputBytes = 32 * 1024
+private let commandIOWaitSeconds = 2.0
+private let terminationDeferralSeconds = 30.0
 
 private enum AppConfigurationError: LocalizedError {
     case unavailable
@@ -249,6 +253,7 @@ private enum BridgeAction: String {
     case scan
     case status
     case bookmark
+    case profile
     case theme
 }
 
@@ -280,23 +285,151 @@ private enum ApplicationStatus: String, CaseIterable {
     case skip
 }
 
-private final class OutputDrainer {
+private final class BoundedOutputCapture {
     let pipe = Pipe()
+    private let maximumBytes: Int
+    private let lock = NSLock()
+    private let readerGroup = DispatchGroup()
+    private let readerQueue = DispatchQueue(
+        label: "org.openai.opportunity-radar.command-output",
+        qos: .utility
+    )
+    private var captured = Data()
 
-    init() {
-        pipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
+    init(maximumBytes: Int = maximumCapturedOutputBytes) {
+        self.maximumBytes = maximumBytes
+        readerGroup.enter()
+        readerQueue.async { [self] in
+            defer { readerGroup.leave() }
+            let handle = pipe.fileHandleForReading
+            while true {
+                do {
+                    guard
+                        let data = try handle.read(upToCount: 8_192),
+                        !data.isEmpty
+                    else {
+                        return
+                    }
+                    append(data)
+                } catch {
+                    return
+                }
             }
         }
     }
 
-    func stop() {
-        pipe.fileHandleForReading.readabilityHandler = nil
-        try? pipe.fileHandleForReading.close()
+    private func append(_ data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        if data.count >= maximumBytes {
+            captured = Data(data.suffix(maximumBytes))
+            return
+        }
+        let overflow = captured.count + data.count - maximumBytes
+        if overflow > 0 {
+            captured.removeFirst(overflow)
+        }
+        captured.append(data)
+    }
+
+    func closeParentWriteEnd() {
         try? pipe.fileHandleForWriting.close()
     }
+
+    func finish() -> String {
+        closeParentWriteEnd()
+        if readerGroup.wait(timeout: .now() + commandIOWaitSeconds) == .timedOut {
+            try? pipe.fileHandleForReading.close()
+        }
+        lock.lock()
+        let snapshot = captured
+        lock.unlock()
+        try? pipe.fileHandleForReading.close()
+        return String(decoding: snapshot, as: UTF8.self)
+    }
+
+    func cancel() {
+        try? pipe.fileHandleForWriting.close()
+        try? pipe.fileHandleForReading.close()
+    }
+}
+
+private final class AsyncInputWriter {
+    let pipe = Pipe()
+    private let input: Data
+    private let lock = NSLock()
+    private let writerGroup = DispatchGroup()
+    private let writerQueue = DispatchQueue(
+        label: "org.openai.opportunity-radar.command-input",
+        qos: .utility
+    )
+    private var started = false
+    private var failed = false
+
+    init(input: Data) {
+        self.input = input
+        writerGroup.enter()
+    }
+
+    private func closeParentReadEnd() {
+        try? pipe.fileHandleForReading.close()
+    }
+
+    func start() {
+        lock.lock()
+        guard !started else {
+            lock.unlock()
+            return
+        }
+        started = true
+        lock.unlock()
+        closeParentReadEnd()
+        writerQueue.async { [self] in
+            defer {
+                try? pipe.fileHandleForWriting.close()
+                writerGroup.leave()
+            }
+            do {
+                try pipe.fileHandleForWriting.write(contentsOf: input)
+            } catch {
+                lock.lock()
+                failed = true
+                lock.unlock()
+            }
+        }
+    }
+
+    func finish() -> Bool {
+        if writerGroup.wait(timeout: .now() + commandIOWaitSeconds) == .timedOut {
+            lock.lock()
+            failed = true
+            lock.unlock()
+            try? pipe.fileHandleForWriting.close()
+        }
+        lock.lock()
+        let succeeded = !failed
+        lock.unlock()
+        return succeeded
+    }
+
+    func cancel() {
+        lock.lock()
+        let shouldLeave = !started
+        started = true
+        failed = true
+        lock.unlock()
+        try? pipe.fileHandleForWriting.close()
+        try? pipe.fileHandleForReading.close()
+        if shouldLeave {
+            writerGroup.leave()
+        }
+    }
+}
+
+private struct CommandDiagnostics {
+    let standardOutput: String
+    let standardError: String
+    let inputSucceeded: Bool
 }
 
 private enum CommandPurpose {
@@ -307,8 +440,9 @@ private enum CommandPurpose {
 private struct RunningCommand {
     let process: Process
     let purpose: CommandPurpose
-    let standardOutput: OutputDrainer
-    let standardError: OutputDrainer
+    let standardOutput: BoundedOutputCapture
+    let standardError: BoundedOutputCapture
+    let standardInput: AsyncInputWriter?
 }
 
 private enum RadarIcon {
@@ -533,6 +667,7 @@ private enum RadarIcon {
 
 private final class AppDelegate: NSObject,
     NSApplicationDelegate,
+    NSWindowDelegate,
     WKNavigationDelegate,
     WKScriptMessageHandler
 {
@@ -543,6 +678,8 @@ private final class AppDelegate: NSObject,
     private var statusSpinner: NSProgressIndicator!
     private var configuration: AppConfiguration!
     private var runningCommand: RunningCommand?
+    private var terminationPending = false
+    private var terminationDeadline: DispatchWorkItem?
     private var attemptedInitialDashboardGeneration = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -565,16 +702,74 @@ private final class AppDelegate: NSObject,
         true
     }
 
+    func applicationShouldTerminate(
+        _ sender: NSApplication
+    ) -> NSApplication.TerminateReply {
+        guard runningCommand != nil else {
+            return .terminateNow
+        }
+        if !terminationPending {
+            beginDeferredTermination()
+        }
+        return .terminateLater
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard runningCommand != nil else {
+            return true
+        }
+        NSApp.terminate(sender)
+        return false
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        terminationDeadline?.cancel()
+        terminationDeadline = nil
         webView?.configuration.userContentController.removeScriptMessageHandler(
             forName: bridgeName
         )
-        if let process = runningCommand?.process, process.isRunning {
-            process.terminate()
+    }
+
+    private func beginDeferredTermination() {
+        terminationPending = true
+        window.title = "Opportunity Radar - Finishing current operation"
+        let deadline = DispatchWorkItem { [weak self] in
+            self?.cancelDeferredTerminationAfterTimeout()
         }
-        runningCommand?.standardOutput.stop()
-        runningCommand?.standardError.stop()
-        runningCommand = nil
+        terminationDeadline = deadline
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + terminationDeferralSeconds,
+            execute: deadline
+        )
+    }
+
+    private func completeDeferredTerminationIfNeeded() -> Bool {
+        guard terminationPending else {
+            window.title = "Opportunity Radar"
+            return false
+        }
+        terminationPending = false
+        terminationDeadline?.cancel()
+        terminationDeadline = nil
+        NSApp.reply(toApplicationShouldTerminate: true)
+        return true
+    }
+
+    private func cancelDeferredTerminationAfterTimeout() {
+        guard terminationPending else { return }
+        terminationPending = false
+        terminationDeadline = nil
+        NSApp.reply(toApplicationShouldTerminate: false)
+        window.title = "Opportunity Radar - Operation still running"
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        guard window.attachedSheet == nil else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Opportunity Radar is still working"
+        alert.informativeText = "Quit was canceled to avoid interrupting the current operation. The app stayed open to protect its data; try quitting again after the operation finishes."
+        alert.addButton(withTitle: "OK")
+        alert.beginSheetModal(for: window)
     }
 
     private func buildWindow() {
@@ -622,6 +817,7 @@ private final class AppDelegate: NSObject,
         window.center()
         window.isReleasedWhenClosed = false
         window.isRestorable = false
+        window.delegate = self
 
         let content = NSView(frame: window.contentView?.bounds ?? .zero)
         window.contentView = content
@@ -693,7 +889,7 @@ private final class AppDelegate: NSObject,
     private func loadDashboard(_ dashboard: URL) {
         statusSpinner.stopAnimation(nil)
         statusView.isHidden = true
-        webView.isHidden = false
+        webView.isHidden = true
         webView.loadFileURL(
             dashboard,
             allowingReadAccessTo: dashboard.deletingLastPathComponent()
@@ -731,7 +927,9 @@ private final class AppDelegate: NSObject,
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        setPageTheme(Theme.current)
+        setPageTheme(Theme.current) {
+            webView.isHidden = false
+        }
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -788,6 +986,8 @@ private final class AppDelegate: NSObject,
             handleStatus(payload)
         case .bookmark:
             handleBookmark(payload)
+        case .profile:
+            handleProfile(payload)
         case .theme:
             handleTheme(payload)
         }
@@ -883,6 +1083,44 @@ private final class AppDelegate: NSObject,
         )
     }
 
+    private func handleProfile(_ payload: [String: Any]) {
+        guard
+            let requestID = payload["request"] as? String,
+            validRequestID(requestID)
+        else {
+            return
+        }
+        guard
+            Set(payload.keys) == Set(["version", "action", "profile", "request"]),
+            let profile = payload["profile"] as? [String: Any],
+            boundedProfileValue(profile),
+            JSONSerialization.isValidJSONObject(profile),
+            let input = try? JSONSerialization.data(withJSONObject: profile),
+            input.count <= maximumProfilePayloadBytes
+        else {
+            complete(
+                action: .profile,
+                requestID: requestID,
+                ok: false,
+                message: "The profile update was rejected."
+            )
+            return
+        }
+        startCommand(
+            action: .profile,
+            requestID: requestID,
+            arguments: [
+                "-m",
+                "monitor",
+                "profile",
+                "apply",
+                "--stdin",
+                "--quiet",
+            ],
+            input: input
+        )
+    }
+
     private func handleTheme(_ payload: [String: Any]) {
         guard
             Set(payload.keys) == Set(["version", "action", "theme"]),
@@ -905,7 +1143,8 @@ private final class AppDelegate: NSObject,
     private func startCommand(
         action: BridgeAction,
         requestID: String,
-        arguments: [String]
+        arguments: [String],
+        input: Data? = nil
     ) {
         guard runningCommand == nil else {
             complete(
@@ -916,7 +1155,11 @@ private final class AppDelegate: NSObject,
             )
             return
         }
-        launchCommand(purpose: .bridge(action, requestID), arguments: arguments)
+        launchCommand(
+            purpose: .bridge(action, requestID),
+            arguments: arguments,
+            input: input
+        )
     }
 
     private func startInitialDashboardGeneration() {
@@ -930,10 +1173,15 @@ private final class AppDelegate: NSObject,
         )
     }
 
-    private func launchCommand(purpose: CommandPurpose, arguments: [String]) {
+    private func launchCommand(
+        purpose: CommandPurpose,
+        arguments: [String],
+        input: Data? = nil
+    ) {
         let process = Process()
-        let standardOutput = OutputDrainer()
-        let standardError = OutputDrainer()
+        let standardOutput = BoundedOutputCapture()
+        let standardError = BoundedOutputCapture()
+        let standardInput = input.map(AsyncInputWriter.init(input:))
         do {
             process.executableURL = try configuration.pythonExecutable()
             process.arguments = arguments
@@ -941,26 +1189,44 @@ private final class AppDelegate: NSObject,
             process.environment = commandEnvironment()
             process.standardOutput = standardOutput.pipe
             process.standardError = standardError.pipe
+            if let standardInput {
+                process.standardInput = standardInput.pipe
+            }
             let command = RunningCommand(
                 process: process,
                 purpose: purpose,
                 standardOutput: standardOutput,
-                standardError: standardError
+                standardError: standardError,
+                standardInput: standardInput
             )
             runningCommand = command
             process.terminationHandler = { [weak self, weak process] finished in
                 guard let process else { return }
-                let succeeded = finished.terminationReason == .exit
+                let diagnostics = CommandDiagnostics(
+                    standardOutput: standardOutput.finish(),
+                    standardError: standardError.finish(),
+                    inputSucceeded: standardInput?.finish() ?? true
+                )
+                let succeeded = diagnostics.inputSucceeded
+                    && finished.terminationReason == .exit
                     && finished.terminationStatus == 0
                 DispatchQueue.main.async {
-                    self?.finishCommand(process: process, succeeded: succeeded)
+                    self?.finishCommand(
+                        process: process,
+                        succeeded: succeeded,
+                        diagnostics: diagnostics
+                    )
                 }
             }
             try process.run()
+            standardOutput.closeParentWriteEnd()
+            standardError.closeParentWriteEnd()
+            standardInput?.start()
         } catch {
             runningCommand = nil
-            standardOutput.stop()
-            standardError.stop()
+            standardOutput.cancel()
+            standardError.cancel()
+            standardInput?.cancel()
             switch purpose {
             case .bridge(let action, let requestID):
                 complete(
@@ -975,16 +1241,21 @@ private final class AppDelegate: NSObject,
         }
     }
 
-    private func finishCommand(process: Process, succeeded: Bool) {
+    private func finishCommand(
+        process: Process,
+        succeeded: Bool,
+        diagnostics: CommandDiagnostics
+    ) {
         guard
             let command = runningCommand,
             command.process === process
         else {
             return
         }
-        command.standardOutput.stop()
-        command.standardError.stop()
         runningCommand = nil
+        if completeDeferredTerminationIfNeeded() {
+            return
+        }
 
         switch command.purpose {
         case .initialDashboard:
@@ -1005,7 +1276,8 @@ private final class AppDelegate: NSObject,
             finishBridgeCommand(
                 action: action,
                 requestID: requestID,
-                succeeded: succeeded
+                succeeded: succeeded,
+                diagnostics: diagnostics
             )
         }
     }
@@ -1013,7 +1285,8 @@ private final class AppDelegate: NSObject,
     private func finishBridgeCommand(
         action: BridgeAction,
         requestID: String,
-        succeeded: Bool
+        succeeded: Bool,
+        diagnostics: CommandDiagnostics
     ) {
         let message: String
         switch action {
@@ -1023,6 +1296,10 @@ private final class AppDelegate: NSObject,
             message = succeeded ? "Application status updated." : "The status could not be updated."
         case .bookmark:
             message = succeeded ? "Bookmark updated." : "The bookmark could not be updated."
+        case .profile:
+            message = succeeded
+                ? "Profile updated."
+                : profileFailureMessage(diagnostics)
         case .theme:
             message = succeeded ? "Theme updated." : "The theme could not be updated."
         }
@@ -1033,10 +1310,65 @@ private final class AppDelegate: NSObject,
             ok: succeeded,
             message: message
         ) { [weak self] in
-            if succeeded && action != .theme {
+            if succeeded && (action == .scan || action == .profile) {
                 self?.reloadDashboard(after: action)
             }
         }
+    }
+
+    private func profileFailureMessage(_ diagnostics: CommandDiagnostics) -> String {
+        guard diagnostics.inputSucceeded else {
+            return "The profile data could not be sent to the helper. Try saving again."
+        }
+        let detail = (diagnostics.standardError + "\n" + diagnostics.standardOutput)
+            .lowercased()
+        if detail.contains("profile changed after it was opened")
+            || detail.contains("stale revision")
+        {
+            return "Your profile changed after this editor opened. Reload the dashboard and try again."
+        }
+        if detail.contains("already running")
+            || detail.contains("database is locked")
+            || detail.contains("resource temporarily unavailable")
+        {
+            return "Opportunity Radar is busy with another scan or profile update. Try again in a moment."
+        }
+        if detail.contains("environment configuration override") {
+            return "Profile editing is unavailable while a configuration override is active."
+        }
+        if detail.contains("unsafe")
+            || detail.contains("symbolic link")
+            || detail.contains("not owned by the current user")
+        {
+            return "Profile storage failed a safety check. Reinstall the optional app before trying again."
+        }
+        if detail.contains("threshold") {
+            return "Keep fit thresholds ordered from priority to strong to watch, then try again."
+        }
+        if detail.contains("source pack") || detail.contains("selected_packs") {
+            return "Choose at least one available source pack, then try again."
+        }
+        if detail.contains("matching rule") || detail.contains("matching.rules") {
+            return "One of the matching rules is incomplete or invalid. Review its terms and fields."
+        }
+        if detail.contains("document route") || detail.contains("default document") {
+            return "One of the application document routes is incomplete or duplicated."
+        }
+        let validationMarkers = [
+            " must ",
+            " invalid",
+            "unsupported",
+            "too large",
+            "too many",
+            "bounded",
+            "needs at least",
+            "select at least",
+            "not be empty",
+        ]
+        if validationMarkers.contains(where: detail.contains) {
+            return "The profile contains a value that could not be validated. Review the fields and try again."
+        }
+        return "The profile could not be saved. Try again in a moment."
     }
 
     private func commandEnvironment() -> [String: String] {
@@ -1083,11 +1415,14 @@ private final class AppDelegate: NSObject,
         }
     }
 
-    private func setPageTheme(_ theme: Theme) {
-        guard let json = jsonLiteral(theme.rawValue) else { return }
+    private func setPageTheme(_ theme: Theme, completion: (() -> Void)? = nil) {
+        guard let json = jsonLiteral(theme.rawValue) else {
+            completion?()
+            return
+        }
         webView.evaluateJavaScript(
             "window.OpportunityRadarNative?.setTheme(\(json));",
-            completionHandler: nil
+            completionHandler: { _, _ in completion?() }
         )
     }
 
@@ -1117,6 +1452,36 @@ private final class AppDelegate: NSObject,
         return value.dropFirst().utf8.allSatisfy { byte in
             (48...57).contains(byte)
         }
+    }
+
+    private func boundedProfileValue(_ value: Any, depth: Int = 0) -> Bool {
+        guard depth <= 8 else { return false }
+        if value is NSNull { return true }
+        if let text = value as? String {
+            return text.utf8.count <= 2_000
+                && !text.unicodeScalars.contains { $0.value < 0x20 && $0 != "\n" && $0 != "\t" }
+        }
+        if let number = value as? NSNumber {
+            if CFGetTypeID(number) == CFBooleanGetTypeID() { return true }
+            let numeric = number.doubleValue
+            return numeric.isFinite && abs(numeric) <= 1_000_000
+        }
+        if let values = value as? [Any] {
+            return values.count <= 200
+                && values.allSatisfy { boundedProfileValue($0, depth: depth + 1) }
+        }
+        if let values = value as? [String: Any] {
+            return values.count <= 40
+                && values.allSatisfy { key, child in
+                    !key.isEmpty
+                        && key.utf8.count <= 80
+                        && key.unicodeScalars.allSatisfy { scalar in
+                            scalar.value >= 0x20 && scalar.value != 0x7f
+                        }
+                        && boundedProfileValue(child, depth: depth + 1)
+                }
+        }
+        return false
     }
 
     private func showFatalConfigurationError() {

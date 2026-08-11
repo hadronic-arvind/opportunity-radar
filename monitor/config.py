@@ -40,11 +40,48 @@ def _environment_path(names: Iterable[str]) -> Optional[Path]:
     return None
 
 
+def local_configuration_root() -> Path:
+    """Return the canonical root for ignored user configuration.
+
+    A scheduler installation keeps the live database in its recognized private
+    runtime and links the repository database path to it.  Use that same
+    validated runtime for local profile and source settings so the clone CLI,
+    native app, and scheduled process do not drift onto separate copies.
+    """
+    database = PROJECT_ROOT / "data" / "opportunities.sqlite3"
+    if not database.is_symlink():
+        return PROJECT_ROOT
+    resolved = resolve_private_state_path(
+        database,
+        "data",
+        "opportunities.sqlite3",
+    )
+    return resolved.parent.parent
+
+
+def local_profile_path() -> Path:
+    return local_configuration_root() / "config" / "profile.local.json"
+
+
+def local_sources_path() -> Path:
+    return local_configuration_root() / "config" / "sources.local.json"
+
+
+def _local_layer(active: Path, repository: Path) -> Optional[Path]:
+    """Prefer canonical runtime state, with one-way legacy migration fallback."""
+    if active.exists() or active.is_symlink():
+        return active
+    if active != repository and (repository.exists() or repository.is_symlink()):
+        return repository
+    return None
+
+
 def profile_files() -> List[Path]:
     """Return profile layers in increasing precedence order."""
     files = [PROJECT_ROOT / "config" / "profile.json"]
-    local = PROJECT_ROOT / "config" / "profile.local.json"
-    if local.exists():
+    repository_local = PROJECT_ROOT / "config" / "profile.local.json"
+    local = _local_layer(local_profile_path(), repository_local)
+    if local is not None:
         files.append(local)
     override = _environment_path(("OPPORTUNITY_RADAR_PROFILE", "OPPORTUNITY_MONITOR_PROFILE"))
     if override:
@@ -118,8 +155,9 @@ def _merge_packs(payloads: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def source_files() -> List[Path]:
     """Return source-registry layers in increasing precedence order."""
     files = [PROJECT_ROOT / "config" / "sources.json"]
-    local = PROJECT_ROOT / "config" / "sources.local.json"
-    if local.exists():
+    repository_local = PROJECT_ROOT / "config" / "sources.local.json"
+    local = _local_layer(local_sources_path(), repository_local)
+    if local is not None:
         files.append(local)
     override = _environment_path(("OPPORTUNITY_RADAR_SOURCES", "OPPORTUNITY_MONITOR_SOURCES"))
     if override:
@@ -145,14 +183,17 @@ def load_sources(include_disabled: bool = False) -> List[Dict[str, Any]]:
         unknown = sorted(set(selected_packs) - known_packs)
         if unknown:
             raise ValueError("Unknown selected source pack: {}".format(", ".join(unknown)))
-        explicit_enabled: Dict[str, bool] = {}
+        explicit_enabled: Dict[str, Any] = {}
         # Pack lists replace one another by layer, while source objects merge by
         # id. Preserve every user-layer enabled override even when a higher
         # layer changes only the selected pack list.
         for payload in payloads[1:]:
             for entry in payload.get("sources", []):
                 if isinstance(entry, dict) and "enabled" in entry and entry.get("id"):
-                    explicit_enabled[str(entry["id"])] = bool(entry["enabled"])
+                    # Preserve the configured type so `monitor doctor` can reject
+                    # values such as the string "false" instead of enabling a
+                    # source through Python truthiness.
+                    explicit_enabled[str(entry["id"])] = entry["enabled"]
         chosen = set(selected_packs)
         for source in sources:
             packs = {str(value) for value in source.get("packs", [])}

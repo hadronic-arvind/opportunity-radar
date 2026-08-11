@@ -9,10 +9,30 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, Optional, Tuple
 
 from .models import Opportunity
+from .scoring import (
+    LEGACY_CURATED_DOCUMENT_PROVENANCE,
+    profile_fingerprint,
+    score_opportunity,
+)
 from .text import stable_hash
 
 
 MAX_DASHBOARD_DISCOVERY_ITEMS = 5000
+PROFILE_FINGERPRINT_KEY = "profile_fingerprint"
+SCHEMA_VERSION = 5
+SOURCE_HASH_FIELDS = (
+    "title",
+    "organization",
+    "location",
+    "url",
+    "description",
+    "category",
+    "opportunity_type",
+    "posted_at",
+    "deadline_at",
+    "commitment",
+    "eligibility",
+)
 
 
 SCHEMA = """
@@ -88,6 +108,11 @@ CREATE TABLE IF NOT EXISTS source_events (
     url TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS runtime_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS opportunities_active_score_idx
     ON opportunities(active, score DESC);
 CREATE INDEX IF NOT EXISTS opportunities_status_score_idx
@@ -100,12 +125,32 @@ CREATE INDEX IF NOT EXISTS runs_started_idx
     ON runs(started_at DESC);
 CREATE INDEX IF NOT EXISTS source_events_occurred_idx
     ON source_events(occurred_at DESC);
-PRAGMA user_version = 3;
 """
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _source_content_hash(values: Dict[str, Any]) -> str:
+    metadata_value = values.get("metadata", values.get("metadata_json", {}))
+    if isinstance(metadata_value, str):
+        metadata_value = json.loads(metadata_value)
+    metadata = dict(metadata_value) if isinstance(metadata_value, dict) else {}
+    routing = metadata.pop("document_routing", {})
+    metadata.pop("match", None)
+    payload = {field: values.get(field) for field in SOURCE_HASH_FIELDS}
+    payload["metadata"] = metadata
+    if (
+        metadata.get("curated") is True
+        and isinstance(routing, dict)
+        and routing.get("provenance") in {
+            "curated_explicit",
+            "curated_legacy",
+        }
+    ):
+        payload["pinned_document"] = values.get("recommended_resume", "")
+    return stable_hash(json.dumps(payload, sort_keys=True), 32)
 
 
 class Database:
@@ -122,23 +167,56 @@ class Database:
         self.connection.close()
 
     def initialize(self) -> None:
-        self.connection.executescript(SCHEMA)
-        columns = {
-            row["name"]
-            for row in self.connection.execute("PRAGMA table_info(opportunities)").fetchall()
-        }
-        additions = {
-            "status_updated_at": "TEXT",
-            "applied_at": "TEXT",
-            "bookmarked": "INTEGER NOT NULL DEFAULT 0",
-        }
-        for name, declaration in additions.items():
-            if name not in columns:
-                self.connection.execute(
-                    "ALTER TABLE opportunities ADD COLUMN {} {}".format(name, declaration)
+        previous_version = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
+        if previous_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                "Database schema version {} is newer than this build supports ({})".format(
+                    previous_version, SCHEMA_VERSION
                 )
-        self.connection.execute("PRAGMA user_version = 3")
-        self.connection.commit()
+            )
+        self.connection.executescript(SCHEMA)
+        with self.transaction() as connection:
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(opportunities)").fetchall()
+            }
+            additions = {
+                "status_updated_at": "TEXT",
+                "applied_at": "TEXT",
+                "bookmarked": "INTEGER NOT NULL DEFAULT 0",
+            }
+            for name, declaration in additions.items():
+                if name not in columns:
+                    connection.execute(
+                        "ALTER TABLE opportunities ADD COLUMN {} {}".format(
+                            name, declaration
+                        )
+                    )
+            if previous_version < SCHEMA_VERSION:
+                last_identifier = ""
+                selected = ", ".join(
+                    ("id",)
+                    + SOURCE_HASH_FIELDS
+                    + ("metadata_json", "recommended_resume")
+                )
+                while True:
+                    rows = connection.execute(
+                        "SELECT {} FROM opportunities WHERE id>? ORDER BY id LIMIT 250".format(
+                            selected
+                        ),
+                        (last_identifier,),
+                    ).fetchall()
+                    if not rows:
+                        break
+                    connection.executemany(
+                        "UPDATE opportunities SET raw_hash=? WHERE id=?",
+                        [
+                            (_source_content_hash(dict(row)), row["id"])
+                            for row in rows
+                        ],
+                    )
+                    last_identifier = rows[-1]["id"]
+            connection.execute("PRAGMA user_version = {}".format(SCHEMA_VERSION))
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -276,21 +354,13 @@ class Database:
     def upsert_opportunity(self, item: Opportunity, seen_at: Optional[str] = None) -> str:
         now = seen_at or utc_now()
         identifier = stable_hash("{}:{}".format(item.source_id, item.external_id), 24)
-        raw_payload = json.dumps(
+        raw_hash = _source_content_hash(
             {
-                "title": item.title,
-                "organization": item.organization,
-                "location": item.location,
-                "url": item.url,
-                "description": item.description,
-                "deadline_at": item.deadline_at,
-                "score": item.score,
-                "tier": item.tier,
-                "resume": item.recommended_resume,
-            },
-            sort_keys=True,
+                **{field: getattr(item, field) for field in SOURCE_HASH_FIELDS},
+                "metadata": item.metadata,
+                "recommended_resume": item.recommended_resume,
+            }
         )
-        raw_hash = stable_hash(raw_payload, 32)
         existing = self.connection.execute(
             "SELECT raw_hash FROM opportunities WHERE source_id=? AND external_id=?",
             (item.source_id, item.external_id),
@@ -354,6 +424,85 @@ class Database:
                 ),
             )
         return result
+
+    def rescore_for_profile(self, profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Refresh profile-derived fields once for each effective profile version."""
+        fingerprint = profile_fingerprint(profile)
+        rescored = 0
+        with self.transaction() as connection:
+            state = connection.execute(
+                "SELECT value FROM runtime_state WHERE key=?",
+                (PROFILE_FINGERPRINT_KEY,),
+            ).fetchone()
+            if state is not None and state["value"] == fingerprint:
+                return {"changed": False, "rescored": 0, "fingerprint": fingerprint}
+
+            rows = connection.execute(
+                """
+                SELECT * FROM opportunities
+                WHERE active=1
+                   OR bookmarked=1
+                   OR status IN ('apply', 'applied')
+                ORDER BY id
+                """
+            ).fetchall()
+            for row in rows:
+                metadata = json.loads(row["metadata_json"])
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                document_routing = metadata.get("document_routing")
+                if (
+                    not isinstance(document_routing, dict)
+                    and metadata.get("curated") is True
+                    and str(row["recommended_resume"] or "").strip()
+                ):
+                    metadata["document_routing"] = {
+                        "provenance": LEGACY_CURATED_DOCUMENT_PROVENANCE
+                    }
+                item = Opportunity(
+                    source_id=row["source_id"],
+                    external_id=row["external_id"],
+                    title=row["title"],
+                    organization=row["organization"],
+                    url=row["url"],
+                    location=row["location"],
+                    description=row["description"],
+                    category=row["category"],
+                    opportunity_type=row["opportunity_type"],
+                    posted_at=row["posted_at"],
+                    deadline_at=row["deadline_at"],
+                    recommended_resume=row["recommended_resume"],
+                    commitment=row["commitment"],
+                    eligibility=row["eligibility"],
+                    metadata=metadata,
+                )
+                score_opportunity(item, profile)
+                connection.execute(
+                    """
+                    UPDATE opportunities
+                    SET score=?, tier=?, reasons_json=?, warnings_json=?,
+                        recommended_resume=?, metadata_json=?
+                    WHERE id=?
+                    """,
+                    (
+                        item.score,
+                        item.tier,
+                        json.dumps(item.reasons),
+                        json.dumps(item.warnings),
+                        item.recommended_resume,
+                        json.dumps(item.metadata, sort_keys=True),
+                        row["id"],
+                    ),
+                )
+                rescored += 1
+            connection.execute(
+                """
+                INSERT INTO runtime_state(key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value
+                """,
+                (PROFILE_FINGERPRINT_KEY, fingerprint),
+            )
+        return {"changed": True, "rescored": rescored, "fingerprint": fingerprint}
 
     def mark_source_stale(self, source_id: str, current_external_ids: Iterable[str]) -> None:
         identifiers = list(current_external_ids)
@@ -471,7 +620,7 @@ class Database:
             dict(row)
             for row in self.connection.execute(
                 """
-                SELECT id, name, kind, category, cadence_hours, enabled,
+                SELECT id, name, kind, category, url, cadence_hours, enabled,
                        last_checked_at, last_success_at, last_status, item_count
                 FROM sources
                 WHERE enabled=1
@@ -546,9 +695,12 @@ class Database:
 
     def _dashboard_row(self, row: sqlite3.Row) -> Dict[str, Any]:
         item = self._decode_row(row)
-        item["description"] = str(item.get("description", ""))[:3000]
-        item["eligibility"] = str(item.get("eligibility", ""))[:1200]
-        match = item.get("metadata", {}).get("match", {})
+        item["description"] = str(item.get("description", ""))[:1600]
+        item["eligibility"] = str(item.get("eligibility", ""))[:800]
+        metadata = item.get("metadata", {})
+        metadata = metadata if isinstance(metadata, dict) else {}
+        match = metadata.get("match", {})
+        dates = metadata.get("dates", {})
         allowed = {
             "id",
             "title",
@@ -577,6 +729,7 @@ class Database:
         }
         output = {key: value for key, value in item.items() if key in allowed}
         output["match"] = match if isinstance(match, dict) else {}
+        output["dates"] = dates if isinstance(dates, dict) else {}
         return output
 
     def set_status(self, opportunity_id: str, status: str) -> bool:

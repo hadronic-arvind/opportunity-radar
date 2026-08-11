@@ -19,6 +19,33 @@ def load_privacy_module():
 
 
 class PublicTreeTests(unittest.TestCase):
+    def test_configuration_guide_documents_supported_source_contracts(self):
+        project = Path(__file__).resolve().parents[1]
+        guide = (project / "docs" / "CONFIGURATION.md").read_text(encoding="utf-8")
+        for heading in (
+            "### Greenhouse",
+            "### Lever",
+            "### Jibe",
+            "### HTML links",
+            "### Watch pages",
+            "### Custom packs",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, guide)
+        for field in (
+            "`board`",
+            "`site`",
+            "`api_url`",
+            "`job_url_template`",
+            "`same_domain`",
+            "`publish_as_opportunity`",
+            "`notify_page_changes`",
+            "`expected_http_statuses`",
+            "`selected_packs`",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, guide)
+
     def test_publication_set_passes_privacy_gate(self):
         project = Path(__file__).resolve().parents[1]
         result = subprocess.run(
@@ -44,6 +71,72 @@ class PublicTreeTests(unittest.TestCase):
             module.PROJECT_ROOT = root
             self.assertTrue(
                 any("absolute macOS home path" in failure for failure in module.scan())
+            )
+
+    def test_privacy_gate_rejects_tailored_staged_public_profile(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            (root / "config").mkdir()
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            public_profile = root / "config" / "profile.json"
+            public_profile.write_text(
+                json.dumps(
+                    {
+                        "candidate": {
+                            "name": "Example Candidate",
+                            "program": "Example doctoral program",
+                            "completed_degrees": ["Example degree"],
+                        },
+                        "priority_organizations": ["Example Laboratory"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            subprocess.run(
+                ["git", "add", "config/profile.json"], cwd=root, check=True
+            )
+            public_profile.write_text(
+                json.dumps({"matching": {"rules": []}}), encoding="utf-8"
+            )
+
+            module.PROJECT_ROOT = root
+            failures = module.scan(include_history=True)
+
+            self.assertIn("tailored public profile is publishable", failures)
+
+    def test_privacy_gate_rejects_targeted_staged_public_profile(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            (root / "config").mkdir()
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            public_profile = root / "config" / "profile.json"
+            public_profile.write_text(
+                json.dumps(
+                    {
+                        "timeframes": ["Summer 2030"],
+                        "targets": {
+                            "role_families": ["Rare personal work"],
+                            "locations": ["Private place"],
+                        },
+                        "matching": {"rules": []},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            subprocess.run(
+                ["git", "add", "config/profile.json"], cwd=root, check=True
+            )
+            public_profile.write_text(
+                json.dumps({"matching": {"rules": []}}), encoding="utf-8"
+            )
+
+            module.PROJECT_ROOT = root
+
+            self.assertIn(
+                "tailored public profile is publishable",
+                module.scan(include_history=True),
             )
 
     def test_privacy_gate_reads_unstaged_tracked_bytes(self):
@@ -80,6 +173,30 @@ class PublicTreeTests(unittest.TestCase):
             failures = module.scan()
             self.assertTrue(any(".env.local" in failure for failure in failures))
             self.assertTrue(any("seed/private.md" in failure for failure in failures))
+
+    def test_privacy_gate_rejects_staged_and_untracked_symbolic_links(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            staged = root / "staged-resume-link"
+            untracked = root / "untracked-resume-link"
+            private_prefix = "../Desk" + "top/" + "Work/resumes/"
+            staged.symlink_to(private_prefix + "private.pdf")
+            untracked.symlink_to(private_prefix + "private-draft.pdf")
+            subprocess.run(
+                ["git", "add", "staged-resume-link"], cwd=root, check=True
+            )
+
+            module.PROJECT_ROOT = root
+            failures = module.scan()
+
+            self.assertIn(
+                "symbolic link is publishable: staged-resume-link", failures
+            )
+            self.assertIn(
+                "symbolic link is publishable: untracked-resume-link", failures
+            )
 
     def test_privacy_gate_rejects_quoted_local_labels_and_matching_rule(self):
         module = load_privacy_module()
@@ -137,6 +254,80 @@ class PublicTreeTests(unittest.TestCase):
             self.assertIn("local application label in README.md", failures)
             self.assertIn("local matching rule copied into README.md", failures)
 
+    def test_privacy_gate_reads_runtime_only_private_values_and_labels(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            base = Path(tempdir)
+            project = base / "project"
+            runtime = base / "runtime"
+            for directory in (
+                project,
+                project / "config",
+                project / "data",
+                runtime,
+                runtime / "monitor",
+                runtime / "config",
+                runtime / "dashboard",
+                runtime / "data",
+            ):
+                directory.mkdir(exist_ok=True)
+            for directory in (
+                runtime,
+                runtime / "monitor",
+                runtime / "config",
+                runtime / "dashboard",
+                runtime / "data",
+            ):
+                directory.chmod(0o700)
+
+            markers = (
+                runtime / "monitor" / "__main__.py",
+                runtime / "config" / "profile.json",
+                runtime / "dashboard" / "template.html",
+                runtime / "dashboard" / "styles.css",
+                runtime / "dashboard" / "app.js",
+            )
+            for marker in markers:
+                marker.write_text(
+                    "{}" if marker.suffix == ".json" else "marker",
+                    encoding="utf-8",
+                )
+                marker.chmod(0o600)
+
+            database = runtime / "data" / "opportunities.sqlite3"
+            database.write_text("private database", encoding="utf-8")
+            database.chmod(0o600)
+            runtime_profile = runtime / "config" / "profile.local.json"
+            runtime_profile.write_text(
+                json.dumps(
+                    {
+                        "candidate": {"program": "Runtime-only astronomy cohort"},
+                        "documents": {
+                            "default": "Runtime-only tailored document",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            runtime_profile.chmod(0o600)
+
+            (project / "config" / "profile.json").write_text(
+                json.dumps({"documents": {"default": "General"}}),
+                encoding="utf-8",
+            )
+            (project / "data" / "opportunities.sqlite3").symlink_to(database)
+            (project / "README.md").write_text(
+                'Runtime-only astronomy cohort uses "Runtime-only tailored document".\n',
+                encoding="utf-8",
+            )
+
+            module.PROJECT_ROOT = project
+            failures = module.scan()
+
+            self.assertIn("local profile value in README.md", failures)
+            self.assertIn("local application label in README.md", failures)
+            self.assertTrue(all(str(runtime) not in failure for failure in failures))
+
     def test_history_gate_rejects_old_tailored_public_profile(self):
         module = load_privacy_module()
         with tempfile.TemporaryDirectory() as tempdir:
@@ -144,9 +335,12 @@ class PublicTreeTests(unittest.TestCase):
             (root / "config").mkdir()
             subprocess.run(["git", "init", "-q", str(root)], check=True)
             profile = {
-                "matching": {
-                    "rules": [{"label": "Private preference", "terms": ["example"]}]
-                }
+                "timeframes": ["Summer 2030"],
+                "targets": {
+                    "role_families": ["Rare personal work"],
+                    "locations": ["Private place"],
+                },
+                "matching": {"rules": []},
             }
             (root / "config" / "profile.json").write_text(json.dumps(profile))
             subprocess.run(["git", "add", "config/profile.json"], cwd=root, check=True)

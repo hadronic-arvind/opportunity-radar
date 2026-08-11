@@ -3,6 +3,7 @@
 import fcntl
 import os
 import re
+import sys
 import urllib.error
 from contextlib import contextmanager
 from pathlib import Path
@@ -24,6 +25,21 @@ from .seed import parse_pipeline
 
 
 MAX_NOTIFICATION_ITEMS = 100
+LIFECYCLE_OWNER_ENV = "OPPORTUNITY_RADAR_LIFECYCLE_OWNER"
+
+
+def ensure_profile_lifecycle_idle() -> None:
+    """Prevent a scan from crossing a runtime install or profile replacement."""
+    if sys.platform != "darwin" or os.environ.get(LIFECYCLE_OWNER_ENV) == "installer":
+        return
+    from .profile import _lifecycle_lock_path, recover_stale_lifecycle_lock
+
+    lock = _lifecycle_lock_path()
+    recover_stale_lifecycle_lock(lock)
+    if lock.exists() or lock.is_symlink():
+        raise RuntimeError(
+            "An Opportunity Radar install, uninstall, or profile update is already running"
+        )
 
 
 @contextmanager
@@ -35,7 +51,7 @@ def exclusive_lock(path: Path) -> Iterator[None]:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         handle.close()
-        raise RuntimeError("Another opportunity-monitor scan is already running")
+        raise RuntimeError("Another Opportunity Radar scan is already running")
     try:
         handle.write(str(os.getpid()))
         handle.flush()
@@ -72,11 +88,33 @@ def _register_sources(database: Database, sources: List[Dict[str, Any]], profile
 
 
 def _target_year(profile: Dict[str, Any]) -> Optional[str]:
+    """Return the earliest configured search-cycle year for legacy seed dates."""
+    values: List[Any] = []
+    targets = profile.get("targets", {})
+    if isinstance(targets, dict):
+        cycles = targets.get("cycles", [])
+        if isinstance(cycles, list):
+            for cycle in cycles:
+                if isinstance(cycle, dict):
+                    values.extend((cycle.get("year"), cycle.get("label")))
+                else:
+                    values.append(cycle)
+    timeframes = profile.get("timeframes", [])
+    if isinstance(timeframes, list):
+        values.extend(timeframes)
     dashboard = profile.get("dashboard", {})
     candidate = profile.get("candidate", {})
-    target = str(dashboard.get("target_season") or candidate.get("target_season") or "")
-    match = re.search(r"\b(20\d{2})\b", target)
-    return match.group(1) if match else None
+    if isinstance(dashboard, dict):
+        values.append(dashboard.get("target_season"))
+    if isinstance(candidate, dict):
+        values.append(candidate.get("target_season"))
+    years = {
+        match.group(1)
+        for value in values
+        for match in [re.search(r"\b(20\d{2})\b", str(value or ""))]
+        if match
+    }
+    return min(years) if years else None
 
 
 def _import_curated(database: Database, profile: Dict[str, Any]) -> Tuple[Dict[str, int], Optional[str]]:
@@ -120,19 +158,28 @@ def _import_curated(database: Database, profile: Dict[str, Any]) -> Tuple[Dict[s
 
 
 def run_scan(force: bool = False, send_notifications: bool = False) -> Dict[str, Any]:
+    ensure_profile_lifecycle_idle()
     database_path = resolve_private_state_path(
         project_path("data", "opportunities.sqlite3"),
         "data",
         "opportunities.sqlite3",
     )
     with exclusive_lock(database_path.with_name("scan.lock")):
+        # Close the check/acquire race: an installer that began after the first
+        # check now owns the lifecycle and this scan must release its lock.
+        ensure_profile_lifecycle_idle()
         database = Database(database_path)
-        database.initialize()
-        profile = load_profile()
-        all_sources = load_sources(include_disabled=True)
-        sources = [source for source in all_sources if source.get("enabled", True)]
-        _register_sources(database, all_sources, profile)
-        run_id, started_at = database.begin_run()
+        try:
+            database.initialize()
+            profile = load_profile()
+            database.rescore_for_profile(profile)
+            all_sources = load_sources(include_disabled=True)
+            sources = [source for source in all_sources if source.get("enabled", True)]
+            _register_sources(database, all_sources, profile)
+            run_id, started_at = database.begin_run()
+        except Exception:
+            database.close()
+            raise
         checked = 0
         new_count = 0
         updated_count = 0

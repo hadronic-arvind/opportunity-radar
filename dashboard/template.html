@@ -20,14 +20,11 @@
         <span class="scan-state" id="scan-state" role="status" aria-live="polite"></span>
         <button class="control subtle" id="refresh-button" type="button">Refresh</button>
         <button class="control accent" id="scan-all-button" type="button">Scan all</button>
-        <label class="theme-control">
-          <span class="sr-only">Color theme</span>
-          <select id="theme-select" aria-label="Color theme">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
+        <div class="theme-switcher" id="theme-switcher" role="group" aria-label="Color theme">
+          <button class="theme-option active" type="button" data-theme-option="system" aria-pressed="true">System</button>
+          <button class="theme-option" type="button" data-theme-option="light" aria-pressed="false">Light</button>
+          <button class="theme-option" type="button" data-theme-option="dark" aria-pressed="false">Dark</button>
+        </div>
       </div>
     </header>
 
@@ -35,8 +32,8 @@
       <section class="intro" aria-labelledby="intro-title">
         <div>
           <p class="context" id="search-context">Opportunity search</p>
-          <h1 id="intro-title">Your opportunities, organized.</h1>
-          <p class="subtitle" id="dashboard-subtitle">Find and track opportunities from the sources you choose.</p>
+          <h1 id="intro-title">Your Opportunities</h1>
+          <p class="subtitle" id="dashboard-subtitle">Review matches and track applications from the sources you follow.</p>
         </div>
         <div class="updated" id="last-scan">Preparing dashboard</div>
       </section>
@@ -53,7 +50,7 @@
         <button type="button" class="view-button" data-view="applications" aria-pressed="false">Applications <span id="application-count">0</span></button>
       </nav>
 
-      <section class="workspace" id="results">
+      <section class="workspace" id="results" aria-label="Opportunities" tabindex="-1">
         <div class="results-panel">
           <div class="toolbar">
             <label class="search-field">
@@ -73,17 +70,26 @@
           </div>
           <div class="filter-row" id="filter-row" aria-label="Opportunity filters"></div>
           <div class="results-meta">
-            <span id="results-note">0 opportunities</span>
+            <span id="results-note" role="status" aria-live="polite">0 opportunities</span>
             <button class="text-button" id="clear-filters" type="button" hidden>Clear filters</button>
           </div>
-          <div class="opportunity-list" id="opportunity-list" aria-live="polite"></div>
-          <div class="load-zone" id="load-zone" hidden>
-            <button class="control subtle" id="load-more" type="button">Load more</button>
-            <span id="load-note"></span>
-          </div>
+          <div class="opportunity-list" id="opportunity-list" role="list"></div>
+          <nav class="pagination" id="pagination" aria-label="Opportunity result pages" hidden>
+            <button class="page-direction" id="page-previous" type="button" data-page-direction="previous">Previous</button>
+            <div class="page-numbers" id="page-numbers"></div>
+            <span class="page-status" id="page-status">Page 1 of 1</span>
+            <button class="page-direction" id="page-next" type="button" data-page-direction="next">Next</button>
+          </nav>
         </div>
 
         <aside class="side-column" aria-label="Source status and help">
+          <section class="side-card profile-card" id="profile-card" hidden>
+            <p class="kicker">Search profile</p>
+            <h2 id="profile-summary-title">Your matching preferences</h2>
+            <p class="profile-summary" id="profile-summary"></p>
+            <div class="profile-summary-tags" id="profile-summary-tags"></div>
+            <button class="control subtle profile-edit-button" id="edit-profile-button" type="button">Edit profile</button>
+          </section>
           <section class="side-card source-health">
             <div class="side-heading">
               <div>
@@ -121,6 +127,28 @@
       <div class="dialog-actions">
         <button class="control subtle" value="cancel">Cancel</button>
         <button class="control accent" id="confirm-scan" value="confirm">Scan all sources</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
+    <form id="profile-form">
+      <div class="profile-sheet-header">
+        <div>
+          <p class="kicker" id="profile-dialog-kicker">Search profile</p>
+          <h2 id="profile-dialog-title">Edit your profile</h2>
+          <p>Choose what you want to find and how listings should be matched.</p>
+        </div>
+        <button class="profile-close" id="profile-close-button" type="button" aria-label="Close profile editor">Close</button>
+      </div>
+      <div class="profile-readonly-note" id="profile-readonly-note" hidden>
+        This dashboard is read-only outside the app. To make changes, run <code>python3 -m monitor profile set --help</code> in Terminal.
+      </div>
+      <div class="profile-fields" id="profile-fields"></div>
+      <div class="profile-sheet-actions">
+        <span class="profile-save-note" id="profile-save-note" role="status" aria-live="polite"></span>
+        <button class="control subtle" id="profile-cancel-button" type="button">Cancel</button>
+        <button class="control accent" id="profile-save-button" type="submit">Save profile</button>
       </div>
     </form>
   </dialog>

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from monitor.database import Database
+from monitor.database import Database, SCHEMA_VERSION, _source_content_hash
 from monitor.models import Opportunity
 
 
@@ -60,7 +60,159 @@ class DatabaseTests(unittest.TestCase):
 
     def test_initialize_is_idempotent_and_sets_schema_version(self):
         self.database.initialize()
-        self.assertEqual(self.database.connection.execute("PRAGMA user_version").fetchone()[0], 3)
+        self.assertEqual(
+            self.database.connection.execute("PRAGMA user_version").fetchone()[0],
+            SCHEMA_VERSION,
+        )
+
+    def test_initialize_rejects_a_newer_schema_without_downgrading_it(self):
+        self.database.connection.execute(
+            "PRAGMA user_version = {}".format(SCHEMA_VERSION + 1)
+        )
+        self.database.connection.commit()
+
+        with self.assertRaisesRegex(RuntimeError, "newer than this build supports"):
+            self.database.initialize()
+
+        self.assertEqual(
+            self.database.connection.execute("PRAGMA user_version").fetchone()[0],
+            SCHEMA_VERSION + 1,
+        )
+
+    def test_source_hash_ignores_profile_derived_fields(self):
+        first = Opportunity(
+            "test",
+            "derived",
+            "Systems Engineer",
+            "Example",
+            "https://example.com/derived",
+            location="Remote",
+            metadata={
+                "collector": "stable",
+                "match": {"fit_score": 40},
+                "document_routing": {"provenance": "profile"},
+            },
+            recommended_resume="General",
+            score=40,
+            tier="watch",
+        )
+        self.assertEqual(self.database.upsert_opportunity(first), "new")
+
+        rescored = Opportunity(
+            "test",
+            "derived",
+            "Systems Engineer",
+            "Example",
+            "https://example.com/derived",
+            location="Remote",
+            metadata={
+                "collector": "stable",
+                "match": {"fit_score": 95, "components": [{"id": "preferred"}]},
+                "document_routing": {"provenance": "profile"},
+            },
+            recommended_resume="Technical",
+            score=95,
+            tier="priority",
+            reasons=["Preferred work"],
+        )
+        self.assertEqual(self.database.upsert_opportunity(rescored), "unchanged")
+
+        rescored.location = "New York"
+        self.assertEqual(self.database.upsert_opportunity(rescored), "updated")
+
+    def test_source_hash_tracks_explicit_curated_document_pins(self):
+        item = Opportunity(
+            "test",
+            "curated-pin",
+            "Research Fellowship",
+            "Example",
+            "https://example.com/curated-pin",
+            recommended_resume="Academic CV",
+            metadata={
+                "curated": True,
+                "document_routing": {"provenance": "curated_explicit"},
+            },
+        )
+        self.assertEqual(self.database.upsert_opportunity(item), "new")
+        item.recommended_resume = "Research Resume"
+        self.assertEqual(self.database.upsert_opportunity(item), "updated")
+
+    def test_schema_v5_migrates_legacy_source_hashes(self):
+        item = Opportunity(
+            "test",
+            "migrated",
+            "Platform Engineer",
+            "Example",
+            "https://example.com/migrated",
+            metadata={"collector": "stable"},
+        )
+        self.database.upsert_opportunity(item)
+        self.database.connection.execute(
+            "UPDATE opportunities SET raw_hash='legacy-derived-hash'"
+        )
+        self.database.connection.execute("PRAGMA user_version = 4")
+        self.database.connection.commit()
+
+        self.database.initialize()
+
+        row = self.database.connection.execute(
+            "SELECT raw_hash FROM opportunities WHERE external_id='migrated'"
+        ).fetchone()
+        self.assertEqual(
+            self.database.connection.execute("PRAGMA user_version").fetchone()[0],
+            5,
+        )
+        self.assertNotEqual(row["raw_hash"], "legacy-derived-hash")
+        self.assertEqual(self.database.upsert_opportunity(item), "unchanged")
+
+    def test_schema_v5_hash_migration_rolls_back_as_one_transaction(self):
+        for index in range(251):
+            self.database.upsert_opportunity(
+                Opportunity(
+                    "test",
+                    "migration-{:03d}".format(index),
+                    "Role {:03d}".format(index),
+                    "Example",
+                    "https://example.com/migration-{:03d}".format(index),
+                )
+            )
+        self.database.connection.execute(
+            "UPDATE opportunities SET raw_hash='legacy-' || external_id"
+        )
+        self.database.connection.execute("PRAGMA user_version = 4")
+        self.database.connection.commit()
+        calls = 0
+
+        def fail_after_first_batch(values):
+            nonlocal calls
+            calls += 1
+            if calls == 251:
+                raise RuntimeError("synthetic migration failure")
+            return _source_content_hash(values)
+
+        with (
+            patch(
+                "monitor.database._source_content_hash",
+                side_effect=fail_after_first_batch,
+            ),
+            self.assertRaisesRegex(RuntimeError, "synthetic migration failure"),
+        ):
+            self.database.initialize()
+
+        self.assertEqual(
+            self.database.connection.execute("PRAGMA user_version").fetchone()[0],
+            4,
+        )
+        remaining = self.database.connection.execute(
+            "SELECT COUNT(*) FROM opportunities WHERE raw_hash='legacy-' || external_id"
+        ).fetchone()[0]
+        self.assertEqual(remaining, 251)
+
+        self.database.initialize()
+        self.assertEqual(
+            self.database.connection.execute("PRAGMA user_version").fetchone()[0],
+            5,
+        )
 
     def test_prune_history_preserves_bookmarks_and_applications(self):
         for external_id in ("old", "saved", "applied"):
@@ -161,7 +313,15 @@ class DatabaseTests(unittest.TestCase):
             "Lab",
             "https://example.com/verbose",
             description="x" * 5000,
-            metadata={"collector_internal": "not for the dashboard"},
+            metadata={
+                "collector_internal": "not for the dashboard",
+                "dates": {
+                    "deadline": {
+                        "state": "rolling",
+                        "provenance": "text.rolling",
+                    }
+                },
+            },
         )
         self.database.upsert_opportunity(item)
         rendered = next(
@@ -169,10 +329,11 @@ class DatabaseTests(unittest.TestCase):
             for entry in self.database.dashboard_payload()["opportunities"]
             if entry["title"] == "Verbose Role"
         )
-        self.assertEqual(len(rendered["description"]), 3000)
+        self.assertEqual(len(rendered["description"]), 1600)
         self.assertNotIn("external_id", rendered)
         self.assertNotIn("metadata", rendered)
         self.assertEqual(rendered["match"], {})
+        self.assertEqual(rendered["dates"]["deadline"]["state"], "rolling")
 
     def test_dashboard_cap_preserves_application_records(self):
         identifiers = {}
@@ -255,6 +416,14 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(
             self.database.connection.execute("SELECT COUNT(*) FROM opportunities").fetchone()[0], 1
         )
+
+    def test_dashboard_source_payload_includes_its_official_url(self):
+        source = next(
+            entry
+            for entry in self.database.dashboard_payload()["sources"]
+            if entry["id"] == "test"
+        )
+        self.assertEqual(source["url"], "https://example.com/jobs")
 
     def test_blocked_and_failed_sources_respect_cadence(self):
         self.assertTrue(self.database.source_due("test"))

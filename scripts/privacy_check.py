@@ -5,13 +5,21 @@ import argparse
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from monitor.config import resolve_private_state_path
+
+
+MAX_PRIVATE_PROFILE_BYTES = 2 * 1024 * 1024
 DISALLOWED_PATHS = {
     ".agents/project-memory.md",
     "config/profile.local.json",
@@ -44,6 +52,19 @@ GENERIC_PUBLIC_LABELS = {
     "research cv",
     "research software",
     "software",
+}
+FORBIDDEN_PUBLIC_SOURCE_KEYS = {
+    "acceptance_chance",
+    "acceptance_odds",
+    "acceptance_rate",
+    "base_score",
+    "cycle",
+    "high_chance",
+    "item_exclude",
+    "item_include",
+    "recommended_resume",
+    "target_season",
+    "tier",
 }
 
 
@@ -167,15 +188,46 @@ def fallback_ignored(path: Path) -> bool:
     return name.startswith(".env") or name == ".DS_Store" or name.endswith((".pyc", ".pem", ".key", ".p12", ".pfx"))
 
 
-def private_values() -> List[str]:
-    path = PROJECT_ROOT / "config" / "profile.local.json"
-    if not path.is_file():
-        return []
+def _runtime_profile_path() -> Optional[Path]:
+    """Return a private runtime profile only through the managed database link."""
+    database = PROJECT_ROOT / "data" / "opportunities.sqlite3"
+    if not database.is_symlink():
+        return None
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        database_target = resolve_private_state_path(
+            database,
+            "data",
+            "opportunities.sqlite3",
+        )
+        profile = database_target.parent.parent / "config" / "profile.local.json"
+        details = profile.lstat()
     except (OSError, ValueError):
-        return []
+        return None
+    if (
+        not stat.S_ISREG(details.st_mode)
+        or details.st_uid != os.getuid()
+        or details.st_mode & (stat.S_IRWXG | stat.S_IRWXO)
+        or details.st_size > MAX_PRIVATE_PROFILE_BYTES
+    ):
+        return None
+    return profile
+
+
+def _private_profile() -> Dict[str, object]:
+    path = _runtime_profile_path() or PROJECT_ROOT / "config" / "profile.local.json"
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_PRIVATE_PROFILE_BYTES:
+            return {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def private_values() -> List[str]:
+    payload = _private_profile()
     candidate = payload.get("candidate", {})
+    candidate = candidate if isinstance(candidate, dict) else {}
     values = [
         candidate.get("name"),
         candidate.get("program"),
@@ -220,20 +272,17 @@ def _public_config_strings() -> set[str]:
 
 def private_labels() -> List[str]:
     """Return custom local labels that should never appear verbatim in public text."""
-    local_path = PROJECT_ROOT / "config" / "profile.local.json"
     public_path = PROJECT_ROOT / "config" / "profile.json"
-    if not local_path.is_file():
+    local = _private_profile()
+    if not local:
         return []
     try:
-        local = json.loads(local_path.read_text(encoding="utf-8"))
         public = (
             json.loads(public_path.read_text(encoding="utf-8"))
             if public_path.is_file()
             else {}
         )
-    except (OSError, ValueError):
-        return []
-    if not isinstance(local, dict):
+    except (OSError, UnicodeError, ValueError):
         return []
 
     values = []
@@ -273,12 +322,8 @@ def private_labels() -> List[str]:
 
 def private_preference_groups() -> List[List[str]]:
     """Return multi-term local rules whose verbatim copy is tailored configuration."""
-    path = PROJECT_ROOT / "config" / "profile.local.json"
-    if not path.is_file():
-        return []
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    payload = _private_profile()
+    if not payload:
         return []
     matching = payload.get("matching", {}) if isinstance(payload, dict) else {}
     if not isinstance(matching, dict):
@@ -348,14 +393,18 @@ def _profile_is_tailored(payload: object) -> bool:
     dashboard = payload.get("dashboard", {})
     return bool(
         payload.get("candidate")
+        or payload.get("timeframes")
+        or payload.get("targets")
         or payload.get("priority_organizations")
         or payload.get("positive_rules")
         or payload.get("negative_rules")
         or payload.get("resume_routing")
+        or payload.get("exclusions")
         or payload.get("curated_pipeline_path")
         or (isinstance(matching, dict) and matching.get("rules"))
         or (isinstance(documents, dict) and documents.get("routes"))
         or (isinstance(dashboard, dict) and dashboard.get("target_season"))
+        or (isinstance(dashboard, dict) and dashboard.get("timeframes"))
     )
 
 
@@ -380,19 +429,6 @@ def history_failures() -> List[str]:
         stdout=subprocess.PIPE,
     ).stdout.splitlines()
     failures = []
-    forbidden_source_keys = {
-        "acceptance_chance",
-        "acceptance_odds",
-        "acceptance_rate",
-        "base_score",
-        "cycle",
-        "high_chance",
-        "item_exclude",
-        "item_include",
-        "recommended_resume",
-        "target_season",
-        "tier",
-    }
     for revision in revisions:
         short = revision[:12]
         for relative, kind in (
@@ -415,7 +451,7 @@ def history_failures() -> List[str]:
                 continue
             if kind == "profile" and _profile_is_tailored(payload):
                 failures.append("tailored public profile remains in Git history at {}".format(short))
-            if kind == "sources" and forbidden_source_keys.intersection(_nested_keys(payload)):
+            if kind == "sources" and FORBIDDEN_PUBLIC_SOURCE_KEYS.intersection(_nested_keys(payload)):
                 failures.append("private ranking metadata remains in Git history at {}".format(short))
     return failures
 
@@ -438,12 +474,26 @@ def scan(include_history: bool = False) -> List[str]:
             failures.append("private path is publishable: {}".format(relative))
             continue
         if mode == 0o120000:
-            target = os.fsdecode(raw_content)
-            if os.path.isabs(target):
-                failures.append("absolute symlink target is publishable: {}".format(relative))
+            failures.append("symbolic link is publishable: {}".format(relative))
             continue
         if b"\0" in raw_content:
             failures.append("binary blob requires an explicit public allowlist: {}".format(relative))
+        if relative in {"config/profile.json", "config/sources.json"}:
+            kind = "profile" if relative.endswith("profile.json") else "sources"
+            try:
+                public_payload = json.loads(raw_content.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                failures.append("invalid public {} is publishable".format(kind))
+            else:
+                if kind == "profile" and _profile_is_tailored(public_payload):
+                    failures.append("tailored public profile is publishable")
+                if (
+                    kind == "sources"
+                    and FORBIDDEN_PUBLIC_SOURCE_KEYS.intersection(
+                        _nested_keys(public_payload)
+                    )
+                ):
+                    failures.append("private ranking metadata is publishable")
         content = raw_content.decode("utf-8", errors="ignore")
         for label, pattern in content_patterns():
             if pattern.search(content):
