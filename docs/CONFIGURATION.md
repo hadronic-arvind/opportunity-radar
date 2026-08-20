@@ -28,8 +28,9 @@ python3 -m monitor init --non-interactive \
 Onboarding asks only about work preferences.
 It does not request demographic or other protected personal attributes.
 
-The optional macOS app presents the same profile as a guided setup screen.
+The optional macOS app presents the same profile as a guided setup screen with separate Basics and Advanced pages.
 It uses selectable single- and multiple-choice controls for source packs, career stage, opportunity types, work arrangements, and remote preference, with open text entries for timeframes, roles, skills, locations, exclusions, and organizations.
+Advanced contains exact scoring controls, matching rules, and document routing, while the most intuitive bounded values use accessible sliders.
 
 After onboarding, inspect or change the profile at any time:
 
@@ -89,6 +90,10 @@ The public catalog includes these packs:
 - `skilled-technical`
 - `national-labs`
 - `national-security`
+- `students-early-career`
+- `space-aerospace`
+- `robotics-autonomy`
+- `education-social-impact`
 
 A source may belong to multiple packs but is fetched only once per scan.
 The starter pack enables five structured, no-secret employer feeds.
@@ -194,11 +199,13 @@ The first route with the most matched terms wins, so route order resolves ties.
 ```
 
 Legacy `positive_rules`, `negative_rules`, `resume_routing`, and `default_resume_code` fields still load, but new configurations should use `matching` and `documents`.
+For structured profiles, selected basic roles and domains are authoritative over positive advanced interest rules.
+Removing a target retires positive rules tied only to that target, while cross-target, negative, qualification, and hard-gate rules are retained.
 
 ## Source registry
 
 Prefer a documented official feed.
-The supported structured adapters are `greenhouse`, `lever`, and `jibe`.
+The supported structured adapters are `ashby`, `greenhouse`, `lever`, and `jibe`.
 `html_links` is an experimental conservative link extractor.
 `watch_page` checks semantic visible-page changes without creating an active opportunity by default.
 
@@ -206,13 +213,15 @@ Every complete source object uses these common fields:
 
 - `id` is a stable lowercase identifier using underscores.
 - `name` is the organization or program name shown to users.
-- `kind` selects one of the five adapters described below.
+- `kind` selects one of the six adapters described below.
 - `url` is the official public careers, program, or listing page.
 - `api_url` records the official structured endpoint when the adapter uses one.
-- `source_type` classifies the resource as `listing_feed`, `program_calendar`, `official_portal`, or `manual_page`.
+- `source_type` classifies the resource as `listing_feed`, `change_monitor`, `program_calendar`, `official_portal`, or `manual_page`.
 - `packs`, `domains`, `opportunity_types`, `career_levels`, and `regions` provide reusable taxonomy arrays.
+- `default_opportunity_type` supplies the fallback type when a listing title has no more specific fellowship, internship, postdoc, or similar marker.
 - `support_level` records whether the adapter is `supported`, `experimental`, or `manual` for that source.
 - `official`, `verified_at`, `cadence_hours`, and `enabled` record provenance and scan behavior.
+- `description_availability: "title_only"` identifies feeds that cannot safely provide full listing text, so the dashboard can explain their limited matching detail.
 
 Collection URLs must use HTTPS on the standard port, contain no credentials, and resolve only to public addresses.
 Use `career_levels: ["any"]` or `regions: ["global"]` when a narrower value would be misleading.
@@ -232,7 +241,57 @@ Select packs in `config/sources.local.json`:
 
 Pack selection applies dynamically, so future catalog sources in a selected pack follow the user's choice without rewriting the local file.
 An individual `enabled` entry in the same local registry overrides pack membership.
+Saving a pack change through the profile editor removes positive built-in overrides that no longer belong to any selected pack, so turning off a pack also hides those sources and their prior listings.
+Explicit disables and complete private source definitions are preserved.
 `python3 -m monitor sources packs` shows both total resources and currently supported listing feeds in each pack.
+
+### Add and manage private sources
+
+The CLI recognizes hosted Greenhouse, Lever, and Ashby board URLs, validates the source, performs a read-only test fetch, and atomically saves it to the canonical private registry.
+
+```bash
+python3 -m monitor sources add \
+  --name "Example Organization" \
+  --url "https://boards.greenhouse.io/example" \
+  --packs "engineering,students-early-career"
+python3 -m monitor sources show example_organization
+python3 -m monitor sources disable example_organization
+python3 -m monitor sources enable example_organization
+python3 -m monitor sources remove example_organization
+```
+
+Use `--dry-run` to validate without writing.
+Use `--skip-test` only when the official service is temporarily unavailable and you have independently verified the provider URL.
+A generic careers page cannot reliably become a structured feed, so automatic detection falls back to a one-page bounded `html_links` source.
+Choose `--kind watch_page` when you only want change detection and no individual opportunity records.
+Built-in sources can be enabled or disabled, but only private sources can be removed.
+
+### Ashby
+
+Set `board` to the organization slug from its `jobs.ashbyhq.com` URL.
+The adapter reads Ashby's documented public job-board endpoint without credentials and normalizes listed jobs, locations, departments, teams, work arrangements, employment types, and publication dates.
+
+```json
+{
+  "id": "example_ashby",
+  "name": "Example Research Company",
+  "kind": "ashby",
+  "board": "example",
+  "url": "https://jobs.ashbyhq.com/example",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/example",
+  "source_type": "listing_feed",
+  "packs": ["ai-research"],
+  "domains": ["software", "ai_ml"],
+  "opportunity_types": ["job", "internship"],
+  "career_levels": ["early_career", "experienced"],
+  "regions": ["global"],
+  "official": true,
+  "support_level": "supported",
+  "verified_at": "2028-01-15",
+  "cadence_hours": 12,
+  "enabled": true
+}
+```
 
 ### Greenhouse
 
@@ -325,6 +384,7 @@ Use `html_links` only when no structured feed is available and the official page
 `same_domain` rejects links to another host.
 `pages` reads a bounded sequence of page-numbered results, from 1 through 20 pages.
 Relative links honor a valid HTML `base` element, while `link_base_url` can provide an explicit base for an unusual official page.
+Program cards beginning with `PROGRAM` and an `ACCEPTING APPLICATIONS` marker are reduced to their concise program names.
 
 ```json
 {
@@ -340,6 +400,7 @@ Relative links honor a valid HTML `base` element, while `link_base_url` can prov
   "packs": ["fellowships"],
   "domains": ["fellowships"],
   "opportunity_types": ["fellowship", "internship"],
+  "default_opportunity_type": "program",
   "career_levels": ["any"],
   "regions": ["global"],
   "official": true,
@@ -402,7 +463,7 @@ Do not list a status merely to hide an unexpected outage.
 
 Add private pack definitions and complete private source objects to `config/sources.local.json`.
 `selected_packs` replaces the lower-precedence selection, so include every pack you want enabled.
-A source-level `enabled` value still overrides pack membership.
+A directly managed source-level `enabled` value overrides pack membership until a later profile-editor pack removal retires an out-of-pack positive override.
 
 ```json
 {
@@ -459,7 +520,9 @@ It does not assign a supposedly easier or safer acceptance tier.
 ```bash
 python3 -m monitor doctor
 python3 -m monitor sources list
+python3 -m monitor sources show SOURCE_ID
 python3 -m monitor sources test SOURCE_ID
+python3 -m monitor opportunities search QUERY --json
 ```
 
 `sources test` performs one read-only live fetch and does not save its results.

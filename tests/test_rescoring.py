@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from monitor import cli, pipeline
-from monitor.database import Database, PROFILE_FINGERPRINT_KEY
+from monitor.database import Database, PROFILE_FINGERPRINT_KEY, SCHEMA_VERSION
 from monitor.models import FetchResult, Opportunity
 from monitor.scoring import profile_fingerprint, score_opportunity
 
@@ -99,7 +99,7 @@ class ProfileRescoreTests(unittest.TestCase):
         table = self.database.connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='runtime_state'"
         ).fetchone()
-        self.assertEqual(version, 5)
+        self.assertEqual(version, SCHEMA_VERSION)
         self.assertEqual(table["name"], "runtime_state")
 
     def test_fingerprint_canonicalizes_current_and_legacy_equivalents(self):
@@ -419,6 +419,99 @@ class ProfileRescoreTests(unittest.TestCase):
         payload = render.call_args.args[0]
         rendered = next(item for item in payload["opportunities"] if item["title"])
         self.assertEqual(rendered["score"], 55)
+
+    def test_next_scan_reconciles_an_already_saved_v2_profile_in_memory(self):
+        profile = {
+            "schema_version": 2,
+            "polite_delay_seconds": 0,
+            "priority_organizations": [],
+            "targets": {
+                "domains": ["marine ecology"],
+                "role_families": ["field technician"],
+            },
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 25,
+                "minimum_display_score": 40,
+                "tier_thresholds": {
+                    "priority": 75,
+                    "strong": 60,
+                    "watch": 40,
+                },
+                "rules": [
+                    {
+                        "id": "retail_merchandising",
+                        "label": "Retail merchandising",
+                        "weight": 35,
+                        "fields": ["title", "category", "description"],
+                        "terms": ["retail", "store assortment"],
+                        "dimension": "interest",
+                        "anchor": True,
+                        "hard_gate": False,
+                    }
+                ],
+            },
+            "documents": {"default": "General", "routes": []},
+        }
+        old_semantics = json.loads(json.dumps(profile))
+        old_semantics["schema_version"] = 3
+        item = Opportunity(
+            "test",
+            "already-saved-off-target",
+            "Retail Merchandise Planner",
+            "Example Stores",
+            "https://example.com/jobs/already-saved-off-target",
+            opportunity_type="job",
+        )
+        score_opportunity(item, old_semantics)
+        self.assertEqual(item.tier, "strong")
+        self.database.upsert_opportunity(item)
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO runtime_state(key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value
+                """,
+                (PROFILE_FINGERPRINT_KEY, "pre-v3-profile-fingerprint"),
+            )
+        self.database.source_success("test", "unchanged", 1)
+        before = json.dumps(profile, sort_keys=True)
+        self.database.close()
+        rendered = {}
+
+        def capture(payload, profile):
+            rendered["payload"] = payload
+            return self.root / "dashboard" / "index.html"
+
+        with (
+            patch(
+                "monitor.pipeline.project_path",
+                side_effect=lambda *parts: self.root.joinpath(*parts),
+            ),
+            patch("monitor.pipeline.load_profile", return_value=profile),
+            patch("monitor.pipeline.load_sources", return_value=[self.source]),
+            patch(
+                "monitor.pipeline.fetch_source",
+                side_effect=AssertionError("a current source must not be fetched"),
+            ),
+            patch("monitor.pipeline.render_dashboard", side_effect=capture),
+        ):
+            result = pipeline.run_scan()
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["checked_sources"], 0)
+        self.assertEqual(json.dumps(profile, sort_keys=True), before)
+        self.assertEqual(rendered["payload"]["opportunities"], [])
+        self.database = Database(self.database_path)
+        row = self.database.connection.execute(
+            "SELECT tier FROM opportunities WHERE external_id='already-saved-off-target'"
+        ).fetchone()
+        self.assertEqual(row["tier"], "skip")
+        stored = self.database.connection.execute(
+            "SELECT value FROM runtime_state WHERE key=?",
+            (PROFILE_FINGERPRINT_KEY,),
+        ).fetchone()["value"]
+        self.assertEqual(stored, profile_fingerprint(profile))
 
     def test_scan_rescores_before_the_first_source_fetch(self):
         self.add_item("scan")

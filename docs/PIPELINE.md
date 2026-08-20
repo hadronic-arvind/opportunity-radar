@@ -17,10 +17,11 @@ There is no resident scanner, polling loop, filesystem watcher, browser automati
 
 ## Collection
 
-Structured Greenhouse, Lever, and Jibe adapters use official public listing endpoints.
+Structured Ashby, Greenhouse, Lever, and Jibe adapters use official public listing endpoints.
 They normalize job type from ATS fields and title evidence instead of labeling every record an internship.
 
 The HTML-link adapter is available for conservative official-page extraction.
+Change-only watch pages require the same new semantic hash in two successful checks before creating an event, which filters one-scan dynamic-page noise without weakening fetch failures.
 The watch-page adapter hashes visible semantic text while ignoring scripts, styles, SVG content, and similar noise.
 A watch page publishes no active listing unless an explicit trusted local override enables `publish_as_opportunity`.
 
@@ -38,6 +39,7 @@ Normalized text, URLs, metadata values, macOS notification arguments, and in-mem
 The public catalog groups sources into overlapping packs.
 A source selected by several packs is still registered and fetched once.
 Only a small structured starter pack is enabled before onboarding.
+Private source additions and state changes are schema-validated, serialized with profile and scan activity, written with mode `0600`, and reconciled with SQLite in one rollback-safe refresh.
 
 ## Matching
 
@@ -71,6 +73,7 @@ The public workflow identifier is a stable 24-character lowercase hexadecimal ha
 `last_seen_at` changes when a source observes the record again.
 
 Source refreshes never overwrite `status`, `status_updated_at`, `applied_at`, or `bookmarked`.
+Opening a previously new listing in the native dashboard advances it to `reviewed`, while later workflow states remain unchanged.
 Inactive opportunities remain available when their status is `apply` or `applied`.
 Disabled-source history remains in SQLite without appearing in Discover.
 Profile refreshes cover every active opportunity and every inactive opportunity that is saved, planned, or applied.
@@ -108,7 +111,7 @@ The optional app embeds the exact generated dashboard in a nonpersistent `WKWebV
 It opens no listening socket and exposes no runtime directory over HTTP.
 
 The native bridge accepts only main-frame messages from the exact trusted dashboard file.
-It validates an exact key set, protocol version, action allowlist, workflow status, boolean types, theme values, opportunity identifiers, and bounded profile objects.
+It validates an exact key set, protocol version, action allowlist, workflow status, boolean types, theme values, opportunity identifiers, bounded source fields, and bounded profile objects.
 It invokes fixed Python argument arrays without a shell and supplies a minimal environment.
 Profile JSON is sent over standard input to a fixed command, never placed in shell text or command-line arguments.
 

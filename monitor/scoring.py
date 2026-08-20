@@ -6,6 +6,7 @@ import re
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from .models import Opportunity
+from .targeting import effective_matching_rules
 
 
 MATCH_FIELDS = {
@@ -909,7 +910,8 @@ def _derived_profile_rules(profile: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def _structured_rules(profile: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return _rules(profile) + _derived_profile_rules(profile)
+    configured = effective_matching_rules(profile, _rules(profile))
+    return configured + _derived_profile_rules(profile)
 
 
 def _configured_timeframes(profile: Dict[str, Any]) -> Tuple[List[int], List[str]]:

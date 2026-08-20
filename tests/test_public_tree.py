@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -71,6 +72,27 @@ class PublicTreeTests(unittest.TestCase):
             module.PROJECT_ROOT = root
             self.assertTrue(
                 any("absolute macOS home path" in failure for failure in module.scan())
+            )
+
+    def test_privacy_gate_allows_only_the_exact_declared_public_binary(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            asset = root / "assets" / "logo.png"
+            asset.parent.mkdir()
+            payload = b"\x89PNG\r\n\x1a\n\x00public-icon"
+            asset.write_bytes(payload)
+            module.PROJECT_ROOT = root
+            module.PUBLIC_BINARY_BLOBS = {
+                "assets/logo.png": hashlib.sha256(payload).hexdigest(),
+            }
+            self.assertFalse(
+                any("binary blob" in failure for failure in module.scan())
+            )
+
+            asset.write_bytes(payload + b"changed")
+            self.assertTrue(
+                any("binary blob" in failure for failure in module.scan())
             )
 
     def test_privacy_gate_rejects_tailored_staged_public_profile(self):

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from monitor import pipeline
 from monitor.database import Database
+from monitor.models import FetchResult
 from monitor.pipeline import _import_curated, _register_sources, _target_year
 
 
@@ -131,6 +132,66 @@ class PipelineConfigurationTests(unittest.TestCase):
             ),
         ):
             pipeline.ensure_profile_lifecycle_idle()
+
+    def test_scan_confirms_watch_page_changes_before_creating_events(self):
+        runtime = self.root / "runtime"
+        (runtime / "data").mkdir(parents=True)
+        source = {
+            "id": "program",
+            "name": "Example Program",
+            "kind": "watch_page",
+            "url": "https://example.com/program",
+            "cadence_hours": 1,
+            "enabled": True,
+        }
+        hashes = iter(
+            ["baseline", "dynamic-one", "dynamic-two", "stable", "stable"]
+        )
+
+        def fetch(_source):
+            return FetchResult([], next(hashes))
+
+        with (
+            patch(
+                "monitor.pipeline.project_path",
+                side_effect=lambda *parts: runtime.joinpath(*parts),
+            ),
+            patch(
+                "monitor.pipeline.load_profile",
+                return_value={"polite_delay_seconds": 0},
+            ),
+            patch("monitor.pipeline.load_sources", return_value=[source]),
+            patch("monitor.pipeline.fetch_source", side_effect=fetch),
+            patch(
+                "monitor.pipeline.render_dashboard",
+                return_value=runtime / "dashboard" / "index.html",
+            ),
+            patch("monitor.pipeline.ensure_profile_lifecycle_idle"),
+        ):
+            for _index in range(5):
+                self.assertEqual(pipeline.run_scan(force=True)["status"], "ok")
+
+        observer = Database(runtime / "data" / "opportunities.sqlite3")
+        try:
+            events = observer.connection.execute(
+                "SELECT previous_hash, content_hash FROM source_events"
+            ).fetchall()
+            source_state = observer.connection.execute(
+                """
+                SELECT last_content_hash, pending_content_hash,
+                       pending_content_checks
+                FROM sources WHERE id='program'
+                """
+            ).fetchone()
+        finally:
+            observer.close()
+        self.assertEqual(
+            [(row["previous_hash"], row["content_hash"]) for row in events],
+            [("baseline", "stable")],
+        )
+        self.assertEqual(source_state["last_content_hash"], "stable")
+        self.assertEqual(source_state["pending_content_hash"], "")
+        self.assertEqual(source_state["pending_content_checks"], 0)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "dashboard": {
     "title": "Opportunity Radar",
     "subtitle": "Review matches and track applications from the sources you follow.",

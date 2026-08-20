@@ -1,12 +1,15 @@
 # Opportunity Radar
 
+<p align="center"><img src="assets/opportunity-radar-icon-v2.png" width="144" alt="Opportunity Radar clock and radar icon"></p>
+
 [![CI](https://github.com/hadronic-arvind/opportunity-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/hadronic-arvind/opportunity-radar/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Proprietary](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE)
 
 Opportunity Radar collects opportunities from official sources, compares them with your preferences, and keeps your search in a private local dashboard.
 
 It runs in short bursts and exits after each scan.
 Nothing polls in the background, and no local web server is opened.
+The setup and operation instructions below are for the copyright holder and anyone who has received prior written permission under the [proprietary license](LICENSE).
 
 ## Quick start
 
@@ -60,7 +63,7 @@ Use Refresh for due sources or Scan all when you deliberately want to ignore sou
 Without the app, use `python3 -m monitor scan` for a due-only refresh or `./scripts/run_now.sh` for a full scan.
 `./scripts/open_dashboard.sh` opens immediately and does not wait for the network.
 
-The Discover view supports field-aware search, sorting, filters, saved items, dark mode, and 24-item pages.
+The Discover view supports field-aware search, sorting, filters, saved items, a compact system/light/dark selector, and 24-item pages.
 In the native app, Plan application and Mark applied persist the workflow in SQLite.
 In a regular browser, the same controls use bounded local browser storage because a static file cannot safely write to SQLite.
 
@@ -77,19 +80,40 @@ python3 -m monitor profile validate
 
 Profile changes immediately rescore the existing dashboard without a network request.
 Every later due or forced scan reads the latest saved profile.
+If a scan is already running, the app keeps the profile editor available and applies one saved update immediately afterward, so the active scan finishes with its original snapshot and the next scan uses the new profile.
+The app keeps everyday profile choices on the Basics page and scoring, matching rules, and document routing on Advanced.
+Removing a basic role or domain retires obsolete positive advanced rules tied only to the removed target, while retained cross-domain, negative, qualification, and hard-gate rules stay intact.
 
 Fit scores are deterministic triage from your rules.
 They are not acceptance probabilities.
 
 ## Sources and customization
 
-The public catalog covers software, data, engineering, design, product, cybersecurity, biotech and health, climate and energy, public-interest work, academia, fellowships, quantitative finance, AI, skilled technical work, national laboratories, and national security.
+The public catalog contains more than 100 official resources across software, data, engineering, design, product, cybersecurity, biotech and health, climate and energy, public-interest work, academia, fellowships, quantitative finance, AI, skilled technical work, national laboratories, national security, early-career programs, aerospace, robotics, education, and social impact.
+The five-source starter stays small, while the broader packs remain opt-in.
 
 ```bash
 python3 -m monitor sources packs
 python3 -m monitor sources list
 python3 -m monitor sources health
 python3 -m monitor sources test figma_greenhouse
+python3 -m monitor sources add \
+  --name "Example Robotics" \
+  --url "https://jobs.ashbyhq.com/example"
+```
+
+Hosted Greenhouse, Lever, and Ashby URLs are recognized automatically.
+Other careers pages use a bounded experimental link extractor unless you explicitly choose a change-only watch page.
+New sources are live-tested before saving by default and are written atomically to the private registry.
+Use `sources show`, `enable`, `disable`, and `remove` to manage them later.
+
+The CLI can also search, inspect, and export stored opportunities without opening the dashboard.
+
+```bash
+python3 -m monitor opportunities list --min-score 65
+python3 -m monitor opportunities search "robotics internship" --json
+python3 -m monitor opportunities list --status apply --csv
+python3 -m monitor opportunities show OPPORTUNITY_ID
 ```
 
 The app and CLI write personal settings to one canonical private location.
@@ -129,6 +153,7 @@ Run the scheduler installer again after pulling code changes.
 Profile and source-pack changes made through the app or CLI do not require reinstallation.
 Uninstalling the scheduler leaves the database and dashboard intact.
 
-Developer details are in [Pipeline design](docs/PIPELINE.md), [Operations](docs/OPERATIONS.md), and [Contributing](CONTRIBUTING.md).
+Developer details are in [Pipeline design](docs/PIPELINE.md), [Operations](docs/OPERATIONS.md), and [Repository participation](CONTRIBUTING.md).
 
-Opportunity Radar is available under the [MIT License](LICENSE).
+Opportunity Radar is publicly viewable but proprietary software.
+All rights are reserved under the [license and copyright notice](LICENSE).

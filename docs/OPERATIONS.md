@@ -13,6 +13,9 @@ Neither waits for a network scan before first paint.
 
 The native dashboard buttons can check due sources or force all enabled sources.
 The native profile editor updates keywords, targets, timeframes, source packs, preferred organizations, score visibility, and document routes without opening a terminal.
+It remains available during a scan and queues one saved revision behind that scan.
+The running scan keeps its original profile snapshot, then the queued save rescores the database before the dashboard reloads.
+The native Sources card can add a company or program from its official hosted job-board or careers URL.
 In a normal browser, run one of these terminal commands:
 
 ```bash
@@ -33,6 +36,19 @@ python3 -m monitor profile validate
 
 A successful profile change immediately rescores the local database and rebuilds the dashboard.
 The next scheduled or forced scan loads that saved revision before collecting sources.
+
+Use the CLI to add and manage a private source or to search stored opportunities:
+
+```bash
+python3 -m monitor sources add --name "Example Company" --url "https://jobs.lever.co/example"
+python3 -m monitor sources show example_company
+python3 -m monitor sources disable example_company
+python3 -m monitor opportunities search "research internship"
+python3 -m monitor opportunities list --status apply --csv
+```
+
+Source addition performs a live read-only test before the atomic save unless `--skip-test` is explicitly requested.
+The opportunity commands never fetch the network.
 
 ## macOS schedule
 

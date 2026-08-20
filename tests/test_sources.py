@@ -1,7 +1,11 @@
 import json
+import tempfile
 import unittest
 import urllib.parse
 from pathlib import Path
+from unittest.mock import patch
+
+from monitor import config
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,9 +35,13 @@ REQUIRED_PACK_IDS = {
     "skilled-technical",
     "national-labs",
     "national-security",
+    "students-early-career",
+    "space-aerospace",
+    "robotics-autonomy",
+    "education-social-impact",
 }
 
-RELIABLE_LISTING_KINDS = {"greenhouse", "lever", "jibe"}
+RELIABLE_LISTING_KINDS = {"ashby", "greenhouse", "lever", "jibe"}
 LISTING_KINDS = RELIABLE_LISTING_KINDS | {"html_links"}
 
 NEW_OPT_IN_FEED_PACKS = {
@@ -46,6 +54,77 @@ NEW_OPT_IN_FEED_PACKS = {
     "redwood_materials_greenhouse": {"engineering", "climate-energy", "skilled-technical"},
     "anduril_greenhouse": {"engineering", "cybersecurity", "national-security"},
     "spacex_greenhouse": {"engineering", "skilled-technical", "national-security"},
+}
+
+REPRESENTATIVE_STAGE_FEEDS = {
+    "climate_corps_greenhouse": {
+        "packs": {"climate-energy", "fellowships", "students-early-career"},
+        "types": {"fellowship", "internship"},
+        "levels": {"undergraduate", "new_grad", "early_career"},
+    },
+    "aclu_internships_greenhouse": {
+        "packs": {"public-interest", "students-early-career", "education-social-impact"},
+        "types": {"internship"},
+        "levels": {"undergraduate", "graduate", "law_student"},
+    },
+    "zinnia_internships_greenhouse": {
+        "packs": {"finance-quant"},
+        "types": {"internship"},
+        "levels": {"undergraduate", "graduate"},
+    },
+    "rocket_lab_greenhouse": {
+        "packs": {"engineering", "students-early-career", "space-aerospace"},
+        "types": {"job", "internship"},
+        "levels": {"new_grad", "early_career", "vocational"},
+    },
+    "field_ai_lever": {
+        "packs": {"ai-research", "students-early-career", "robotics-autonomy"},
+        "types": {"job", "internship"},
+        "levels": {"undergraduate", "graduate", "phd"},
+    },
+    "vera_institute_greenhouse": {
+        "packs": {"public-interest", "students-early-career", "education-social-impact"},
+        "types": {"job", "internship", "fellowship"},
+        "levels": {"undergraduate", "graduate", "new_grad"},
+    },
+}
+
+VERIFIED_2026_08_20_FEEDS = {
+    "locus_robotics_greenhouse": {
+        "kind": "greenhouse",
+        "packs": {"engineering", "students-early-career", "robotics-autonomy"},
+        "types": {"internship", "co_op"},
+    },
+    "rugged_robotics_greenhouse": {
+        "kind": "greenhouse",
+        "packs": {"engineering", "skilled-technical", "students-early-career", "robotics-autonomy"},
+        "types": {"internship", "co_op"},
+    },
+    "roboforce_greenhouse": {
+        "kind": "greenhouse",
+        "packs": {"engineering", "ai-research", "students-early-career", "robotics-autonomy"},
+        "types": {"internship", "residency"},
+    },
+    "givedirectly_greenhouse": {
+        "kind": "greenhouse",
+        "packs": {"public-interest", "students-early-career", "education-social-impact"},
+        "types": {"job", "internship", "fellowship"},
+    },
+    "earth_species_project_lever": {
+        "kind": "lever",
+        "packs": {"biotech-health", "public-interest", "academia-research", "ai-research"},
+        "types": {"job", "internship", "research_program"},
+    },
+    "handshake_ashby": {
+        "kind": "ashby",
+        "packs": {"data-software", "ai-research", "students-early-career"},
+        "types": {"job", "internship"},
+    },
+    "root_access_ashby": {
+        "kind": "ashby",
+        "packs": {"academia-research", "fellowships", "ai-research", "students-early-career"},
+        "types": {"job", "fellowship", "research_program"},
+    },
 }
 
 REQUIRED_DOMAINS = {
@@ -101,6 +180,7 @@ class PublicSourceCatalogTests(unittest.TestCase):
         self.assertEqual(self.catalog["schema_version"], 1)
         pack_ids = [pack["id"] for pack in self.packs]
         self.assertEqual(len(pack_ids), len(set(pack_ids)))
+        self.assertGreaterEqual(len(pack_ids), 19)
         self.assertTrue(REQUIRED_PACK_IDS.issubset(pack_ids))
         self.assertEqual(
             [pack["id"] for pack in self.packs if pack.get("default")],
@@ -125,7 +205,17 @@ class PublicSourceCatalogTests(unittest.TestCase):
 
     def test_supported_ats_sources_follow_public_api_conventions(self):
         for source in self.sources:
-            if source["kind"] == "greenhouse":
+            if source["kind"] == "ashby":
+                expected = "https://api.ashbyhq.com/posting-api/job-board/{}".format(
+                    source["board"]
+                )
+                self.assertEqual(source["api_url"], expected, source["id"])
+                self.assertEqual(
+                    source["url"],
+                    "https://jobs.ashbyhq.com/{}".format(source["board"]),
+                    source["id"],
+                )
+            elif source["kind"] == "greenhouse":
                 expected = "https://boards-api.greenhouse.io/v1/boards/{}/jobs".format(source["board"])
                 self.assertEqual(source["api_url"], expected, source["id"])
             elif source["kind"] == "lever":
@@ -146,6 +236,102 @@ class PublicSourceCatalogTests(unittest.TestCase):
                     ),
                     source["id"],
                 )
+            if source.get("include_content") is False:
+                self.assertEqual(
+                    source.get("description_availability"),
+                    "title_only",
+                    source["id"],
+                )
+            if "description_availability" in source:
+                self.assertEqual(
+                    source["description_availability"],
+                    "title_only",
+                    source["id"],
+                )
+                self.assertEqual(source["source_type"], "listing_feed", source["id"])
+
+    def test_ashby_feeds_are_supported_opt_in_and_cover_distinct_domains(self):
+        ashby = {source["id"]: source for source in self.sources if source["kind"] == "ashby"}
+        self.assertGreaterEqual(len(ashby), 2)
+        self.assertIn("openai_ashby", ashby)
+        self.assertIn("heirloom_ashby", ashby)
+        for source in ashby.values():
+            self.assertFalse(source["enabled"], source["id"])
+            self.assertEqual(source["support_level"], "supported", source["id"])
+            self.assertEqual(source["source_type"], "listing_feed", source["id"])
+            self.assertTrue(source["board"], source["id"])
+
+        self.assertIn("ai-research", ashby["openai_ashby"]["packs"])
+        self.assertIn("residency", ashby["openai_ashby"]["opportunity_types"])
+        self.assertEqual(ashby["heirloom_ashby"]["board"], "heirloomcarbon")
+        self.assertIn("climate-energy", ashby["heirloom_ashby"]["packs"])
+        self.assertIn("vocational", ashby["heirloom_ashby"]["career_levels"])
+
+    def test_failed_public_sources_follow_current_official_destinations(self):
+        sources = {source["id"]: source for source in self.sources}
+
+        self.assertNotIn("campus_opportunities_greenhouse", sources)
+        withum = sources["withum_campus"]
+        self.assertEqual(withum["kind"], "watch_page")
+        self.assertEqual(withum["source_type"], "manual_page")
+        self.assertEqual(withum["support_level"], "manual")
+        self.assertEqual(
+            withum["url"],
+            "https://withum.wd108.myworkdayjobs.com/CR_Career_Site",
+        )
+        self.assertEqual(withum["packs"], ["finance-quant"])
+
+        heirloom = sources["heirloom_ashby"]
+        self.assertEqual(heirloom["board"], "heirloomcarbon")
+        self.assertEqual(
+            heirloom["api_url"],
+            "https://api.ashbyhq.com/posting-api/job-board/heirloomcarbon",
+        )
+
+        rise = sources["apl_rise"]
+        self.assertEqual(rise["expected_http_statuses"], [403])
+        self.assertEqual(rise["support_level"], "manual")
+        self.assertTrue({"internship", "research_program"} <= set(rise["opportunity_types"]))
+        self.assertTrue({"undergraduate", "graduate", "phd"} <= set(rise["career_levels"]))
+
+        nreip = sources["nreip"]
+        self.assertEqual(
+            nreip["url"],
+            "https://www.onr.navy.mil/education-outreach/undergraduate-graduate/nreip-naval-internship",
+        )
+        self.assertEqual(nreip["support_level"], "manual")
+
+        jpl = sources["jpl_internships"]
+        self.assertEqual(jpl["url"], "https://www.jpl.jobs/students-and-postdocs")
+        self.assertNotIn("expected_http_statuses", jpl)
+        self.assertTrue({"internship", "research_program", "postdoc"} <= set(jpl["opportunity_types"]))
+        self.assertTrue({"undergraduate", "graduate", "phd", "postdoc"} <= set(jpl["career_levels"]))
+
+        for source_id in ("citadel_students", "pppl_internships"):
+            self.assertEqual(sources[source_id]["expected_http_statuses"], [403], source_id)
+            self.assertEqual(sources[source_id]["support_level"], "manual", source_id)
+            self.assertEqual(sources[source_id]["verified_at"], "2026-08-20", source_id)
+
+        pppl_feed = sources["pppl_internships_icims"]
+        self.assertEqual(pppl_feed["kind"], "html_links")
+        self.assertEqual(pppl_feed["source_type"], "listing_feed")
+        self.assertEqual(pppl_feed["support_level"], "experimental")
+        self.assertEqual(pppl_feed["pages"], 1)
+        self.assertEqual(pppl_feed["default_opportunity_type"], "internship")
+        self.assertIn("searchKeyword=intern", pppl_feed["url"])
+        self.assertIn("/jobs/", pppl_feed["include"])
+        self.assertTrue(pppl_feed["same_domain"])
+
+        for source_id in (
+            "withum_campus",
+            "heirloom_ashby",
+            "apl_rise",
+            "nreip",
+            "jpl_internships",
+            "pppl_internships_icims",
+        ):
+            self.assertFalse(sources[source_id]["enabled"], source_id)
+            self.assertEqual(sources[source_id]["verified_at"], "2026-08-20", source_id)
 
     def test_verified_structured_feed_expansion_is_opt_in_and_relevant(self):
         sources = {source["id"]: source for source in self.sources}
@@ -157,6 +343,71 @@ class PublicSourceCatalogTests(unittest.TestCase):
             self.assertEqual(source["support_level"], "supported", source_id)
             self.assertIn(source["kind"], RELIABLE_LISTING_KINDS, source_id)
             self.assertTrue(required_packs <= set(source["packs"]), source_id)
+
+    def test_representative_stage_focused_feeds_have_auditable_taxonomy(self):
+        sources = {source["id"]: source for source in self.sources}
+        self.assertTrue(REPRESENTATIVE_STAGE_FEEDS.keys() <= sources.keys())
+        for source_id, expected in REPRESENTATIVE_STAGE_FEEDS.items():
+            source = sources[source_id]
+            self.assertFalse(source["enabled"], source_id)
+            self.assertEqual(source["source_type"], "listing_feed", source_id)
+            self.assertEqual(source["support_level"], "supported", source_id)
+            self.assertTrue(expected["packs"] <= set(source["packs"]), source_id)
+            self.assertTrue(expected["types"] <= set(source["opportunity_types"]), source_id)
+            self.assertTrue(expected["levels"] <= set(source["career_levels"]), source_id)
+
+    def test_final_verified_cross_industry_feeds_are_supported_and_opt_in(self):
+        sources = {source["id"]: source for source in self.sources}
+        self.assertTrue(VERIFIED_2026_08_20_FEEDS.keys() <= sources.keys())
+        for source_id, expected in VERIFIED_2026_08_20_FEEDS.items():
+            source = sources[source_id]
+            self.assertFalse(source["enabled"], source_id)
+            self.assertEqual(source["verified_at"], "2026-08-20", source_id)
+            self.assertEqual(source["source_type"], "listing_feed", source_id)
+            self.assertEqual(source["support_level"], "supported", source_id)
+            self.assertEqual(source["kind"], expected["kind"], source_id)
+            self.assertTrue(expected["packs"] <= set(source["packs"]), source_id)
+            self.assertTrue(expected["types"] <= set(source["opportunity_types"]), source_id)
+
+    def test_jane_street_program_feed_tracks_current_application_index(self):
+        source = next(source for source in self.sources if source["id"] == "jane_street_programs")
+        self.assertFalse(source["enabled"])
+        self.assertEqual(source["verified_at"], "2026-08-20")
+        self.assertEqual(source["kind"], "html_links")
+        self.assertEqual(source["source_type"], "listing_feed")
+        self.assertEqual(source["support_level"], "experimental")
+        self.assertEqual(source["default_opportunity_type"], "program")
+        self.assertEqual(source["pages"], 1)
+        self.assertTrue(source["same_domain"])
+        self.assertIn("program-type=accepting-applications", source["url"])
+        self.assertIn(
+            "/programs-and-events/graduate-research-fellowship",
+            source["include"],
+        )
+        self.assertTrue(
+            {"academia-research", "fellowships", "finance-quant"}
+            <= set(source["packs"])
+        )
+        self.assertTrue(
+            {"fellowship", "internship", "research_program"}
+            <= set(source["opportunity_types"])
+        )
+
+    def test_new_domain_packs_have_multiple_structured_opt_in_feeds(self):
+        required_counts = {
+            "students-early-career": 20,
+            "space-aerospace": 3,
+            "robotics-autonomy": 5,
+            "education-social-impact": 6,
+        }
+        for pack_id, minimum in required_counts.items():
+            feeds = [
+                source
+                for source in self.sources
+                if source["source_type"] == "listing_feed" and pack_id in source["packs"]
+            ]
+            self.assertGreaterEqual(len(feeds), minimum, pack_id)
+            self.assertTrue(all(not source["enabled"] for source in feeds), pack_id)
 
     def test_google_careers_is_a_bounded_opt_in_official_feed(self):
         source = next(source for source in self.sources if source["id"] == "google_careers")
@@ -191,11 +442,22 @@ class PublicSourceCatalogTests(unittest.TestCase):
         pack_ids = {pack["id"] for pack in self.packs}
         source_ids = [source["id"] for source in self.sources]
         self.assertEqual(len(source_ids), len(set(source_ids)))
-        self.assertGreaterEqual(len(self.sources), 60)
+        self.assertGreaterEqual(len(self.sources), 100)
 
         for source in self.sources:
             self.assertRegex(source["id"], r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
             self.assertTrue(source["official"], source["id"])
+            self.assertIsInstance(source["enabled"], bool, source["id"])
+            self.assertIn(
+                source["support_level"],
+                {"supported", "experimental", "manual"},
+                source["id"],
+            )
+            self.assertIn(
+                source["source_type"],
+                {"listing_feed", "official_portal", "manual_page", "program_calendar"},
+                source["id"],
+            )
             self.assertRegex(source["verified_at"], r"^\d{4}-\d{2}-\d{2}$")
             self.assertIsInstance(source["cadence_hours"], int)
             self.assertGreater(source["cadence_hours"], 0)
@@ -263,8 +525,51 @@ class PublicSourceCatalogTests(unittest.TestCase):
             for source in manual_watch_pages
             for pack in source["packs"]
         }
-        self.assertEqual(REQUIRED_PACK_IDS - feed_packs, {"national-labs"})
+        self.assertFalse(REQUIRED_PACK_IDS - feed_packs)
+        self.assertIn("national-labs", feed_packs)
         self.assertIn("national-labs", manual_packs)
+
+    def test_finance_pack_removal_disables_finance_employers_but_keeps_programs(self):
+        finance_employers = {
+            "point72_greenhouse",
+            "xtx_greenhouse",
+            "zinnia_internships_greenhouse",
+            "withum_campus",
+            "binance_lever",
+            "coinbase_greenhouse",
+            "jump_trading_greenhouse",
+            "hrt_openings",
+            "jane_street_students",
+            "citadel_students",
+            "deshaw_students",
+        }
+        sources = {source["id"]: source for source in self.sources}
+        for source_id in finance_employers:
+            self.assertEqual(sources[source_id]["packs"], ["finance-quant"], source_id)
+
+        with tempfile.TemporaryDirectory() as directory:
+            local = Path(directory) / "sources.local.json"
+            local.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 2,
+                        "selected_packs": [
+                            "engineering",
+                            "data-software",
+                            "academia-research",
+                            "fellowships",
+                            "students-early-career",
+                        ],
+                        "sources": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch("monitor.config.source_files", return_value=[SOURCES_PATH, local]):
+                enabled = {source["id"] for source in config.load_sources()}
+
+        self.assertFalse(finance_employers.intersection(enabled))
+        self.assertIn("jane_street_programs", enabled)
 
 
 if __name__ == "__main__":

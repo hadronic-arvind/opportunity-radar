@@ -5,7 +5,9 @@ import unittest
 import urllib.request
 from unittest.mock import Mock, patch
 
+from monitor.dates import normalize_timestamp
 from monitor.fetchers import (
+    MAX_ASHBY_RESPONSE_BYTES,
     MAX_RESPONSE_BYTES,
     READ_CHUNK_BYTES,
     ResponseTooLargeError,
@@ -15,16 +17,19 @@ from monitor.fetchers import (
     _jibe_pages,
     _request,
     _validate_remote_url,
+    fetch_ashby,
     fetch_greenhouse,
     fetch_html_links,
     fetch_jibe,
     fetch_lever,
+    fetch_source,
     fetch_watch_page,
     filter_items,
 )
-from monitor.models import FetchResult, Opportunity
+from monitor.models import FetchResult, MAX_OPPORTUNITIES_PER_SOURCE, Opportunity
 from monitor.onboarding import build_profile
 from monitor.scoring import score_opportunity
+from monitor.text import stable_hash
 
 
 class FakeResponse:
@@ -58,6 +63,16 @@ class FakeResponse:
 
 
 class FetcherTests(unittest.TestCase):
+    def test_timestamp_normalization_accepts_compact_utc_offsets_on_python_39(self):
+        self.assertEqual(
+            normalize_timestamp("2027-08-09T00:00:00+0000"),
+            "2027-08-09T00:00:00+00:00",
+        )
+        self.assertEqual(
+            normalize_timestamp("2027-08-09T12:34:56-0430"),
+            "2027-08-09T17:04:56+00:00",
+        )
+
     def setUp(self):
         resolver = patch(
             "monitor.fetchers.socket.getaddrinfo",
@@ -245,6 +260,172 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(item.commitment, "Full-time")
 
     @patch("monitor.fetchers._open_remote")
+    def test_ashby_normalizes_listed_jobs_and_skips_unlisted_or_incomplete_rows(self, urlopen):
+        payload = {
+            "jobs": [
+                {
+                    "id": "ashby-1",
+                    "title": "Research Engineering Intern",
+                    "jobUrl": "https://jobs.ashbyhq.com/acme/ashby-1",
+                    "location": "Remote - US",
+                    "secondaryLocations": [
+                        {"location": "New York, NY"},
+                        {"location": "Remote - US"},
+                        {"name": "Ignored shape"},
+                    ],
+                    "descriptionPlain": "Build research systems. Applications close September 15, 2027.",
+                    "department": "Engineering",
+                    "team": "Research",
+                    "employmentType": "Intern",
+                    "workplaceType": "Remote",
+                    "publishedAt": "2027-08-09T12:30:00Z",
+                    "isListed": True,
+                },
+                {
+                    "id": "hidden",
+                    "title": "Hidden Role",
+                    "jobUrl": "https://jobs.ashbyhq.com/acme/hidden",
+                    "isListed": False,
+                },
+                {
+                    "id": "missing-title",
+                    "jobUrl": "https://jobs.ashbyhq.com/acme/missing-title",
+                },
+                {
+                    "id": "missing-url",
+                    "title": "Missing URL",
+                },
+                "not an object",
+            ]
+        }
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+
+        result = fetch_ashby(
+            {
+                "id": "acme_ashby",
+                "name": "Acme",
+                "kind": "ashby",
+                "board": "acme/research",
+                "domains": ["software", "academia_research"],
+                "packs": ["engineering"],
+                "official": True,
+            }
+        )
+
+        self.assertEqual(len(result.opportunities), 1)
+        self.assertEqual(result.message, "1 Ashby jobs")
+        item = result.opportunities[0]
+        self.assertEqual(item.external_id, "ashby-1")
+        self.assertEqual(item.title, "Research Engineering Intern")
+        self.assertEqual(item.organization, "Acme")
+        self.assertEqual(item.location, "Remote - US, New York, NY")
+        self.assertEqual(item.category, "Engineering Research")
+        self.assertEqual(item.opportunity_type, "internship")
+        self.assertEqual(item.commitment, "Intern")
+        self.assertEqual(item.posted_at, "2027-08-09T12:30:00+00:00")
+        self.assertEqual(item.deadline_at, "2027-09-15")
+        self.assertEqual(item.metadata["ats"], "ashby")
+        self.assertEqual(item.metadata["department"], "Engineering")
+        self.assertEqual(item.metadata["team"], "Research")
+        self.assertEqual(item.metadata["workplace_type"], "Remote")
+        self.assertEqual(
+            item.metadata["dates"]["posted"]["provenance"],
+            "ashby.publishedAt",
+        )
+        self.assertEqual(
+            urlopen.call_args.args[0].full_url,
+            "https://api.ashbyhq.com/posting-api/job-board/acme%2Fresearch",
+        )
+
+    @patch("monitor.fetchers._request", return_value=b'{"jobs":[]}')
+    def test_ashby_uses_its_explicit_bounded_response_budget(self, request):
+        result = fetch_ashby(
+            {"id": "large", "name": "Large Board", "board": "large/board"}
+        )
+
+        self.assertEqual(result.opportunities, [])
+        request.assert_called_once_with(
+            "https://api.ashbyhq.com/posting-api/job-board/large%2Fboard",
+            max_bytes=MAX_ASHBY_RESPONSE_BYTES,
+        )
+        self.assertGreater(MAX_ASHBY_RESPONSE_BYTES, MAX_RESPONSE_BYTES)
+        self.assertLessEqual(MAX_ASHBY_RESPONSE_BYTES, 32 * 1024 * 1024)
+
+    @patch("monitor.fetchers._open_remote")
+    def test_ashby_uses_secondary_location_without_leading_separator(self, urlopen):
+        payload = {
+            "jobs": [
+                {
+                    "title": "Program Fellow",
+                    "applyUrl": "https://jobs.ashbyhq.com/acme/secondary-only",
+                    "secondaryLocations": [{"location": "New York, NY"}],
+                    "descriptionHtml": "<p>Community research &amp; policy</p>",
+                }
+            ]
+        }
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+
+        item = fetch_ashby(
+            {"id": "acme", "name": "Acme", "board": "acme"}
+        ).opportunities[0]
+
+        self.assertEqual(item.location, "New York, NY")
+        self.assertEqual(item.url, "https://jobs.ashbyhq.com/acme/secondary-only")
+        self.assertRegex(item.external_id, r"^[a-f0-9]{20}$")
+        self.assertEqual(item.description, "Community research & policy")
+        self.assertEqual(item.opportunity_type, "fellowship")
+
+    @patch("monitor.fetchers._open_remote")
+    def test_ashby_rejects_malformed_and_unbounded_responses(self, urlopen):
+        urlopen.side_effect = [
+            FakeResponse(json.dumps({"jobs": {}}).encode()),
+            FakeResponse(
+                json.dumps(
+                    {"jobs": [None] * (MAX_OPPORTUNITIES_PER_SOURCE + 1)}
+                ).encode()
+            ),
+        ]
+        source = {"id": "acme", "name": "Acme", "board": "acme"}
+
+        with self.assertRaisesRegex(ValueError, "jobs list"):
+            fetch_ashby(source)
+        with self.assertRaisesRegex(ResponseTooLargeError, "too many jobs"):
+            fetch_ashby(source)
+
+    @patch("monitor.fetchers._open_remote")
+    def test_fetch_source_dispatches_ashby_and_applies_source_filters(self, urlopen):
+        payload = {
+            "jobs": [
+                {
+                    "id": "research",
+                    "title": "Research Engineer",
+                    "jobUrl": "https://jobs.ashbyhq.com/acme/research",
+                },
+                {
+                    "id": "sales",
+                    "title": "Sales Engineer",
+                    "jobUrl": "https://jobs.ashbyhq.com/acme/sales",
+                },
+            ]
+        }
+        urlopen.return_value = FakeResponse(json.dumps(payload).encode())
+
+        result = fetch_source(
+            {
+                "id": "acme",
+                "name": "Acme",
+                "kind": "ashby",
+                "board": "acme",
+                "item_include": ["research"],
+            }
+        )
+
+        self.assertEqual(
+            [item.external_id for item in result.opportunities],
+            ["research"],
+        )
+
+    @patch("monitor.fetchers._open_remote")
     def test_lever_normalization(self, urlopen):
         payload = [{
             "id": "abc",
@@ -315,10 +496,38 @@ class FetcherTests(unittest.TestCase):
         self.assertNotIn("base_score", result.opportunities[0].metadata)
 
     @patch("monitor.fetchers._open_remote")
+    def test_html_link_program_cards_have_short_titles_and_program_default(self, urlopen):
+        urlopen.return_value = FakeResponse(
+            b'<a href="/programs/amp">PROGRAM AMP ACCEPTING APPLICATIONS '
+            b'A five-week summer experience. Learn More</a>'
+            b'<a href="/programs/grf">PROGRAM Graduate Research Fellowship '
+            b'ACCEPTING APPLICATIONS A doctoral award. Learn More</a>'
+        )
+        source = {
+            "id": "programs",
+            "name": "Programs",
+            "kind": "html_links",
+            "url": "https://example.com/programs",
+            "include": ["/programs/"],
+            "same_domain": True,
+            "opportunity_types": ["fellowship", "internship", "program"],
+            "default_opportunity_type": "program",
+        }
+        result = fetch_html_links(source)
+        self.assertEqual(
+            [item.title for item in result.opportunities],
+            ["AMP", "Graduate Research Fellowship"],
+        )
+        self.assertEqual(
+            [item.opportunity_type for item in result.opportunities],
+            ["program", "fellowship"],
+        )
+
+    @patch("monitor.fetchers._open_remote")
     def test_html_links_support_bounded_page_query_pagination_and_deduplication(self, urlopen):
-        first = b'<a href="/jobs/1">Software Intern</a>'
+        first = b'<a href="/jobs/1?page=1&amp;ref=careers#details">Software Intern</a>'
         second = (
-            b'<a href="/jobs/1">Software Intern</a>'
+            b'<a href="/jobs/1?page=2&amp;ref=careers#details">Software Intern</a>'
             b'<a href="/jobs/2">Research Intern</a>'
         )
         urlopen.side_effect = [FakeResponse(first), FakeResponse(second)]
@@ -335,6 +544,14 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(
             [item.title for item in result.opportunities],
             ["Software Intern", "Research Intern"],
+        )
+        self.assertEqual(
+            result.opportunities[0].url,
+            "https://careers.google.com/jobs/1?ref=careers#details",
+        )
+        self.assertEqual(
+            result.opportunities[0].external_id,
+            stable_hash("https://careers.google.com/jobs/1?ref=careers#details"),
         )
         self.assertEqual(result.opportunities[0].metadata["page_count"], 2)
         self.assertEqual(len(urlopen.call_args_list), 2)
@@ -774,24 +991,28 @@ class FetcherTests(unittest.TestCase):
         handler.parent = Mock()
         marker = object()
         handler.parent.open.return_value = marker
-        request = urllib.request.Request("https://careers.example/jobs")
-        request.timeout = 5
-        response = FakeResponse(b"small redirect body")
 
-        result = handler.http_error_302(
-            request,
-            response,
-            302,
-            "Found",
-            {"location": "https://careers.example/next"},
-        )
+        for code in (302, 308):
+            with self.subTest(code=code):
+                handler.parent.open.reset_mock()
+                request = urllib.request.Request("https://careers.example/jobs")
+                request.timeout = 5
+                response = FakeResponse(b"small redirect body")
 
-        self.assertIs(result, marker)
-        self.assertTrue(response.closed)
-        self.assertNotIn(None, response.read_sizes)
-        self.assertNotIn(-1, response.read_sizes)
-        followed = handler.parent.open.call_args.args[0]
-        self.assertEqual(followed.full_url, "https://careers.example/next")
+                result = getattr(handler, "http_error_{}".format(code))(
+                    request,
+                    response,
+                    code,
+                    "Redirect",
+                    {"location": "https://careers.example/next"},
+                )
+
+                self.assertIs(result, marker)
+                self.assertTrue(response.closed)
+                self.assertNotIn(None, response.read_sizes)
+                self.assertNotIn(-1, response.read_sizes)
+                followed = handler.parent.open.call_args.args[0]
+                self.assertEqual(followed.full_url, "https://careers.example/next")
 
     def test_https_connection_pins_the_validated_numeric_address(self):
         connection = _PublicHTTPSConnection("careers.example", timeout=5)

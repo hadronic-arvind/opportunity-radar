@@ -119,6 +119,11 @@ def normalize_timestamp(value: Any) -> Optional[str]:
     if len(raw) == 10 and calendar_date:
         return calendar_date
     candidate = raw[:-1] + "+00:00" if raw.endswith(("Z", "z")) else raw
+    # Python 3.9's datetime.fromisoformat does not accept the compact +HHMM
+    # UTC offset emitted by Jibe and some other ATS feeds. Normalize only the
+    # terminal offset, leaving the timestamp itself and explicit timezone
+    # semantics unchanged.
+    candidate = re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", candidate)
     try:
         parsed = datetime.fromisoformat(candidate)
     except ValueError:

@@ -1,6 +1,7 @@
 """Command-line interface for scans, dashboard generation, and local state."""
 
 import argparse
+import csv
 import json
 import platform
 import re
@@ -33,6 +34,14 @@ from .profile import (
     validate_editor_payload,
 )
 from .scoring import MATCH_FIELDS
+from .source_registry import (
+    SUPPORTED_KINDS,
+    add_source,
+    build_custom_source,
+    remove_source,
+    set_source_enabled,
+    source_summary,
+)
 
 
 OPPORTUNITY_ID = re.compile(r"^[a-f0-9]{24}$")
@@ -59,13 +68,77 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard = subparsers.add_parser("dashboard", help="Rebuild the dashboard from the local database")
     dashboard.add_argument("--quiet", action="store_true", help="Suppress the output path")
     subparsers.add_parser("doctor", help="Check configuration and runtime prerequisites")
-    sources = subparsers.add_parser("sources", help="Inspect source packs and health")
+    sources = subparsers.add_parser("sources", help="Inspect and manage opportunity sources")
     source_commands = sources.add_subparsers(dest="source_command")
-    source_commands.add_parser("list", help="List enabled sources")
+    source_list = source_commands.add_parser("list", help="List configured sources")
+    source_list.add_argument("--all", action="store_true", help="Include disabled sources")
+    source_list.add_argument("--json", action="store_true", help="Print JSON")
     source_commands.add_parser("packs", help="List available source packs")
     source_commands.add_parser("health", help="Show persisted source health")
     source_test = source_commands.add_parser("test", help="Fetch one source without saving results")
     source_test.add_argument("source_id")
+    source_show = source_commands.add_parser("show", help="Show one source definition")
+    source_show.add_argument("source_id")
+    source_add = source_commands.add_parser("add", help="Add a private company or program source")
+    source_add.add_argument("--name", required=True, help="Company or program name")
+    source_add.add_argument("--url", required=True, help="Official HTTPS jobs or careers URL")
+    source_add.add_argument("--id", default="", help="Optional lowercase source id")
+    source_add.add_argument(
+        "--kind",
+        choices=["auto", "ashby", "greenhouse", "lever", "html_links", "watch_page"],
+        default="auto",
+        help="Provider type; auto recognizes hosted ATS URLs",
+    )
+    source_add.add_argument(
+        "--adapter",
+        default="",
+        help="Provider board/site slug when it cannot be read from the URL",
+    )
+    source_add.add_argument("--packs", default="", help="Comma-separated source pack ids")
+    source_add.add_argument("--cadence-hours", type=int, default=12)
+    source_add.add_argument(
+        "--skip-test",
+        action="store_true",
+        help="Save without a live read-only provider check",
+    )
+    source_add.add_argument("--dry-run", action="store_true", help="Validate without writing")
+    for action, help_text in (
+        ("enable", "Enable a built-in or private source"),
+        ("disable", "Disable a built-in or private source"),
+        ("remove", "Remove a private source"),
+    ):
+        command = source_commands.add_parser(action, help=help_text)
+        command.add_argument("source_id")
+        command.add_argument("--dry-run", action="store_true", help="Validate without writing")
+
+    opportunities = subparsers.add_parser(
+        "opportunities", help="Search and export opportunities from the local database"
+    )
+    opportunity_commands = opportunities.add_subparsers(dest="opportunity_command")
+    for action, help_text in (
+        ("list", "List opportunities"),
+        ("search", "Search opportunity text"),
+    ):
+        command = opportunity_commands.add_parser(action, help=help_text)
+        if action == "search":
+            command.add_argument("query")
+        else:
+            command.add_argument("--query", default="")
+        command.add_argument(
+            "--status",
+            choices=["new", "reviewed", "apply", "applied", "skip"],
+        )
+        command.add_argument("--type", dest="opportunity_type")
+        command.add_argument("--source")
+        command.add_argument("--min-score", type=int, default=0)
+        command.add_argument("--limit", type=int, default=50)
+        command.add_argument("--include-inactive", action="store_true")
+        output = command.add_mutually_exclusive_group()
+        output.add_argument("--json", action="store_true")
+        output.add_argument("--csv", action="store_true")
+    opportunity_show = opportunity_commands.add_parser("show", help="Show one opportunity")
+    opportunity_show.add_argument("opportunity_id", type=_opportunity_id)
+    opportunity_show.add_argument("--json", action="store_true")
 
     initialize_parser = subparsers.add_parser(
         "init", help="Create ignored local source and matching configuration"
@@ -246,7 +319,7 @@ def command_doctor() -> int:
         failures.append("one or more dashboard assets are unavailable")
     if curated_path is not None and not curated_path.is_file():
         failures.append("curated_pipeline is unavailable: {}".format(curated_path.name))
-    allowed_kinds = {"greenhouse", "lever", "jibe", "html_links", "watch_page"}
+    allowed_kinds = set(SUPPORTED_KINDS)
     pack_ids = {str(pack.get("id", "")) for pack in load_source_packs()}
     for source in all_sources:
         source_id = str(source.get("id", "source"))
@@ -257,9 +330,12 @@ def command_doctor() -> int:
             failures.append("{} does not have a non-empty name".format(source_id))
         if kind not in allowed_kinds:
             failures.append("{} has an unsupported source kind".format(source_id))
-        adapter_key = {"greenhouse": "board", "lever": "site", "jibe": "api_url"}.get(
-            kind
-        )
+        adapter_key = {
+            "ashby": "board",
+            "greenhouse": "board",
+            "lever": "site",
+            "jibe": "api_url",
+        }.get(kind)
         if adapter_key:
             adapter_value = source.get(adapter_key)
             if not isinstance(adapter_value, str) or not adapter_value.strip():
@@ -428,7 +504,8 @@ def command_doctor() -> int:
     return 1 if failures else 0
 
 
-def command_sources(action: Optional[str] = None, source_id: str = "") -> int:
+def command_sources(args: argparse.Namespace) -> int:
+    action = args.source_command or "list"
     if action == "packs":
         sources = load_sources(include_disabled=True)
         for pack in load_source_packs():
@@ -461,17 +538,25 @@ def command_sources(action: Optional[str] = None, source_id: str = "") -> int:
         try:
             database.initialize()
             rows = database.connection.execute(
-                "SELECT id, name, last_status, item_count, last_checked_at "
+                "SELECT id, name, last_status, last_error, item_count, last_checked_at "
                 "FROM sources WHERE enabled=1 ORDER BY name"
             ).fetchall()
         finally:
             database.close()
         for row in rows:
-            print("{:<24} {:<8} {:>5} items  {}".format(
-                row["id"], row["last_status"], row["item_count"], row["last_checked_at"] or "never"
-            ))
+            print(
+                "{:<24} {:<8} {:>5} items  {}".format(
+                    row["id"],
+                    row["last_status"],
+                    row["item_count"],
+                    row["last_checked_at"] or "never",
+                )
+            )
+            if row["last_error"]:
+                print("  {}".format(str(row["last_error"]).replace("\n", " ")[:240]))
         return 0
     if action == "test":
+        source_id = args.source_id
         candidates = {
             str(source["id"]): source for source in load_sources(include_disabled=True)
         }
@@ -485,10 +570,72 @@ def command_sources(action: Optional[str] = None, source_id: str = "") -> int:
             return 1
         print(json.dumps({"source": source_id, "status": result.status, "items": len(result.opportunities)}, indent=2))
         return 0
-    for source in load_sources():
+    if action == "show":
+        try:
+            print(json.dumps(source_summary(args.source_id), indent=2, ensure_ascii=False))
+        except (OSError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        return 0
+    if action == "add":
+        try:
+            source = build_custom_source(
+                name=args.name,
+                url=args.url,
+                source_id=args.id,
+                kind=args.kind,
+                adapter=args.adapter,
+                packs=comma_values(args.packs) or None,
+                cadence_hours=args.cadence_hours,
+            )
+            live = None
+            if not args.skip_test:
+                result = fetch_source(source)
+                live = {
+                    "status": result.status,
+                    "items": len(result.opportunities),
+                    "message": result.message,
+                }
+                if result.status not in {"ok", "blocked"}:
+                    raise ProfileValidationError(
+                        "Source test returned status {}".format(result.status)
+                    )
+            saved = add_source(source, dry_run=bool(args.dry_run))
+            if live is not None:
+                saved["test"] = live
+            print(json.dumps(saved, indent=2, ensure_ascii=False))
+        except (OSError, ValueError, RuntimeError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        return 0
+    if action in {"enable", "disable", "remove"}:
+        try:
+            if action == "remove":
+                result = remove_source(args.source_id, dry_run=bool(args.dry_run))
+            else:
+                result = set_source_enabled(
+                    args.source_id,
+                    action == "enable",
+                    dry_run=bool(args.dry_run),
+                )
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        except (OSError, ValueError, RuntimeError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        return 0
+    sources = load_sources(include_disabled=bool(getattr(args, "all", False)))
+    if getattr(args, "json", False):
+        print(json.dumps(sources, indent=2, ensure_ascii=False))
+        return 0
+    for source in sources:
+        marker = "" if source.get("enabled", True) else " [disabled]"
         print(
-            "{:<24} {:<12} {:>3}h  {}".format(
-                source["id"], source["kind"], source.get("cadence_hours", 12), source["name"]
+            "{:<28} {:<12} {:>3}h  {}{}".format(
+                source["id"],
+                source["kind"],
+                source.get("cadence_hours", 12),
+                source["name"],
+                marker,
             )
         )
     return 0
@@ -793,6 +940,196 @@ def command_profile(args: argparse.Namespace) -> int:
     return 2
 
 
+OPPORTUNITY_OUTPUT_FIELDS = (
+    "id",
+    "score",
+    "tier",
+    "status",
+    "title",
+    "organization",
+    "location",
+    "opportunity_type",
+    "posted_at",
+    "deadline_at",
+    "first_seen_at",
+    "source_id",
+    "source_name",
+    "active",
+    "bookmarked",
+    "url",
+)
+
+
+def _opportunity_database_path() -> Path:
+    return resolve_private_state_path(
+        project_path("data", "opportunities.sqlite3"),
+        "data",
+        "opportunities.sqlite3",
+    )
+
+
+def _opportunity_rows(args: argparse.Namespace) -> List[Dict[str, Any]]:
+    limit = int(getattr(args, "limit", 50))
+    minimum = int(getattr(args, "min_score", 0))
+    if limit < 1 or limit > 500:
+        raise ValueError("--limit must be from 1 to 500")
+    if minimum < 0 or minimum > 100:
+        raise ValueError("--min-score must be from 0 to 100")
+    query = str(getattr(args, "query", "") or "").strip()
+    if len(query) > 240:
+        raise ValueError("Search query must be at most 240 characters")
+    path = _opportunity_database_path()
+    if not path.is_file():
+        return []
+    clauses = ["opportunities.score >= ?"]
+    values: List[Any] = [minimum]
+    if not getattr(args, "include_inactive", False):
+        clauses.append("opportunities.active=1")
+        clauses.append("sources.enabled=1")
+    for attribute, column in (
+        ("status", "opportunities.status"),
+        ("opportunity_type", "opportunities.opportunity_type"),
+        ("source", "opportunities.source_id"),
+    ):
+        value = getattr(args, attribute, None)
+        if value:
+            clauses.append("{}=?".format(column))
+            values.append(str(value))
+    if query:
+        for term in query.split():
+            escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            clauses.append(
+                "(opportunities.title LIKE ? ESCAPE '\\' "
+                "OR opportunities.organization LIKE ? ESCAPE '\\' "
+                "OR opportunities.location LIKE ? ESCAPE '\\' "
+                "OR opportunities.description LIKE ? ESCAPE '\\')"
+            )
+            values.extend(["%{}%".format(escaped)] * 4)
+    values.append(limit)
+    database = Database(path)
+    try:
+        database.initialize()
+        selected = ", ".join("opportunities.{}".format(field) for field in (
+            "id",
+            "score",
+            "tier",
+            "status",
+            "title",
+            "organization",
+            "location",
+            "opportunity_type",
+            "posted_at",
+            "deadline_at",
+            "first_seen_at",
+            "source_id",
+            "active",
+            "bookmarked",
+            "url",
+        ))
+        rows = database.connection.execute(
+            "SELECT {}, sources.name AS source_name FROM opportunities "
+            "JOIN sources ON sources.id=opportunities.source_id WHERE {} "
+            "ORDER BY opportunities.score DESC, "
+            "COALESCE(opportunities.deadline_at, '9999') ASC, "
+            "opportunities.first_seen_at DESC LIMIT ?".format(
+                selected,
+                " AND ".join(clauses),
+            ),
+            values,
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        database.close()
+
+
+def _print_opportunity_rows(
+    rows: List[Dict[str, Any]],
+    as_json: bool,
+    as_csv: bool,
+) -> None:
+    if as_json:
+        print(json.dumps(rows, indent=2, ensure_ascii=False))
+        return
+    if as_csv:
+        writer = csv.DictWriter(sys.stdout, fieldnames=OPPORTUNITY_OUTPUT_FIELDS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field, "") for field in OPPORTUNITY_OUTPUT_FIELDS})
+        return
+    if not rows:
+        print("No opportunities found.")
+        return
+    for row in rows:
+        deadline = row.get("deadline_at") or "no deadline"
+        print(
+            "{}  {:>3}  {:<8} {:<9} {} at {} ({})".format(
+                row["id"],
+                row["score"],
+                row["tier"],
+                row["status"],
+                row["title"],
+                row["organization"],
+                deadline,
+            )
+        )
+
+
+def command_opportunities(args: argparse.Namespace) -> int:
+    action = args.opportunity_command or "list"
+    try:
+        if action in {"list", "search"}:
+            rows = _opportunity_rows(args)
+            _print_opportunity_rows(
+                rows,
+                bool(getattr(args, "json", False)),
+                bool(getattr(args, "csv", False)),
+            )
+            return 0
+        if action == "show":
+            path = _opportunity_database_path()
+            if not path.is_file():
+                print("Opportunity not found", file=sys.stderr)
+                return 1
+            database = Database(path)
+            try:
+                database.initialize()
+                row = database.connection.execute(
+                    "SELECT opportunities.*, sources.name AS source_name, "
+                    "sources.last_status AS source_status "
+                    "FROM opportunities JOIN sources ON sources.id=opportunities.source_id "
+                    "WHERE opportunities.id=?",
+                    (args.opportunity_id,),
+                ).fetchone()
+            finally:
+                database.close()
+            if row is None:
+                print("Opportunity not found", file=sys.stderr)
+                return 1
+            payload = dict(row)
+            for field in ("reasons_json", "warnings_json", "metadata_json"):
+                value = payload.pop(field, None)
+                if value is not None:
+                    payload[field.removesuffix("_json")] = json.loads(value)
+            if args.json:
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
+            else:
+                print("{} at {}".format(payload["title"], payload["organization"]))
+                print("ID: {}".format(payload["id"]))
+                print("Fit: {} ({})".format(payload["score"], payload["tier"]))
+                print("Status: {}".format(payload["status"]))
+                print("Location: {}".format(payload["location"] or "Not listed"))
+                print("Deadline: {}".format(payload["deadline_at"] or "Not listed"))
+                print("Source: {} ({})".format(payload["source_name"], payload["source_status"]))
+                print("URL: {}".format(payload["url"]))
+                if payload["description"]:
+                    print("\n{}".format(payload["description"][:4000]))
+            return 0
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    return 2
+
+
 def _command_workflow(opportunity_id: str, value: object, kind: str, quiet: bool) -> int:
     ensure_profile_lifecycle_idle()
     database_path = resolve_private_state_path(
@@ -838,7 +1175,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.command == "doctor":
             return command_doctor()
         if args.command == "sources":
-            return command_sources(args.source_command, getattr(args, "source_id", ""))
+            return command_sources(args)
+        if args.command == "opportunities":
+            return command_opportunities(args)
         if args.command == "init":
             return command_init(args)
         if args.command == "profile":

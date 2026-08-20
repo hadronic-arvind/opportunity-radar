@@ -254,6 +254,7 @@ private enum BridgeAction: String {
     case status
     case bookmark
     case profile
+    case source
     case theme
 }
 
@@ -445,112 +446,66 @@ private struct RunningCommand {
     let standardInput: AsyncInputWriter?
 }
 
+private struct QueuedProfileCommand {
+    let requestID: String
+    let input: Data
+}
+
 private enum RadarIcon {
-    private static let pine = NSColor(
-        calibratedRed: 18.0 / 255.0,
-        green: 58.0 / 255.0,
-        blue: 50.0 / 255.0,
-        alpha: 1
-    )
-    private static let coral = NSColor(
-        calibratedRed: 216.0 / 255.0,
-        green: 105.0 / 255.0,
-        blue: 76.0 / 255.0,
+    private static let navy = NSColor(
+        calibratedRed: 4.0 / 255.0,
+        green: 32.0 / 255.0,
+        blue: 71.0 / 255.0,
         alpha: 1
     )
     private static let cobalt = NSColor(
-        calibratedRed: 51.0 / 255.0,
-        green: 93.0 / 255.0,
-        blue: 168.0 / 255.0,
+        calibratedRed: 18.0 / 255.0,
+        green: 92.0 / 255.0,
+        blue: 237.0 / 255.0,
         alpha: 1
     )
-    private static let warm = NSColor(
-        calibratedRed: 251.0 / 255.0,
-        green: 250.0 / 255.0,
-        blue: 247.0 / 255.0,
+    private static let cyan = NSColor(
+        calibratedRed: 7.0 / 255.0,
+        green: 171.0 / 255.0,
+        blue: 213.0 / 255.0,
+        alpha: 1
+    )
+    private static let mint = NSColor(
+        calibratedRed: 3.0 / 255.0,
+        green: 218.0 / 255.0,
+        blue: 143.0 / 255.0,
+        alpha: 1
+    )
+    private static let frost = NSColor(
+        calibratedRed: 241.0 / 255.0,
+        green: 247.0 / 255.0,
+        blue: 1,
         alpha: 1
     )
 
-    private static func asymmetricTile(in rect: NSRect, size: CGFloat) -> NSBezierPath {
-        let topLeft = size * 0.29
-        let topRight = size * 0.38
-        let bottomRight = size * 0.27
-        let bottomLeft = size * 0.39
-        let curve: CGFloat = 0.552_284_75
-        let path = NSBezierPath()
-
-        path.move(to: NSPoint(x: rect.minX + bottomLeft, y: rect.minY))
-        path.line(to: NSPoint(x: rect.maxX - bottomRight, y: rect.minY))
-        path.curve(
-            to: NSPoint(x: rect.maxX, y: rect.minY + bottomRight),
-            controlPoint1: NSPoint(
-                x: rect.maxX - bottomRight + bottomRight * curve,
-                y: rect.minY
-            ),
-            controlPoint2: NSPoint(
-                x: rect.maxX,
-                y: rect.minY + bottomRight - bottomRight * curve
-            )
-        )
-        path.line(to: NSPoint(x: rect.maxX, y: rect.maxY - topRight))
-        path.curve(
-            to: NSPoint(x: rect.maxX - topRight, y: rect.maxY),
-            controlPoint1: NSPoint(
-                x: rect.maxX,
-                y: rect.maxY - topRight + topRight * curve
-            ),
-            controlPoint2: NSPoint(
-                x: rect.maxX - topRight + topRight * curve,
-                y: rect.maxY
-            )
-        )
-        path.line(to: NSPoint(x: rect.minX + topLeft, y: rect.maxY))
-        path.curve(
-            to: NSPoint(x: rect.minX, y: rect.maxY - topLeft),
-            controlPoint1: NSPoint(
-                x: rect.minX + topLeft - topLeft * curve,
-                y: rect.maxY
-            ),
-            controlPoint2: NSPoint(
-                x: rect.minX,
-                y: rect.maxY - topLeft + topLeft * curve
-            )
-        )
-        path.line(to: NSPoint(x: rect.minX, y: rect.minY + bottomLeft))
-        path.curve(
-            to: NSPoint(x: rect.minX + bottomLeft, y: rect.minY),
-            controlPoint1: NSPoint(
-                x: rect.minX,
-                y: rect.minY + bottomLeft - bottomLeft * curve
-            ),
-            controlPoint2: NSPoint(
-                x: rect.minX + bottomLeft - bottomLeft * curve,
-                y: rect.minY
-            )
-        )
-        path.close()
-        return path
-    }
-
-    private static func fillSector(
-        center: NSPoint,
-        radius: CGFloat,
-        startAngle: CGFloat,
-        endAngle: CGFloat,
-        color: NSColor
-    ) {
-        let sector = NSBezierPath()
-        sector.move(to: center)
-        sector.appendArc(
+    private static func radarSweep(center: NSPoint, radius: CGFloat) -> NSBezierPath {
+        let sweep = NSBezierPath()
+        sweep.move(to: center)
+        sweep.appendArc(
             withCenter: center,
             radius: radius,
-            startAngle: startAngle,
-            endAngle: endAngle,
+            startAngle: -38,
+            endAngle: 28,
             clockwise: false
         )
-        sector.close()
-        color.setFill()
-        sector.fill()
+        sweep.close()
+        return sweep
+    }
+
+    private static func circle(center: NSPoint, radius: CGFloat) -> NSBezierPath {
+        NSBezierPath(
+            ovalIn: NSRect(
+                x: center.x - radius,
+                y: center.y - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+        )
     }
 
     static func image(size: CGFloat) -> NSImage {
@@ -558,96 +513,125 @@ private enum RadarIcon {
         image.lockFocus()
         defer { image.unlockFocus() }
 
-        let frame = NSRect(
-            x: size * 0.08,
-            y: size * 0.08,
-            width: size * 0.84,
-            height: size * 0.84
+        let canvas = NSRect(
+            x: size * 0.035,
+            y: size * 0.035,
+            width: size * 0.93,
+            height: size * 0.93
         )
         let center = NSPoint(x: size * 0.5, y: size * 0.5)
-        let tile = asymmetricTile(in: frame, size: size)
-
-        NSGraphicsContext.saveGraphicsState()
-        let rotation = NSAffineTransform()
-        rotation.translateX(by: center.x, yBy: center.y)
-        rotation.rotate(byDegrees: -5)
-        rotation.translateX(by: -center.x, yBy: -center.y)
-        rotation.concat()
+        let background = NSBezierPath(
+            roundedRect: canvas,
+            xRadius: size * 0.22,
+            yRadius: size * 0.22
+        )
 
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor(calibratedWhite: 0.05, alpha: 0.20)
-        shadow.shadowBlurRadius = max(0.7, size * 0.045)
-        shadow.shadowOffset = NSSize(width: 0, height: -size * 0.018)
+        shadow.shadowColor = navy.withAlphaComponent(0.10)
+        shadow.shadowBlurRadius = max(0.8, size * 0.022)
+        shadow.shadowOffset = NSSize(width: 0, height: -size * 0.006)
         shadow.set()
-        pine.setFill()
-        tile.fill()
+        NSColor.white.setFill()
+        background.fill()
         NSGraphicsContext.restoreGraphicsState()
 
+        let backgroundGradient = NSGradient(colors: [
+            NSColor.white,
+            frost,
+            NSColor(
+                calibratedRed: 230.0 / 255.0,
+                green: 241.0 / 255.0,
+                blue: 1,
+                alpha: 1
+            ),
+        ])
+        backgroundGradient?.draw(in: background, angle: -55)
+
+        let outerRing = NSRect(
+            x: size * 0.135,
+            y: size * 0.135,
+            width: size * 0.73,
+            height: size * 0.73
+        )
+        let ringWidth = max(1.0, size * 0.041)
+        let ring = NSBezierPath(ovalIn: outerRing)
+        ring.appendOval(in: outerRing.insetBy(dx: ringWidth, dy: ringWidth))
+        ring.windingRule = .evenOdd
+
+        let sweepRadius = outerRing.width * 0.5 - ringWidth * 0.62
+        let sweep = radarSweep(center: center, radius: sweepRadius)
         NSGraphicsContext.saveGraphicsState()
-        tile.addClip()
-        pine.setFill()
-        tile.fill()
-        fillSector(
-            center: center,
-            radius: size,
-            startAngle: -34,
-            endAngle: 38,
-            color: cobalt
+        sweep.addClip()
+        let sweepEnd = NSPoint(
+            x: center.x + sweepRadius,
+            y: center.y - sweepRadius * 0.18
         )
-        fillSector(
-            center: center,
-            radius: size,
-            startAngle: 38,
-            endAngle: 96,
-            color: coral
-        )
+        let sweepGradient = NSGradient(colors: [
+            cyan.withAlphaComponent(0.34),
+            mint.withAlphaComponent(0.19),
+            mint.withAlphaComponent(0.015),
+        ])
+        sweepGradient?.draw(from: center, to: sweepEnd, options: [])
         NSGraphicsContext.restoreGraphicsState()
 
-        tile.lineWidth = max(0.5, size * 0.012)
-        NSColor(calibratedWhite: 1, alpha: 0.18).setStroke()
-        tile.stroke()
+        let spectrum = NSGradient(colors: [cobalt, cyan, mint])
+        spectrum?.draw(in: ring, angle: 42)
 
-        let cutoutRadius = size * 0.27
-        let cutout = NSBezierPath(
-            ovalIn: NSRect(
-                x: center.x - cutoutRadius,
-                y: center.y - cutoutRadius,
-                width: cutoutRadius * 2,
-                height: cutoutRadius * 2
-            )
+        let handWidth = max(1.15, size * 0.036)
+        let handTop = outerRing.maxY - ringWidth * 0.38
+        let hand = NSBezierPath(
+            roundedRect: NSRect(
+                x: center.x - handWidth * 0.5,
+                y: center.y - handWidth * 0.5,
+                width: handWidth,
+                height: handTop - center.y + handWidth * 0.5
+            ),
+            xRadius: handWidth * 0.5,
+            yRadius: handWidth * 0.5
         )
-        warm.setFill()
-        cutout.fill()
+        let handGradient = NSGradient(colors: [cobalt, cyan, mint])
+        handGradient?.draw(in: hand, angle: 90)
 
-        let signalCenter = NSPoint(
-            x: center.x + size * 0.012,
-            y: center.y + size * 0.018
-        )
-        let signalHaloRadius = size * 0.15
-        let signalHalo = NSBezierPath(
-            ovalIn: NSRect(
-                x: signalCenter.x - signalHaloRadius,
-                y: signalCenter.y - signalHaloRadius,
-                width: signalHaloRadius * 2,
-                height: signalHaloRadius * 2
+        let signalDots: [(x: CGFloat, y: CGFloat, radius: CGFloat, color: NSColor)] = [
+            (0.064, 0.244, 0.013, cyan),
+            (
+                0.126,
+                0.250,
+                0.017,
+                NSColor(
+                    calibratedRed: 6.0 / 255.0,
+                    green: 188.0 / 255.0,
+                    blue: 188.0 / 255.0,
+                    alpha: 1
+                )
+            ),
+            (
+                0.194,
+                0.214,
+                0.020,
+                NSColor(
+                    calibratedRed: 5.0 / 255.0,
+                    green: 205.0 / 255.0,
+                    blue: 162.0 / 255.0,
+                    alpha: 1
+                )
+            ),
+            (0.253, 0.156, 0.023, mint),
+        ]
+        for dot in signalDots {
+            let dotCenter = NSPoint(
+                x: center.x + size * dot.x,
+                y: center.y + size * dot.y
             )
-        )
-        coral.withAlphaComponent(0.18).setFill()
-        signalHalo.fill()
+            let dotRadius = max(0.48, size * dot.radius)
+            dot.color.setFill()
+            circle(center: dotCenter, radius: dotRadius).fill()
+        }
 
-        let signalRadius = size * 0.105
-        let signal = NSBezierPath(
-            ovalIn: NSRect(
-                x: signalCenter.x - signalRadius,
-                y: signalCenter.y - signalRadius,
-                width: signalRadius * 2,
-                height: signalRadius * 2
-            )
-        )
-        coral.setFill()
-        signal.fill()
-        NSGraphicsContext.restoreGraphicsState()
+        let centerDotRadius = max(0.55, size * 0.0105)
+        cyan.setFill()
+        circle(center: center, radius: centerDotRadius).fill()
         return image
     }
 
@@ -678,6 +662,9 @@ private final class AppDelegate: NSObject,
     private var statusSpinner: NSProgressIndicator!
     private var configuration: AppConfiguration!
     private var runningCommand: RunningCommand?
+    private var queuedProfileCommand: QueuedProfileCommand?
+    private var scanCompletionPending = false
+    private var pendingScanSucceeded = false
     private var terminationPending = false
     private var terminationDeadline: DispatchWorkItem?
     private var attemptedInitialDashboardGeneration = false
@@ -705,7 +692,7 @@ private final class AppDelegate: NSObject,
     func applicationShouldTerminate(
         _ sender: NSApplication
     ) -> NSApplication.TerminateReply {
-        guard runningCommand != nil else {
+        guard runningCommand != nil || queuedProfileCommand != nil else {
             return .terminateNow
         }
         if !terminationPending {
@@ -715,7 +702,7 @@ private final class AppDelegate: NSObject,
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard runningCommand != nil else {
+        guard runningCommand != nil || queuedProfileCommand != nil else {
             return true
         }
         NSApp.terminate(sender)
@@ -988,6 +975,8 @@ private final class AppDelegate: NSObject,
             handleBookmark(payload)
         case .profile:
             handleProfile(payload)
+        case .source:
+            handleSource(payload)
         case .theme:
             handleTheme(payload)
         }
@@ -1106,6 +1095,28 @@ private final class AppDelegate: NSObject,
             )
             return
         }
+        let scanIsRunning: Bool
+        if let runningCommand, case .bridge(.scan, _) = runningCommand.purpose {
+            scanIsRunning = true
+        } else {
+            scanIsRunning = false
+        }
+        if scanIsRunning || scanCompletionPending {
+            guard queuedProfileCommand == nil else {
+                complete(
+                    action: .profile,
+                    requestID: requestID,
+                    ok: false,
+                    message: "A profile update is already saved for after this scan."
+                )
+                return
+            }
+            queuedProfileCommand = QueuedProfileCommand(
+                requestID: requestID,
+                input: input
+            )
+            return
+        }
         startCommand(
             action: .profile,
             requestID: requestID,
@@ -1118,6 +1129,44 @@ private final class AppDelegate: NSObject,
                 "--quiet",
             ],
             input: input
+        )
+    }
+
+    private func handleSource(_ payload: [String: Any]) {
+        guard
+            let requestID = payload["request"] as? String,
+            validRequestID(requestID)
+        else {
+            return
+        }
+        guard
+            Set(payload.keys) == Set(["version", "action", "name", "url", "request"]),
+            let name = payload["name"] as? String,
+            validSourceName(name),
+            let url = payload["url"] as? String,
+            validPublicHTTPSURL(url)
+        else {
+            complete(
+                action: .source,
+                requestID: requestID,
+                ok: false,
+                message: "The source request was rejected."
+            )
+            return
+        }
+        startCommand(
+            action: .source,
+            requestID: requestID,
+            arguments: [
+                "-m",
+                "monitor",
+                "sources",
+                "add",
+                "--name",
+                name,
+                "--url",
+                url,
+            ]
         )
     }
 
@@ -1229,6 +1278,9 @@ private final class AppDelegate: NSObject,
             standardInput?.cancel()
             switch purpose {
             case .bridge(let action, let requestID):
+                if completeDeferredTerminationIfNeeded() {
+                    return
+                }
                 complete(
                     action: action,
                     requestID: requestID,
@@ -1252,8 +1304,14 @@ private final class AppDelegate: NSObject,
         else {
             return
         }
+        let queuedProfileWillFollow: Bool
+        if case .bridge(.scan, _) = command.purpose {
+            queuedProfileWillFollow = queuedProfileCommand != nil
+        } else {
+            queuedProfileWillFollow = false
+        }
         runningCommand = nil
-        if completeDeferredTerminationIfNeeded() {
+        if !queuedProfileWillFollow && completeDeferredTerminationIfNeeded() {
             return
         }
 
@@ -1300,8 +1358,26 @@ private final class AppDelegate: NSObject,
             message = succeeded
                 ? "Profile updated."
                 : profileFailureMessage(diagnostics)
+        case .source:
+            message = succeeded
+                ? "Source added. Reloading..."
+                : sourceFailureMessage(diagnostics)
         case .theme:
             message = succeeded ? "Theme updated." : "The theme could not be updated."
+        }
+
+        if action == .scan {
+            scanCompletionPending = true
+            pendingScanSucceeded = succeeded
+            complete(
+                action: action,
+                requestID: requestID,
+                ok: succeeded,
+                message: message
+            ) { [weak self] in
+                self?.finishScanCompletion()
+            }
+            return
         }
 
         complete(
@@ -1310,10 +1386,35 @@ private final class AppDelegate: NSObject,
             ok: succeeded,
             message: message
         ) { [weak self] in
-            if succeeded && (action == .scan || action == .profile) {
+            if succeeded && (action == .scan || action == .profile || action == .source) {
                 self?.reloadDashboard(after: action)
             }
         }
+    }
+
+    private func finishScanCompletion() {
+        let scanSucceeded = pendingScanSucceeded
+        scanCompletionPending = false
+        pendingScanSucceeded = false
+        guard let queued = queuedProfileCommand else {
+            if scanSucceeded {
+                reloadDashboard(after: .scan)
+            }
+            return
+        }
+        queuedProfileCommand = nil
+        launchCommand(
+            purpose: .bridge(.profile, queued.requestID),
+            arguments: [
+                "-m",
+                "monitor",
+                "profile",
+                "apply",
+                "--stdin",
+                "--quiet",
+            ],
+            input: queued.input
+        )
     }
 
     private func profileFailureMessage(_ diagnostics: CommandDiagnostics) -> String {
@@ -1369,6 +1470,42 @@ private final class AppDelegate: NSObject,
             return "The profile contains a value that could not be validated. Review the fields and try again."
         }
         return "The profile could not be saved. Try again in a moment."
+    }
+
+    private func sourceFailureMessage(_ diagnostics: CommandDiagnostics) -> String {
+        let detail = (diagnostics.standardError + "\n" + diagnostics.standardOutput)
+            .lowercased()
+        if detail.contains("already exists") || detail.contains("already configured") {
+            return "That source has already been added."
+        }
+        if detail.contains("already running")
+            || detail.contains("database is locked")
+            || detail.contains("resource temporarily unavailable")
+        {
+            return "Opportunity Radar is busy with another update. Try again in a moment."
+        }
+        if detail.contains("timed out")
+            || detail.contains("temporary failure")
+            || detail.contains("name or service not known")
+            || detail.contains("could not fetch")
+            || detail.contains("source check failed")
+        {
+            return "The official page could not be reached. Check the URL and try again."
+        }
+        if detail.contains("unsafe")
+            || detail.contains("symbolic link")
+            || detail.contains("not owned by the current user")
+        {
+            return "Source storage failed a safety check. Reinstall the optional app before trying again."
+        }
+        if detail.contains("https")
+            || detail.contains("url")
+            || detail.contains("unsupported")
+            || detail.contains("invalid")
+        {
+            return "Enter the public HTTPS URL for an official jobs or careers page."
+        }
+        return "The source could not be added. Check the official page and try again."
     }
 
     private func commandEnvironment() -> [String: String] {
@@ -1451,6 +1588,63 @@ private final class AppDelegate: NSObject,
         }
         return value.dropFirst().utf8.allSatisfy { byte in
             (48...57).contains(byte)
+        }
+    }
+
+    private func validSourceName(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value == trimmed
+            && (1...120).contains(value.count)
+            && value.utf8.count <= 240
+            && !value.unicodeScalars.contains {
+                CharacterSet.controlCharacters.contains($0)
+            }
+    }
+
+    private func validPublicHTTPSURL(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            value == trimmed,
+            (12...2_000).contains(value.utf8.count),
+            !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
+            let components = URLComponents(string: value),
+            components.scheme?.lowercased() == "https",
+            components.user == nil,
+            components.password == nil,
+            components.port == nil || components.port == 443,
+            components.url != nil,
+            let rawHost = components.host?.lowercased()
+        else {
+            return false
+        }
+        let host = rawHost.hasSuffix(".") ? String(rawHost.dropLast()) : rawHost
+        guard
+            host.utf8.count <= 253,
+            host.contains("."),
+            !host.contains(":"),
+            !host.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 })
+        else {
+            return false
+        }
+        let reservedSuffixes = [
+            "local" + "host", "local", "internal", "test", "invalid", "example", "onion",
+        ]
+        guard !reservedSuffixes.contains(where: {
+            host == $0 || host.hasSuffix("." + $0)
+        }) else {
+            return false
+        }
+        let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.count >= 2 else { return false }
+        return labels.allSatisfy { label in
+            guard (1...63).contains(label.utf8.count) else { return false }
+            let bytes = Array(label.utf8)
+            let allowed = bytes.allSatisfy { byte in
+                (48...57).contains(byte)
+                    || (97...122).contains(byte)
+                    || byte == 45
+            }
+            return allowed && bytes.first != 45 && bytes.last != 45
         }
     }
 

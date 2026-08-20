@@ -16,6 +16,7 @@ from contextlib import contextmanager, nullcontext
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Tuple
 
+from . import __version__
 from .dates import (
     extract_deadline,
     posting_evidence,
@@ -27,12 +28,14 @@ from .text import (
     clean_text,
     infer_opportunity_type,
     iso_from_millis,
+    normalize_opportunity_type,
     stable_hash,
 )
 
 
-USER_AGENT = "OpportunityRadar/0.3 (public opportunity monitor)"
+USER_AGENT = "OpportunityRadar/{} (public opportunity monitor)".format(__version__)
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MAX_ASHBY_RESPONSE_BYTES = 24 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
 MAX_JIBE_PAGES = 50
 MAX_JIBE_JOBS = 5000
@@ -80,6 +83,10 @@ def _source_metadata(source: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
             metadata[key] = values
     if source.get("source_type"):
         metadata["source_type"] = clean_text(source["source_type"])
+    if source.get("description_availability"):
+        metadata["description_availability"] = clean_text(
+            source["description_availability"]
+        )
     if "official" in source:
         metadata["official"] = bool(source["official"])
     metadata.update({key: value for key, value in extra.items() if value not in (None, "", [], {})})
@@ -143,7 +150,9 @@ def _infer_opportunity_type(
         tuple(structured_values),
         tuple(_string_list(source.get("opportunity_types"))),
         source.get("opportunity_type"),
-        default="job",
+        default=normalize_opportunity_type(
+            source.get("default_opportunity_type")
+        ) or "job",
     )
 
 
@@ -314,10 +323,16 @@ class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
         original_host = urllib.parse.urlsplit(request.full_url).hostname
         if not original_host or not redirected_host or original_host.casefold() != redirected_host.casefold():
             raise ValueError("Source redirects must remain on the configured host")
+        # Python 3.9's HTTPRedirectHandler predates 308 support. A permanent
+        # redirect has the same method-preservation rules as 307, so passing
+        # the compatibility code keeps those semantics without weakening the
+        # same-host validation above. The outer handler still retains the
+        # original status for loop errors and diagnostics.
+        compatibility_code = 307 if code == 308 else code
         return super().redirect_request(
             request,
             file_pointer,
-            code,
+            compatibility_code,
             message,
             headers,
             validated_url,
@@ -472,6 +487,13 @@ class LinkParser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag.lower() == "a" and self._href:
             title = clean_text(" ".join(self._text)) or self._fallback_title
+            program_card = re.match(
+                r"^PROGRAM\s+(.{1,160}?)\s+ACCEPTING APPLICATIONS(?:\s|$)",
+                title,
+                flags=re.IGNORECASE,
+            )
+            if program_card:
+                title = program_card.group(1).strip()
             for prefix in (self._title_prefix, "Learn more about"):
                 if prefix and title.casefold().startswith(prefix.casefold()):
                     stripped = title[len(prefix):].lstrip(" :-")
@@ -613,6 +635,28 @@ def _url_with_page(url: str, page: int) -> str:
     )
 
 
+def _url_without_query_key(url: str, excluded_key: str) -> str:
+    """Remove one result-pagination key while preserving listing URL state."""
+    parsed = urllib.parse.urlsplit(url)
+    query = [
+        (key, value)
+        for key, value in urllib.parse.parse_qsl(
+            parsed.query,
+            keep_blank_values=True,
+        )
+        if key != excluded_key
+    ]
+    return urllib.parse.urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urllib.parse.urlencode(query),
+            parsed.fragment,
+        )
+    )
+
+
 def _html_link_payloads(source: Dict[str, Any]) -> Tuple[List[bytes], str]:
     """Fetch a configured bounded run of page-numbered HTML result pages."""
     pages = source.get("pages", 1)
@@ -735,6 +779,9 @@ def _jibe_pages(source: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
 
 def fetch_source(source: Dict[str, Any]) -> FetchResult:
     kind = source["kind"]
+    if kind == "ashby":
+        result = fetch_ashby(source)
+        return filter_items(source, result)
     if kind == "greenhouse":
         result = fetch_greenhouse(source)
         return filter_items(source, result)
@@ -845,6 +892,78 @@ def fetch_greenhouse(source: Dict[str, Any]) -> FetchResult:
             )
         )
     return FetchResult(items, _hash(payload))
+
+
+def fetch_ashby(source: Dict[str, Any]) -> FetchResult:
+    """Fetch Ashby's documented public job-board feed without credentials."""
+    board = urllib.parse.quote(str(source["board"]), safe="")
+    url = "https://api.ashbyhq.com/posting-api/job-board/{}".format(board)
+    # Ashby's public response includes both plain-text and HTML descriptions.
+    # Large boards can legitimately exceed the general single-page limit, so
+    # this adapter uses its own fixed ceiling while retaining all other request
+    # safeguards and the global per-source opportunity bound.
+    payload = _request(url, max_bytes=MAX_ASHBY_RESPONSE_BYTES)
+    data = json.loads(payload.decode("utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
+        raise ValueError("Ashby response did not contain a jobs list")
+    if len(data["jobs"]) > MAX_OPPORTUNITIES_PER_SOURCE:
+        raise ResponseTooLargeError("Ashby source returned too many jobs")
+    items = []
+    for job in data["jobs"]:
+        if not isinstance(job, dict) or job.get("isListed") is False:
+            continue
+        title = clean_text(job.get("title"))
+        job_url = canonical_url(job.get("jobUrl") or job.get("applyUrl") or "")
+        if not title or not job_url:
+            continue
+        department = clean_text(job.get("department"))
+        team = clean_text(job.get("team"))
+        commitment = clean_text(job.get("employmentType"))
+        description = clean_text(
+            job.get("descriptionPlain") or job.get("descriptionHtml") or ""
+        )[:20000]
+        secondary = [
+            clean_text(location.get("location"))
+            for location in (job.get("secondaryLocations") or [])
+            if isinstance(location, dict) and clean_text(location.get("location"))
+        ]
+        primary_location = clean_text(job.get("location"))
+        location = ", ".join(
+            dict.fromkeys(value for value in [primary_location] + secondary if value)
+        )
+        posted_at, deadline_at, dates = _listing_dates(
+            source,
+            description,
+            posted_value=job.get("publishedAt"),
+            posted_provenance="ashby.publishedAt",
+        )
+        items.append(
+            Opportunity(
+                source_id=source["id"],
+                external_id=str(job.get("id") or stable_hash(job_url)),
+                title=title,
+                organization=source["name"],
+                url=job_url,
+                location=location,
+                description=description,
+                category=_source_category(source, department, team),
+                opportunity_type=_infer_opportunity_type(
+                    source, title, commitment, department, team
+                ),
+                posted_at=posted_at,
+                deadline_at=deadline_at,
+                commitment=commitment,
+                metadata=_source_metadata(
+                    source,
+                    ats="ashby",
+                    department=department,
+                    team=team,
+                    workplace_type=job.get("workplaceType"),
+                    dates=dates,
+                ),
+            )
+        )
+    return FetchResult(items, _hash(payload), message="{} Ashby jobs".format(len(items)))
 
 
 def fetch_lever(source: Dict[str, Any]) -> FetchResult:
@@ -1024,7 +1143,14 @@ def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
     items = []
     seen = set()
     for href, title, resolution_base in links:
-        url = canonical_url(urllib.parse.urljoin(resolution_base, href))
+        resolved_url = urllib.parse.urljoin(resolution_base, href)
+        if len(payloads) > 1:
+            # Some paginated career pages copy their result-page marker into
+            # every listing link. It is navigation state, not listing
+            # identity, and otherwise creates a new record whenever a role
+            # moves between result pages.
+            resolved_url = _url_without_query_key(resolved_url, "page")
+        url = canonical_url(resolved_url)
         haystack = "{} {}".format(title, url).lower()
         if not title or not url.startswith("http"):
             continue

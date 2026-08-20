@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -48,6 +49,250 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(stored["first_seen_at"], "2026-01-01T00:00:00+00:00")
         self.assertEqual(stored["last_seen_at"], "2026-01-02T00:00:00+00:00")
         self.assertEqual(stored["active"], 1)
+
+    def test_upsert_preserves_listing_dates_and_provenance_when_feed_turns_sparse(self):
+        original = Opportunity(
+            "test",
+            "dated",
+            "Research Fellow",
+            "Lab",
+            "https://example.com/dated",
+            posted_at="2026-07-15T09:30:00+00:00",
+            deadline_at="2026-09-30",
+            metadata={
+                "dates": {
+                    "posted": {
+                        "state": "present",
+                        "kind": "posted",
+                        "value": "2026-07-15T09:30:00+00:00",
+                        "provenance": "example.published_at",
+                        "confidence": "high",
+                    },
+                    "deadline": {
+                        "state": "date",
+                        "value": "2026-09-30",
+                        "provenance": "example.deadline",
+                        "confidence": "high",
+                    },
+                }
+            },
+        )
+        self.assertEqual(self.database.upsert_opportunity(original), "new")
+
+        sparse = Opportunity(
+            "test",
+            "dated",
+            "Research Fellow",
+            "Lab",
+            "https://example.com/dated",
+            metadata={
+                "dates": {
+                    "posted": {
+                        "state": "unknown",
+                        "kind": "posted",
+                        "provenance": "example.published_at",
+                        "confidence": "low",
+                    },
+                    "deadline": {
+                        "state": "not_listed",
+                        "provenance": "none",
+                        "confidence": "low",
+                    },
+                }
+            },
+        )
+        self.assertEqual(self.database.upsert_opportunity(sparse), "unchanged")
+
+        stored = self.database.connection.execute(
+            "SELECT posted_at, deadline_at, metadata_json FROM opportunities WHERE external_id='dated'"
+        ).fetchone()
+        metadata = json.loads(stored["metadata_json"])
+        self.assertEqual(stored["posted_at"], "2026-07-15T09:30:00+00:00")
+        self.assertEqual(stored["deadline_at"], "2026-09-30")
+        self.assertEqual(
+            metadata["dates"]["posted"]["provenance"],
+            "example.published_at",
+        )
+        self.assertEqual(
+            metadata["dates"]["deadline"]["provenance"],
+            "example.deadline",
+        )
+        rendered = next(
+            item
+            for item in self.database.dashboard_payload()["opportunities"]
+            if item["title"] == "Research Fellow"
+        )
+        self.assertEqual(
+            rendered["dates"]["posted"]["value"],
+            "2026-07-15T09:30:00+00:00",
+        )
+
+    def test_html_listing_identity_migration_preserves_history_when_page_query_is_removed(self):
+        self.database.sync_source(
+            {
+                "id": "html",
+                "name": "HTML Careers",
+                "kind": "html_links",
+                "url": "https://example.com/careers",
+            }
+        )
+        legacy = Opportunity(
+            "html",
+            "legacy-page-hash",
+            "Software Intern",
+            "Example",
+            "https://example.com/jobs/123?page=7&ref=careers#details",
+        )
+        self.assertEqual(
+            self.database.upsert_opportunity(
+                legacy,
+                seen_at="2026-08-01T12:00:00+00:00",
+            ),
+            "new",
+        )
+        original = self.database.connection.execute(
+            "SELECT id FROM opportunities WHERE source_id='html'"
+        ).fetchone()
+        self.assertTrue(self.database.set_status(original["id"], "reviewed"))
+        self.assertTrue(self.database.set_bookmarked(original["id"], True))
+
+        stable = Opportunity(
+            "html",
+            "stable-path-hash",
+            "Software Intern",
+            "Example",
+            "https://example.com/jobs/123?ref=careers#details",
+        )
+        self.assertEqual(
+            self.database.upsert_opportunity(
+                stable,
+                seen_at="2026-08-20T12:00:00+00:00",
+            ),
+            "updated",
+        )
+
+        rows = self.database.connection.execute(
+            """
+            SELECT id, external_id, url, first_seen_at, last_seen_at,
+                   status, bookmarked
+            FROM opportunities
+            WHERE source_id='html'
+            """
+        ).fetchall()
+        self.assertEqual(len(rows), 1)
+        migrated = rows[0]
+        self.assertEqual(migrated["id"], original["id"])
+        self.assertEqual(migrated["external_id"], "stable-path-hash")
+        self.assertEqual(
+            migrated["url"],
+            "https://example.com/jobs/123?ref=careers#details",
+        )
+        self.assertEqual(migrated["first_seen_at"], "2026-08-01T12:00:00+00:00")
+        self.assertEqual(migrated["last_seen_at"], "2026-08-20T12:00:00+00:00")
+        self.assertEqual(migrated["status"], "reviewed")
+        self.assertEqual(migrated["bookmarked"], 1)
+
+    def test_html_listing_identity_merge_consolidates_existing_canonical_and_aliases(self):
+        self.database.sync_source(
+            {
+                "id": "html",
+                "name": "HTML Careers",
+                "kind": "html_links",
+                "url": "https://example.com/careers",
+            }
+        )
+        canonical = Opportunity(
+            "html",
+            "stable-path-hash",
+            "Software Intern",
+            "Example",
+            "https://example.com/jobs/123?ref=careers#details",
+        )
+        self.database.upsert_opportunity(
+            canonical,
+            seen_at="2026-08-01T12:00:00+00:00",
+        )
+        canonical_id = self.database.connection.execute(
+            "SELECT id FROM opportunities WHERE external_id='stable-path-hash'"
+        ).fetchone()["id"]
+        self.assertTrue(self.database.set_status(canonical_id, "reviewed"))
+        self.database.mark_source_stale("html", [])
+
+        skipped_alias = Opportunity(
+            "html",
+            "legacy-page-four",
+            "Software Intern",
+            "Example",
+            "https://example.com/jobs/123?page=4&ref=careers#details",
+        )
+        applied_alias = Opportunity(
+            "html",
+            "legacy-page-five",
+            "Software Intern",
+            "Example",
+            "https://example.com/jobs/123?page=5&ref=careers#details",
+        )
+        unrelated = Opportunity(
+            "html",
+            "other-page",
+            "Research Intern",
+            "Example",
+            "https://example.com/jobs/124?page=4&ref=careers#details",
+        )
+        self.database.upsert_opportunity(
+            skipped_alias,
+            seen_at="2026-08-02T12:00:00+00:00",
+        )
+        self.database.upsert_opportunity(
+            applied_alias,
+            seen_at="2026-08-03T12:00:00+00:00",
+        )
+        self.database.upsert_opportunity(
+            unrelated,
+            seen_at="2026-08-04T12:00:00+00:00",
+        )
+        skipped_id = self.database.connection.execute(
+            "SELECT id FROM opportunities WHERE external_id='legacy-page-four'"
+        ).fetchone()["id"]
+        applied_id = self.database.connection.execute(
+            "SELECT id FROM opportunities WHERE external_id='legacy-page-five'"
+        ).fetchone()["id"]
+        self.assertTrue(self.database.set_status(skipped_id, "skip"))
+        self.assertTrue(self.database.set_bookmarked(skipped_id, True))
+        self.assertTrue(self.database.set_status(applied_id, "applied"))
+
+        self.assertEqual(
+            self.database.upsert_opportunity(
+                canonical,
+                seen_at="2026-08-20T12:00:00+00:00",
+            ),
+            "unchanged",
+        )
+
+        matching = self.database.connection.execute(
+            """
+            SELECT id, external_id, first_seen_at, status, status_updated_at,
+                   applied_at, bookmarked, active
+            FROM opportunities
+            WHERE url LIKE 'https://example.com/jobs/123%'
+            """
+        ).fetchall()
+        self.assertEqual(len(matching), 1)
+        merged = matching[0]
+        self.assertEqual(merged["id"], canonical_id)
+        self.assertEqual(merged["external_id"], "stable-path-hash")
+        self.assertEqual(merged["first_seen_at"], "2026-08-01T12:00:00+00:00")
+        self.assertEqual(merged["status"], "applied")
+        self.assertIsNotNone(merged["status_updated_at"])
+        self.assertIsNotNone(merged["applied_at"])
+        self.assertEqual(merged["bookmarked"], 1)
+        self.assertEqual(merged["active"], 1)
+        self.assertEqual(
+            self.database.connection.execute(
+                "SELECT COUNT(*) FROM opportunities WHERE external_id='other-page'"
+            ).fetchone()[0],
+            1,
+        )
 
     def test_marks_only_missing_source_items_inactive(self):
         first = Opportunity("test", "one", "First", "Lab", "https://example.com/one")
@@ -160,7 +405,7 @@ class DatabaseTests(unittest.TestCase):
         ).fetchone()
         self.assertEqual(
             self.database.connection.execute("PRAGMA user_version").fetchone()[0],
-            5,
+            SCHEMA_VERSION,
         )
         self.assertNotEqual(row["raw_hash"], "legacy-derived-hash")
         self.assertEqual(self.database.upsert_opportunity(item), "unchanged")
@@ -211,7 +456,7 @@ class DatabaseTests(unittest.TestCase):
         self.database.initialize()
         self.assertEqual(
             self.database.connection.execute("PRAGMA user_version").fetchone()[0],
-            5,
+            SCHEMA_VERSION,
         )
 
     def test_prune_history_preserves_bookmarks_and_applications(self):
@@ -273,6 +518,74 @@ class DatabaseTests(unittest.TestCase):
         ).fetchone()
         self.assertEqual(source["last_status"], "ok")
         self.assertEqual(source["last_content_hash"], "hash-zero")
+
+    def test_watch_page_changes_require_two_matching_successes(self):
+        self.database.source_success("test", "baseline", 0)
+
+        self.assertFalse(
+            self.database.source_watch_success(
+                "test",
+                "dynamic-one",
+                0,
+                "Page changed",
+                "https://example.com/jobs",
+            )
+        )
+        self.assertFalse(
+            self.database.source_watch_success(
+                "test",
+                "dynamic-two",
+                0,
+                "Page changed",
+                "https://example.com/jobs",
+            )
+        )
+        self.assertFalse(
+            self.database.source_watch_success(
+                "test",
+                "baseline",
+                0,
+                "Page changed",
+                "https://example.com/jobs",
+            )
+        )
+        self.assertFalse(
+            self.database.source_watch_success(
+                "test",
+                "stable-change",
+                0,
+                "Page changed",
+                "https://example.com/jobs",
+            )
+        )
+        self.assertTrue(
+            self.database.source_watch_success(
+                "test",
+                "stable-change",
+                0,
+                "Page changed",
+                "https://example.com/jobs",
+            )
+        )
+
+        source = self.database.connection.execute(
+            """
+            SELECT last_content_hash, pending_content_hash,
+                   pending_content_checks, last_status
+            FROM sources WHERE id='test'
+            """
+        ).fetchone()
+        self.assertEqual(source["last_content_hash"], "stable-change")
+        self.assertEqual(source["pending_content_hash"], "")
+        self.assertEqual(source["pending_content_checks"], 0)
+        self.assertEqual(source["last_status"], "ok")
+        events = self.database.connection.execute(
+            "SELECT previous_hash, content_hash FROM source_events"
+        ).fetchall()
+        self.assertEqual(
+            [(row["previous_hash"], row["content_hash"]) for row in events],
+            [("baseline", "stable-change")],
+        )
 
     def test_workflow_metadata_and_inactive_applications_are_preserved(self):
         item = Opportunity("test", "tracked", "Research Role", "Lab", "https://example.com/tracked")

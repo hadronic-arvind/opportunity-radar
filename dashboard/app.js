@@ -2,6 +2,9 @@
   "use strict";
 
   const PAGE_SIZE = 24;
+  const SOURCE_PREVIEW_LIMIT = 12;
+  const MAX_SOURCE_NAME_LENGTH = 120;
+  const MAX_SOURCE_URL_LENGTH = 2000;
   const SEARCH_DEBOUNCE_MS = 90;
   const MAX_LOCAL_RECORDS = 500;
   const TRANSIENT_VIEW_KEY = "opportunity-radar-transient-view-v1";
@@ -10,6 +13,7 @@
   const THEME_VALUES = new Set(["system", "light", "dark"]);
   const VIEW_VALUES = new Set(["discover", "applications"]);
   const SORT_VALUES = new Set(["fit", "newest", "deadline", "organization"]);
+  const PROFILE_PAGE_VALUES = new Set(["basics", "advanced"]);
   const TYPE_LABELS = {
     apprenticeship: "Apprenticeship",
     co_op: "Co-op",
@@ -90,7 +94,26 @@
     ["skilled-technical", "Skilled technical"],
     ["national-labs", "National laboratories"],
     ["national-security", "National security"],
+    ["students-early-career", "Students and early career"],
+    ["space-aerospace", "Space and aerospace"],
+    ["robotics-autonomy", "Robotics and autonomy"],
+    ["education-social-impact", "Education and social impact"],
   ];
+  const FIELD_WEIGHT_DEFAULTS = {
+    title: 1,
+    organization: 0.9,
+    opportunity_type: 0.9,
+    category: 0.75,
+    location: 0.7,
+    eligibility: 0.6,
+    description: 0.25,
+  };
+  const SCORE_CEILING_DEFAULTS = {
+    no_anchor: 49,
+    description_only: 49,
+    description_exclusion: 49,
+    unknown_eligibility: 79,
+  };
   const dataNode = document.getElementById("opportunity-data");
   let data = {opportunities: [], sources: [], runs: [], counts: {}, display: {}, settings: {}};
   try {
@@ -105,6 +128,7 @@
     ? settings.source_packs.map((pack) => [
       String(pack && pack.id || "").trim(),
       String(pack && (pack.name || pack.id) || "").trim(),
+      String(pack && pack.description || "").trim().slice(0, 240),
     ]).filter(([id, label]) => id && label).slice(0, 64)
     : PACK_OPTIONS;
   const restoredView = loadTransientView();
@@ -120,9 +144,12 @@
     page: restoredView.page,
     visibleItems: [],
     busy: false,
+    busyLabel: "",
     pendingRequest: null,
     pendingAction: null,
     pendingMutation: null,
+    queuedProfile: null,
+    profileRetryDraft: null,
     workflow: loadWorkflow(),
   };
   let profileCommitted = cloneProfile(settings.profile_editor);
@@ -131,6 +158,8 @@
   let searchTimer = null;
   let requestSequence = 0;
   let profileFieldSequence = 0;
+  let profileActivePage = "basics";
+  const sourceView = {query: "", status: "all", expanded: false};
 
   function loadTransientView() {
     const fallback = {view: "discover", filter: "all", query: "", sort: "fit", page: 1};
@@ -302,6 +331,50 @@
     return shell.field;
   }
 
+  function profileRangeField(label, path, value, options) {
+    const config = options || {};
+    const shell = profileFieldShell(label, path, config);
+    const row = element("div", "profile-range-row");
+    const input = element("input", "profile-range");
+    const output = element("output", "profile-range-output");
+    const minimum = Number(config.min);
+    const maximum = Number(config.max);
+    const fallback = Number(config.defaultValue);
+    const candidate = Number(value);
+    const initial = Number.isFinite(candidate)
+      ? candidate
+      : Number.isFinite(fallback)
+        ? fallback
+        : minimum;
+    input.id = shell.id;
+    input.type = "range";
+    input.min = String(minimum);
+    input.max = String(maximum);
+    input.step = String(config.step || 1);
+    input.value = String(Math.min(maximum, Math.max(minimum, initial)));
+    input.disabled = Boolean(config.disabled);
+    input.dataset.profilePath = path;
+    input.dataset.profileKind = "number";
+    output.id = shell.id + "-output";
+    output.setAttribute("for", shell.id);
+    input.setAttribute("aria-describedby", output.id);
+    const displayValue = () => {
+      const numeric = Number(input.value);
+      const copy = config.format === "percent"
+        ? Math.round(numeric * 100) + "%"
+        : String(Math.round(numeric * 100) / 100);
+      output.value = input.value;
+      output.textContent = copy;
+      input.setAttribute("aria-valuetext", copy);
+    };
+    input.addEventListener("input", displayValue);
+    displayValue();
+    row.append(input, output);
+    shell.field.appendChild(row);
+    if (config.help) shell.field.appendChild(element("span", "profile-help", config.help));
+    return shell.field;
+  }
+
   function profileBooleanField(label, path, checked, disabled) {
     const field = element("div", "profile-field");
     const choice = element("label", "profile-choice");
@@ -325,11 +398,16 @@
     choices.setAttribute("role", multiple ? "group" : "radiogroup");
     choices.setAttribute("aria-label", label);
     const selected = new Set(multiple ? profileStrings(selectedValue) : [String(selectedValue || "")]);
-    const available = new Map((options || []).map(([value, copy]) => [String(value), String(copy)]));
+    const available = new Map((options || []).map(([value, copy, description]) => [String(value), {
+      copy: String(copy),
+      description: String(description || "").trim().slice(0, 240),
+    }]));
     selected.forEach((value) => {
-      if (value && !available.has(value)) available.set(value, humanizeProfileValue(value));
+      if (value && !available.has(value)) {
+        available.set(value, {copy: humanizeProfileValue(value), description: ""});
+      }
     });
-    available.forEach((copy, value) => {
+    available.forEach((option, value) => {
       const choice = element("label", "profile-choice");
       const input = element("input");
       input.type = multiple ? "checkbox" : "radio";
@@ -337,7 +415,14 @@
       input.value = value;
       input.checked = selected.has(value);
       input.disabled = Boolean(disabled);
-      choice.append(input, element("span", "", copy));
+      choice.append(input, element("span", "", option.copy));
+      if (option.description) {
+        const description = element("span", "profile-choice-description", option.description);
+        description.id = nextProfileFieldId(path + "-description");
+        input.setAttribute("aria-describedby", description.id);
+        choice.title = option.description;
+        choice.appendChild(description);
+      }
       choices.appendChild(choice);
     });
     field.appendChild(choices);
@@ -410,6 +495,27 @@
     const grid = element("div", "profile-grid");
     section.append(heading, grid);
     return {section, grid};
+  }
+
+  function setProfilePage(page, focusTab) {
+    const value = PROFILE_PAGE_VALUES.has(page) ? page : "basics";
+    profileActivePage = value;
+    document.querySelectorAll("[data-profile-page-tab]").forEach((button) => {
+      const active = button.dataset.profilePageTab === value;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+      if (active && focusTab) button.focus();
+    });
+    document.querySelectorAll("[data-profile-page]").forEach((panel) => {
+      panel.hidden = panel.dataset.profilePage !== value;
+    });
+  }
+
+  function profileErrorPage(message) {
+    return /matching[- ]rule|fit threshold|document route/i.test(String(message || ""))
+      ? "advanced"
+      : "basics";
   }
 
   function collectProfileForm() {
@@ -563,15 +669,24 @@
     }
   }
 
-  function renderNumericMap(grid, label, path, value, disabled, options) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  function renderRangeMap(grid, label, path, value, defaults, disabled, options) {
+    const configured = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const fallback = defaults && typeof defaults === "object" ? defaults : {};
     const config = options || {};
-    Object.keys(value).sort().slice(0, 30).forEach((key) => {
-      grid.appendChild(profileTextField(
+    const keys = Array.from(new Set([...Object.keys(fallback), ...Object.keys(configured)]));
+    keys.sort().slice(0, 30).forEach((key) => {
+      grid.appendChild(profileRangeField(
         label + " · " + humanizeProfileValue(key),
         path + "." + key,
-        value[key],
-        {type: "number", min: config.min, max: config.max, step: config.step, disabled}
+        configured[key],
+        {
+          min: config.min,
+          max: config.max,
+          step: config.step,
+          format: config.format,
+          defaultValue: fallback[key],
+          disabled,
+        }
       ));
     });
   }
@@ -588,12 +703,23 @@
     const thresholds = matching.tier_thresholds && typeof matching.tier_thresholds === "object" ? matching.tier_thresholds : {};
     const documents = profileDraft.documents && typeof profileDraft.documents === "object" ? profileDraft.documents : {};
 
-    const focus = profileSection("Search focus", "Set the time frames and broad source collections you want to follow.");
+    const basics = element("div", "profile-page");
+    basics.id = "profile-basics-page";
+    basics.dataset.profilePage = "basics";
+    basics.setAttribute("role", "tabpanel");
+    basics.setAttribute("aria-labelledby", "profile-basics-tab");
+    const advanced = element("div", "profile-page");
+    advanced.id = "profile-advanced-page";
+    advanced.dataset.profilePage = "advanced";
+    advanced.setAttribute("role", "tabpanel");
+    advanced.setAttribute("aria-labelledby", "profile-advanced-tab");
+
+    const focus = profileSection("Search focus", "Set the time frames and broad source collections you want to follow. Turning off a source pack also hides its prior listings after you save.");
     focus.grid.append(
       profileTagField("Time frames", "timeframes", profileDraft.timeframes, {wide: true, disabled, limit: 12, placeholder: "Summer 2028", help: "Add more than one if you are considering several cycles."}),
       profileChoiceField("Source packs", "selected_packs", profileDraft.selected_packs, profilePackOptions, true, disabled, true)
     );
-    fields.appendChild(focus.section);
+    basics.appendChild(focus.section);
 
     const person = profileSection("About you", "These facts help detect eligibility and experience mismatches.");
     person.grid.append(
@@ -603,13 +729,13 @@
       profileTagField("Completed degrees", "candidate.completed_degrees", candidate.completed_degrees, {wide: true, disabled, placeholder: "B.S. Physics"}),
       profileTagField("Demonstrated skills", "candidate.skills", candidate.skills, {wide: true, disabled, placeholder: "Python"})
     );
-    fields.appendChild(person.section);
+    basics.appendChild(person.section);
 
     const goals = profileSection("What you want", "Use broad interests here. Detailed matching keywords live in the next section.");
     goals.grid.append(
       profileChoiceField("Opportunity types", "targets.opportunity_types", targets.opportunity_types, OPPORTUNITY_TYPE_OPTIONS, true, disabled, true),
       profileTagField("Role families", "targets.role_families", targets.role_families, {wide: true, disabled, placeholder: "Machine learning research"}),
-      profileTagField("Domains", "targets.domains", targets.domains, {wide: true, disabled, placeholder: "Scientific computing"}),
+      profileTagField("Domains", "targets.domains", targets.domains, {wide: true, disabled, placeholder: "Scientific computing", help: "Removing a domain also retires positive advanced rules tied only to that domain."}),
       profileTagField("Supporting skills", "targets.supporting_skills", targets.supporting_skills, {wide: true, disabled, placeholder: "C++"}),
       profileTagField("Locations", "targets.locations", targets.locations, {wide: true, disabled, placeholder: "New York"}),
       profileChoiceField("Work arrangements", "targets.work_arrangements", targets.work_arrangements, WORK_ARRANGEMENT_OPTIONS, true, disabled, true),
@@ -617,33 +743,40 @@
       profileTagField("Exclude", "targets.exclusions", targets.exclusions, {wide: true, disabled, placeholder: "Sales internship", help: "Listings matching these phrases can be penalized or removed."}),
       profileTagField("Priority organizations", "priority_organizations", profileDraft.priority_organizations, {wide: true, disabled, placeholder: "NASA"})
     );
-    fields.appendChild(goals.section);
+    basics.appendChild(goals.section);
 
-    const scoring = profileSection("Fit settings", "Control visibility and the score bands shown on each listing.");
+    const defaultDocument = profileSection("Application document", "Name the default document to use when no specialized route matches.");
+    defaultDocument.grid.appendChild(profileTextField("Default document", "documents.default", documents.default, {wide: true, placeholder: "General", maxLength: 120, disabled}));
+    basics.appendChild(defaultDocument.section);
+
+    const scoring = profileSection("Fit settings", "Fine-tune visibility and score behavior. The defaults work well for most searches.");
     scoring.grid.append(
       profileTextField("Starting score", "matching.base_score", matching.base_score, {type: "number", min: 0, max: 100, disabled}),
       profileTextField("Priority organization bonus", "matching.priority_organization_bonus", matching.priority_organization_bonus, {type: "number", min: -100, max: 100, disabled}),
-      profileTextField("Minimum score to display", "matching.minimum_display_score", matching.minimum_display_score, {type: "number", min: 0, max: 100, disabled}),
+      profileRangeField("Minimum score to display", "matching.minimum_display_score", matching.minimum_display_score, {min: 0, max: 100, step: 1, defaultValue: 40, help: "Listings below this score stay out of Discover.", disabled}),
       profileTextField("Priority threshold", "matching.tier_thresholds.priority", thresholds.priority, {type: "number", min: 0, max: 100, disabled}),
       profileTextField("Strong threshold", "matching.tier_thresholds.strong", thresholds.strong, {type: "number", min: 0, max: 100, disabled}),
       profileTextField("Watch threshold", "matching.tier_thresholds.watch", thresholds.watch, {type: "number", min: 0, max: 100, disabled}),
-      profileTextField("Minimum anchor strength", "matching.anchor_min_strength", matching.anchor_min_strength, {type: "number", min: 0, max: 1, step: "any", disabled}),
+      profileRangeField("Minimum anchor strength", "matching.anchor_min_strength", matching.anchor_min_strength, {min: 0, max: 1, step: 0.05, format: "percent", defaultValue: 0.7, help: "How strong a core-interest match must be before score ceilings are lifted.", disabled}),
       profileTextField("Target type bonus", "matching.target_type_bonus", matching.target_type_bonus, {type: "number", min: -100, max: 100, disabled}),
       profileTextField("Target time-frame bonus", "matching.target_timeframe_bonus", matching.target_timeframe_bonus, {type: "number", min: -100, max: 100, disabled})
     );
-    renderNumericMap(scoring.grid, "Field weight", "matching.field_weights", matching.field_weights, disabled, {min: 0, max: 1, step: "any"});
-    renderNumericMap(scoring.grid, "Score ceiling", "matching.score_ceilings", matching.score_ceilings, disabled, {min: 0, max: 100, step: 1});
-    fields.appendChild(scoring.section);
+    renderRangeMap(scoring.grid, "Field weight", "matching.field_weights", matching.field_weights, FIELD_WEIGHT_DEFAULTS, disabled, {min: 0, max: 1, step: 0.05, format: "percent"});
+    renderRangeMap(scoring.grid, "Score ceiling", "matching.score_ceilings", matching.score_ceilings, SCORE_CEILING_DEFAULTS, disabled, {min: 0, max: 100, step: 1});
+    advanced.appendChild(scoring.section);
 
-    const rules = profileSection("Matching rules", "Each rule connects phrases with listing fields and a score adjustment.");
+    const rules = profileSection("Matching rules", "Each rule connects phrases with listing fields and a score adjustment. Basic role and domain choices take precedence over obsolete positive rules.");
     rules.grid.remove();
     renderProfileRules(rules.section, matching.rules, disabled);
-    fields.appendChild(rules.section);
+    advanced.appendChild(rules.section);
 
-    const documentSection = profileSection("Application documents", "Choose a default document and route specialized versions by listing terms.");
-    documentSection.grid.appendChild(profileTextField("Default document", "documents.default", documents.default, {wide: true, placeholder: "General", maxLength: 120, disabled}));
+    const documentSection = profileSection("Document routing", "Route specialized application documents by listing terms.");
+    documentSection.grid.remove();
     renderDocumentRoutes(documentSection.section, documents.routes, disabled);
-    fields.appendChild(documentSection.section);
+    advanced.appendChild(documentSection.section);
+
+    fields.append(basics, advanced);
+    setProfilePage(profileActivePage, false);
   }
 
   function renderProfileEditor() {
@@ -738,21 +871,34 @@
 
   function resetProfileDraft() {
     profileDraft = cloneProfile(profileCommitted);
+    profileActivePage = "basics";
     renderProfileEditor();
   }
 
   function openProfileDialog() {
     if (!profileCommitted) return;
-    if (state.busy) {
+    if (state.busy && state.pendingAction !== "scan") {
       showToast("Wait for the current action to finish.");
       return;
     }
-    profileDraft = cloneProfile(profileCommitted);
+    profileDraft = cloneProfile(
+      state.queuedProfile && state.queuedProfile.profile
+        ? state.queuedProfile.profile
+        : state.profileRetryDraft || profileCommitted
+    );
+    profileActivePage = "basics";
     renderProfileEditor();
-    document.getElementById("profile-save-note").textContent = "";
+    document.getElementById("profile-save-note").textContent = state.queuedProfile
+      ? "Saved for the next scan. It will be applied as soon as the current scan finishes."
+      : state.pendingAction === "scan"
+        ? "You can edit now. Saving will apply this profile after the current scan finishes."
+        : state.profileRetryDraft
+          ? "Your last save did not finish. Review the preserved changes and try again."
+          : "";
     const dialog = document.getElementById("profile-dialog");
     if (typeof dialog.showModal === "function") dialog.showModal();
     else dialog.setAttribute("open", "");
+    if (state.busy) setBusy(true, state.busyLabel, state.pendingRequest);
   }
 
   function closeProfileDialog() {
@@ -776,10 +922,38 @@
     }
     const error = profileValidationMessage(payload);
     if (error) {
+      setProfilePage(profileErrorPage(error), false);
       note.textContent = error;
+      note.tabIndex = -1;
+      note.focus();
       return;
     }
     profileDraft = payload;
+    state.profileRetryDraft = null;
+    if (state.busy) {
+      if (state.pendingAction !== "scan" || state.queuedProfile) {
+        note.textContent = state.queuedProfile
+          ? "A profile update is already saved for after this scan."
+          : "Wait for the current action to finish.";
+        return;
+      }
+      const request = nextRequest();
+      state.queuedProfile = {request, profile: cloneProfile(payload)};
+      if (!postNative({action: "profile", profile: payload, request})) {
+        state.queuedProfile = null;
+        note.textContent = "The profile could not be sent to the app.";
+        setBusy(true, state.busyLabel, state.pendingRequest);
+        return;
+      }
+      setBusy(
+        true,
+        "Scanning... Profile saved for the next scan.",
+        state.pendingRequest
+      );
+      note.textContent = "Saved for the next scan. It will be applied as soon as the current scan finishes.";
+      showToast("Profile saved for the next scan.");
+      return;
+    }
     const request = startNativeAction(
       {action: "profile", profile: payload},
       "Saving profile..."
@@ -893,6 +1067,28 @@
     return Boolean(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.opportunityRadar);
   }
 
+  function publicHttpsUrl(value) {
+    if (!value || value.length > MAX_SOURCE_URL_LENGTH || /[\u0000-\u001f\u007f]/.test(value)) return false;
+    try {
+      const parsed = new URL(value);
+      const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+      const labels = host.split(".");
+      const reserved = ["localhost", ".localhost", ".local", ".internal", ".test", ".invalid", ".example", ".onion"];
+      return parsed.protocol === "https:"
+        && !parsed.username
+        && !parsed.password
+        && (!parsed.port || parsed.port === "443")
+        && host.length <= 253
+        && labels.length >= 2
+        && !host.includes(":")
+        && !/^[0-9.]+$/.test(host)
+        && !reserved.some((suffix) => host === suffix || host.endsWith(suffix))
+        && labels.every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function postNative(message) {
     if (!hasNativeBridge()) return false;
     try {
@@ -913,20 +1109,91 @@
 
   function setBusy(value, label, request) {
     state.busy = Boolean(value);
-    state.pendingRequest = state.busy ? String(request || "") : null;
+    if (state.busy) {
+      state.pendingRequest = String(request || state.pendingRequest || "");
+      state.busyLabel = String(label || state.busyLabel || "Working...");
+    } else {
+      state.pendingRequest = null;
+      state.busyLabel = "";
+    }
     const profileActionBusy = state.busy && state.pendingAction === "profile";
+    const profileQueued = Boolean(state.queuedProfile);
+    const profileCanQueue = state.busy && state.pendingAction === "scan" && !profileQueued;
     document.getElementById("refresh-button").disabled = state.busy;
     document.getElementById("scan-all-button").disabled = state.busy;
-    document.getElementById("scan-state").textContent = state.busy ? String(label || "Working...") : "";
-    document.getElementById("profile-save-button").disabled = state.busy;
+    document.getElementById("scan-state").textContent = state.busy ? state.busyLabel : "";
+    document.getElementById("profile-save-button").disabled = state.busy && !profileCanQueue;
     document.getElementById("profile-close-button").disabled = profileActionBusy;
     document.getElementById("profile-cancel-button").disabled = profileActionBusy;
-    document.getElementById("profile-form").setAttribute("aria-busy", String(profileActionBusy));
-    document.getElementById("profile-fields").inert = profileActionBusy;
+    document.getElementById("profile-form").setAttribute("aria-busy", String(profileActionBusy || profileQueued));
+    document.getElementById("profile-fields").inert = profileActionBusy || profileQueued;
     document.getElementById("opportunity-list").setAttribute("aria-busy", String(state.busy));
     document.querySelectorAll("#opportunity-list button[data-action]").forEach((button) => {
       button.setAttribute("aria-disabled", String(state.busy));
     });
+    updateSourceFormAvailability();
+  }
+
+  function updateSourceFormAvailability() {
+    const form = document.getElementById("source-add-form");
+    const note = document.getElementById("source-add-status");
+    const submit = document.getElementById("source-add-submit");
+    if (!form || !note || !submit) return;
+    const native = hasNativeBridge();
+    const sourceBusy = state.busy && state.pendingAction === "source";
+    form.setAttribute("aria-busy", String(sourceBusy));
+    form.querySelectorAll("input, button").forEach((control) => {
+      control.disabled = !native || state.busy;
+    });
+    submit.textContent = sourceBusy ? "Testing source..." : "Test and add source";
+    if (!native) {
+      note.className = "source-add-status";
+      note.textContent = "Adding sources is available in the macOS app. In Terminal, run python3 -m monitor sources add --help.";
+    }
+  }
+
+  function sourceFormError(name, url) {
+    if (!name) return "Enter a company or program name.";
+    if (name.length > MAX_SOURCE_NAME_LENGTH || /[\u0000-\u001f\u007f]/.test(name)) {
+      return "Keep the company or program name to 120 characters.";
+    }
+    if (!publicHttpsUrl(url)) return "Enter a public HTTPS jobs or careers URL.";
+    return "";
+  }
+
+  function addSource(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const nameInput = document.getElementById("source-add-name");
+    const urlInput = document.getElementById("source-add-url");
+    const note = document.getElementById("source-add-status");
+    const name = String(nameInput.value || "").trim();
+    const url = String(urlInput.value || "").trim();
+    nameInput.setAttribute("aria-invalid", "false");
+    urlInput.setAttribute("aria-invalid", "false");
+    note.className = "source-add-status";
+    if (!hasNativeBridge()) {
+      updateSourceFormAvailability();
+      return;
+    }
+    const error = sourceFormError(name, url);
+    if (error) {
+      const target = !name || name.length > MAX_SOURCE_NAME_LENGTH ? nameInput : urlInput;
+      target.setAttribute("aria-invalid", "true");
+      note.className = "source-add-status error";
+      note.textContent = error;
+      target.focus();
+      return;
+    }
+    const request = startNativeAction(
+      {action: "source", name, url},
+      "Testing source..."
+    );
+    note.textContent = request
+      ? "Testing the official page before saving it..."
+      : "The source could not be sent to the app.";
+    if (!request) note.className = "source-add-status error";
+    if (request) form.setAttribute("aria-busy", "true");
   }
 
   function nextRequest() {
@@ -1111,6 +1378,11 @@
 
   function dateEntry(item, name) {
     const dates = item.dates && typeof item.dates === "object" ? item.dates : {};
+    const legacy = {
+      deadline: item.deadline_at,
+      first_seen: item.first_seen_at,
+      posted: item.posted_at,
+    };
     const aliases = {
       deadline: ["deadline", "deadline_at"],
       first_seen: ["first_seen", "found", "first_seen_at"],
@@ -1124,19 +1396,16 @@
       }
     }
     if (raw && typeof raw === "object") {
-      return {
+      const structured = {
         value: String(raw.value || raw.at || raw.date || raw.iso || ""),
         status: normalizeSearchText(raw.status || raw.state || raw.kind),
         kind: normalizeSearchText(raw.kind || raw.status || raw.state),
         label: String(raw.label || "").trim().slice(0, 80),
       };
+      if (structured.value || !legacy[name]) return structured;
+      raw = null;
     }
     if (raw) return {value: String(raw), status: "", kind: "", label: ""};
-    const legacy = {
-      deadline: item.deadline_at,
-      first_seen: item.first_seen_at,
-      posted: item.posted_at,
-    };
     return {value: String(legacy[name] || ""), status: "", kind: "", label: ""};
   }
 
@@ -1171,6 +1440,17 @@
 
   function dateSortValue(item, name, fallback) {
     return dateEntry(item, name).value || fallback;
+  }
+
+  function compareNewestItems(left, right) {
+    const leftPosted = dateEntry(left, "posted").value;
+    const rightPosted = dateEntry(right, "posted").value;
+    if (Boolean(leftPosted) !== Boolean(rightPosted)) return leftPosted ? -1 : 1;
+    if (leftPosted && rightPosted) {
+      const byPostingDate = rightPosted.localeCompare(leftPosted);
+      if (byPostingDate) return byPostingDate;
+    }
+    return String(right.first_seen_at || "").localeCompare(String(left.first_seen_at || ""));
   }
 
   function isApplication(status) {
@@ -1232,8 +1512,7 @@
 
   function compareItems(left, right) {
     if (state.sort === "newest") {
-      return dateSortValue(right, "posted", right.first_seen_at || "")
-        .localeCompare(dateSortValue(left, "posted", left.first_seen_at || ""));
+      return compareNewestItems(left, right);
     }
     if (state.sort === "deadline") {
       return dateSortValue(left, "deadline", "9999")
@@ -1293,7 +1572,7 @@
     }
     if (!value.value) return;
     const wrap = element("span", "meta-item date-meta");
-    wrap.appendChild(document.createTextNode(value.prefix + " "));
+    wrap.appendChild(element("span", "meta-label", value.prefix));
     const timeNode = element("time", "", formatDate(value.value));
     timeNode.dateTime = String(value.value).slice(0, 100);
     wrap.appendChild(timeNode);
@@ -1304,11 +1583,14 @@
     if (text) container.appendChild(element("span", "tag" + (className ? " " + className : ""), text));
   }
 
-  function matchEvidenceLabel(value) {
+  function matchEvidenceLabel(value, detailed) {
     if (value && typeof value === "object") {
       const term = String(value.term || value.label || value.value || value.text || "").trim();
       const field = String(value.field || "").trim();
-      if (term && field) return term + " · " + humanizeProfileValue(field);
+      if (term && field && detailed) return term + " (matched in " + humanizeProfileValue(field) + ")";
+      if (term && field && normalizeSearchText(field) !== "description") {
+        return term + " · " + humanizeProfileValue(field);
+      }
       return term || field;
     }
     return String(value || "").trim();
@@ -1327,7 +1609,7 @@
     )).map((component) => ({
       label: String(component.label).trim().slice(0, 80),
       evidence: Array.isArray(component.evidence)
-        ? component.evidence.map(matchEvidenceLabel).filter(Boolean).slice(0, 6)
+        ? component.evidence.filter((value) => matchEvidenceLabel(value, false)).slice(0, 6)
         : [],
     }));
     if (structured.length) return structured.slice(0, 8);
@@ -1344,9 +1626,12 @@
     const chip = element("span", "match-chip");
     chip.appendChild(element("strong", "", component.label));
     if (component.evidence.length) {
-      const evidence = component.evidence.slice(0, 3).join(", ");
+      const evidence = component.evidence.slice(0, 3)
+        .map((value) => matchEvidenceLabel(value, false)).filter(Boolean).join(", ");
       chip.appendChild(element("span", "", evidence));
-      chip.title = component.label + ": " + component.evidence.join(", ");
+      chip.title = component.label + ": " + component.evidence
+        .map((value) => matchEvidenceLabel(value, true)).filter(Boolean).join(", ");
+      chip.setAttribute("aria-label", chip.title);
     }
     return chip;
   }
@@ -1354,7 +1639,7 @@
   function appendMatchSummary(article, item) {
     const components = matchComponents(item);
     if (!components.length) {
-      article.appendChild(element("p", "reason", settings.default_reason || "Matches your current profile."));
+      article.appendChild(element("p", "reason", String(settings.default_reason || "Matches your current profile.").slice(0, 240)));
       return;
     }
     const block = element("div", "match-summary");
@@ -1370,7 +1655,8 @@
       const list = element("ul", "match-more-list");
       components.slice(3).forEach((component) => {
         const copy = component.evidence.length
-          ? component.label + ": " + component.evidence.join(", ")
+          ? component.label + ": " + component.evidence
+            .map((value) => matchEvidenceLabel(value, true)).filter(Boolean).join(", ")
           : component.label;
         list.appendChild(element("li", "", copy));
       });
@@ -1413,10 +1699,13 @@
     const tags = element("div", "tags");
     addTag(tags, typeLabel(item), "kind");
     addTag(tags, commitmentLabel(item), "commitment");
+    if (!String(item.description || "").trim()) addTag(tags, "Limited listing details", "limited-details");
     if (normalizeSearchText(item.match && item.match.eligibility) === "unknown") {
       addTag(tags, "Eligibility details incomplete", "eligibility");
     }
-    if (item.recommended_resume) addTag(tags, (settings.document_label || "Application track") + " · " + item.recommended_resume, "track");
+    if (item.recommended_resume) {
+      addTag(tags, String(settings.document_label || "Application track").slice(0, 80) + " · " + item.recommended_resume, "track");
+    }
     if (workflow.status === "apply") addTag(tags, "Preparing application", "stage");
     if (workflow.status === "applied") addTag(tags, "Applied", "stage");
     if (!isAvailable(item)) addTag(tags, "Listing no longer active", "warning");
@@ -1433,6 +1722,7 @@
       link.href = official;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
+      link.dataset.id = item.id;
       link.setAttribute("aria-label", "Open listing: " + actionContext);
       actions.appendChild(link);
     }
@@ -1663,39 +1953,96 @@
     );
   }
 
-  function renderSources() {
-    const sources = data.sources || [];
-    const errors = sources.filter((source) => source.last_status === "error");
-    const blocked = sources.filter((source) => source.last_status === "blocked");
-    const healthy = sources.filter((source) => source.last_status === "ok");
-    const heading = errors.length ? errors.length + " need attention" : blocked.length ? blocked.length + " access-limited" : healthy.length ? "Sources are current" : "Ready for first scan";
-    document.getElementById("health-summary").textContent = heading;
-    document.getElementById("source-overview").textContent = sources.length
-      ? healthy.length + " healthy, " + blocked.length + " limited, " + errors.length + " failed, " + (sources.length - healthy.length - blocked.length - errors.length) + " waiting."
-      : "Run your first scan to initialize source health.";
-    const mark = document.getElementById("health-mark");
-    mark.className = "health-mark" + (errors.length ? " attention" : healthy.length ? " ok" : "");
+  function sourceStatus(source) {
+    return ["ok", "error", "blocked"].includes(source && source.last_status)
+      ? source.last_status
+      : "waiting";
+  }
+
+  function renderSourceList() {
+    const statusOrder = {error: 0, blocked: 1, waiting: 2, ok: 3};
+    const query = normalizeSearchText(sourceView.query);
+    const matching = (Array.isArray(data.sources) ? data.sources : []).filter((source) => {
+      if (sourceView.status !== "all" && sourceStatus(source) !== sourceView.status) return false;
+      if (!query) return true;
+      return normalizeSearchText([source.name, source.id, source.kind].join(" ")).includes(query);
+    }).sort((left, right) => (
+      statusOrder[sourceStatus(left)] - statusOrder[sourceStatus(right)]
+      || String(left.name || left.id || "").localeCompare(String(right.name || right.id || ""))
+    ));
+    const visible = sourceView.expanded ? matching : matching.slice(0, SOURCE_PREVIEW_LIMIT);
     const list = document.getElementById("source-list");
     list.replaceChildren();
-    sources.forEach((source) => {
+    visible.forEach((source) => {
+      const status = sourceStatus(source);
       const row = element("div", "source");
-      const dot = element("i", "source-dot " + (["ok", "error", "blocked"].includes(source.last_status) ? source.last_status : "never"));
+      const dot = element("i", "source-dot " + (status === "waiting" ? "never" : status));
+      dot.setAttribute("aria-hidden", "true");
       const copy = element("div");
       const url = safeUrl(source.url);
-      const name = element(url ? "a" : "div", "source-name", source.name || source.id);
+      const fullName = String(source.name || source.id || "Unnamed source").slice(0, 160);
+      const name = element(url ? "a" : "div", "source-name", fullName);
+      name.title = fullName;
       if (url) {
         name.href = url;
         name.target = "_blank";
         name.rel = "noopener noreferrer";
-        name.title = "Open official source";
+        name.title = fullName + " - Open official source";
       }
       copy.appendChild(name);
-      const count = Number(source.item_count || 0);
+      const rawCount = Number(source.item_count || 0);
+      const count = Number.isFinite(rawCount) ? Math.max(0, rawCount) : 0;
       const kind = source.kind === "watch_page" ? "manual page" : "listing feed";
-      copy.appendChild(element("span", "source-detail", kind + " - " + count + (count === 1 ? " item" : " items") + " - " + relative(source.last_checked_at)));
+      const statusLabel = {ok: "healthy", error: "failed", blocked: "limited", waiting: "waiting"}[status];
+      copy.appendChild(element("span", "source-detail", statusLabel + " - " + kind + " - " + count + (count === 1 ? " item" : " items") + " - " + relative(source.last_checked_at)));
+      const lastError = String(source.last_error || "").replace(/\s+/g, " ").trim().slice(0, 240);
+      if (["error", "blocked"].includes(status) && lastError) {
+        const help = element("span", "source-error", lastError);
+        help.title = lastError;
+        copy.appendChild(help);
+      }
       row.append(dot, copy);
       list.appendChild(row);
     });
+    if (!matching.length) list.appendChild(element("div", "source-empty", "No sources match this view."));
+    const shown = visible.length;
+    document.getElementById("source-list-note").textContent = matching.length
+      ? "Showing " + shown + " of " + matching.length + (matching.length === 1 ? " source." : " sources.")
+      : "No matching sources.";
+    const more = document.getElementById("source-show-more");
+    more.hidden = matching.length <= SOURCE_PREVIEW_LIMIT;
+    more.textContent = sourceView.expanded
+      ? "Show fewer sources"
+      : "Show all " + matching.length + " sources";
+    more.setAttribute("aria-expanded", String(sourceView.expanded));
+  }
+
+  function renderSources() {
+    const sources = Array.isArray(data.sources) ? data.sources : [];
+    const errors = sources.filter((source) => sourceStatus(source) === "error");
+    const blocked = sources.filter((source) => sourceStatus(source) === "blocked");
+    const healthy = sources.filter((source) => sourceStatus(source) === "ok");
+    const waiting = sources.length - healthy.length - blocked.length - errors.length;
+    const heading = errors.length
+      ? errors.length + (errors.length === 1 ? " source needs attention" : " sources need attention")
+      : blocked.length
+        ? blocked.length + (blocked.length === 1 ? " source is access-limited" : " sources are access-limited")
+        : healthy.length && !waiting
+          ? "Sources are current"
+          : healthy.length
+            ? healthy.length + " current, " + waiting + " waiting"
+            : sources.length
+              ? waiting + " waiting for first check"
+              : "Ready for first scan";
+    document.getElementById("health-summary").textContent = heading;
+    document.getElementById("source-overview").textContent = sources.length
+      ? sources.length + (sources.length === 1 ? " source: " : " sources: ") + healthy.length + " healthy, " + blocked.length + " limited, " + errors.length + " failed, " + waiting + " waiting."
+      : "Run your first scan to initialize source health.";
+    const mark = document.getElementById("health-mark");
+    mark.className = "health-mark" + (errors.length ? " attention" : blocked.length ? " limited" : healthy.length && !waiting ? " ok" : "");
+    document.getElementById("source-details").hidden = sources.length === 0;
+    document.getElementById("source-detail-count").textContent = sources.length ? "(" + sources.length + ")" : "";
+    renderSourceList();
   }
 
   function renderEvents() {
@@ -1737,11 +2084,7 @@
   function setTheme(theme, notifyNative) {
     const value = THEME_VALUES.has(theme) ? theme : "system";
     document.documentElement.dataset.theme = value;
-    document.querySelectorAll("[data-theme-option]").forEach((button) => {
-      const active = button.dataset.themeOption === value;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+    document.getElementById("theme-select").value = value;
     try { localStorage.setItem("opportunity-radar-theme", value); } catch (_error) { /* optional */ }
     if (notifyNative) postNative({action: "theme", theme: value});
   }
@@ -1765,10 +2108,28 @@
 
   window.OpportunityRadarNative = {
     complete(result) {
+      const resultRequest = String(result && result.request || "");
+      const resultAction = String(result && result.action || "");
+      if (
+        state.pendingAction === "scan"
+        && state.queuedProfile
+        && resultAction === "profile"
+        && resultRequest === state.queuedProfile.request
+      ) {
+        if (result.ok !== true) {
+          state.profileRetryDraft = cloneProfile(state.queuedProfile.profile);
+          state.queuedProfile = null;
+          setBusy(true, state.busyLabel, state.pendingRequest);
+          const note = document.getElementById("profile-save-note");
+          note.textContent = String(result.message || "The queued profile could not be saved.").slice(0, 240);
+          showToast(note.textContent);
+        }
+        return;
+      }
       if (
         !result
-        || String(result.request || "") !== state.pendingRequest
-        || String(result.action || "") !== state.pendingAction
+        || resultRequest !== state.pendingRequest
+        || resultAction !== state.pendingAction
       ) return;
       const action = state.pendingAction;
       const ok = result.ok === true;
@@ -1776,17 +2137,45 @@
       if (state.pendingMutation && state.pendingMutation.request === state.pendingRequest) {
         finishPendingMutation(ok);
       }
-      if (["scan", "profile"].includes(action) && ok) saveTransientView();
+      if (["scan", "profile", "source"].includes(action) && ok) saveTransientView();
+      if (action === "scan" && state.queuedProfile) {
+        state.pendingAction = "profile";
+        setBusy(true, "Applying saved profile...", state.queuedProfile.request);
+        document.getElementById("profile-save-note").textContent = "The scan finished. Applying your saved profile now...";
+        if (result.message) showToast(result.message);
+        return;
+      }
+      const completedProfile = action === "profile" && state.queuedProfile
+        ? cloneProfile(state.queuedProfile.profile)
+        : cloneProfile(profileDraft);
+      const wasQueuedProfile = action === "profile" && Boolean(state.queuedProfile);
+      if (action === "profile" && !ok) {
+        state.profileRetryDraft = completedProfile;
+      } else if (action === "profile") {
+        state.profileRetryDraft = null;
+      }
+      if (action === "profile") state.queuedProfile = null;
       state.pendingAction = null;
       setBusy(false);
       if (action === "profile") {
         const note = document.getElementById("profile-save-note");
         if (ok) {
-          profileCommitted = cloneProfile(result.profile) || cloneProfile(profileDraft);
+          profileCommitted = cloneProfile(result.profile) || completedProfile;
           closeProfileDialog();
         } else {
-          note.textContent = String(result.message || "The profile could not be saved.").slice(0, 240);
+          const failure = String(result.message || "The profile could not be saved.");
+          note.textContent = (
+            failure
+            + (wasQueuedProfile ? " Your edits are preserved here; retry to load the completed scan." : "")
+          ).slice(0, 240);
         }
+      }
+      if (action === "source") {
+        const form = document.getElementById("source-add-form");
+        const note = document.getElementById("source-add-status");
+        note.className = "source-add-status " + (ok ? "success" : "error");
+        note.textContent = String(result.message || (ok ? "Source added. Reloading..." : "The source could not be added.")).slice(0, 240);
+        if (ok) form.reset();
       }
       renderAll(mutationFocus);
       if (result && result.message) showToast(result.message);
@@ -1796,10 +2185,10 @@
     },
   };
 
-  const title = settings.title || "Opportunity Radar";
+  const title = String(settings.title || "Opportunity Radar").trim().slice(0, 80) || "Opportunity Radar";
   document.title = title;
   document.getElementById("dashboard-title").textContent = title;
-  document.getElementById("dashboard-subtitle").textContent = settings.subtitle || "Review matches and track applications from the sources you follow.";
+  document.getElementById("dashboard-subtitle").textContent = String(settings.subtitle || "Review matches and track applications from the sources you follow.").trim().slice(0, 240);
   const timeframes = configuredTimeframes();
   const context = document.getElementById("search-context");
   context.textContent = timeframes.length > 3
@@ -1826,9 +2215,8 @@
     button.setAttribute("aria-pressed", String(active));
   });
 
-  document.getElementById("theme-switcher").addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-theme-option]");
-    if (button) setTheme(button.dataset.themeOption, true);
+  document.getElementById("theme-select").addEventListener("change", (event) => {
+    setTheme(event.target.value, true);
   });
   document.getElementById("refresh-button").addEventListener("click", () => scan("due"));
   document.getElementById("scan-all-button").addEventListener("click", () => {
@@ -1844,6 +2232,22 @@
   document.getElementById("profile-cancel-button").addEventListener("click", closeProfileDialog);
   document.getElementById("profile-form").addEventListener("submit", saveProfile);
   document.getElementById("profile-dialog").addEventListener("close", resetProfileDraft);
+  document.querySelector(".profile-page-tabs").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-profile-page-tab]");
+    if (button) setProfilePage(button.dataset.profilePageTab, false);
+  });
+  document.querySelector(".profile-page-tabs").addEventListener("keydown", (event) => {
+    const tabs = Array.from(document.querySelectorAll("[data-profile-page-tab]"));
+    const current = tabs.indexOf(event.target.closest("button[data-profile-page-tab]"));
+    if (current < 0 || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    setProfilePage(tabs[next].dataset.profilePageTab, true);
+  });
   document.getElementById("search").addEventListener("input", (event) => {
     state.query = String(event.target.value || "").trim();
     state.page = 1;
@@ -1873,6 +2277,23 @@
     document.getElementById("search").value = "";
     renderAll();
   });
+  document.getElementById("source-search").addEventListener("input", (event) => {
+    sourceView.query = String(event.target.value || "").trim().slice(0, 120);
+    sourceView.expanded = false;
+    renderSourceList();
+  });
+  document.getElementById("source-status-filter").addEventListener("change", (event) => {
+    sourceView.status = ["all", "ok", "error", "blocked", "waiting"].includes(event.target.value)
+      ? event.target.value
+      : "all";
+    sourceView.expanded = false;
+    renderSourceList();
+  });
+  document.getElementById("source-show-more").addEventListener("click", () => {
+    sourceView.expanded = !sourceView.expanded;
+    renderSourceList();
+  });
+  document.getElementById("source-add-form").addEventListener("submit", addSource);
   document.querySelector(".view-switcher").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-view]");
     if (!button || !["discover", "applications"].includes(button.dataset.view)) return;
@@ -1897,6 +2318,12 @@
     changePage(state.page + (direction.dataset.pageDirection === "next" ? 1 : -1));
   });
   document.getElementById("opportunity-list").addEventListener("click", (event) => {
+    const reviewedLink = event.target.closest("a.official-link[data-id]");
+    if (reviewedLink && validId(reviewedLink.dataset.id)) {
+      const item = byId.get(reviewedLink.dataset.id);
+      if (item && effective(item).status === "new") updateWorkflow(item.id, {status: "reviewed"});
+      return;
+    }
     const button = event.target.closest("button[data-action][data-id]");
     if (!button || !validId(button.dataset.id)) return;
     const item = byId.get(button.dataset.id);
@@ -1915,6 +2342,7 @@
   });
 
   renderProfileEditor();
+  updateSourceFormAvailability();
   renderSources();
   renderEvents();
   renderAll();

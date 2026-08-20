@@ -1,14 +1,20 @@
+import io
 import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from monitor import cli
 from monitor import config
 from monitor import onboarding
 from monitor import pipeline
 from monitor import profile as profile_service
+from monitor.database import Database
+from monitor.models import Opportunity
+from monitor.scoring import score_opportunity
 
 
 class ConfigTests(unittest.TestCase):
@@ -336,6 +342,94 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(saved_sources["selected_packs"], ["technical", "research"])
         self.assertEqual((self.root / "config" / "profile.local.json").stat().st_mode & 0o777, 0o600)
         self.assertEqual((self.root / "config" / "sources.local.json").stat().st_mode & 0o777, 0o600)
+
+    def test_profile_pack_removal_retires_positive_public_source_overrides(self):
+        (self.root / "config" / "profile.json").write_text(
+            json.dumps(
+                {
+                    "priority_organizations": [],
+                    "matching": {
+                        "base_score": 25,
+                        "tier_thresholds": {
+                            "priority": 75,
+                            "strong": 60,
+                            "watch": 40,
+                        },
+                        "rules": [],
+                    },
+                    "documents": {"default": "General", "routes": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [
+                        {"id": "technical", "default": True},
+                        {"id": "finance"},
+                    ],
+                    "sources": [
+                        {
+                            "id": "technical_board",
+                            "name": "Technical Board",
+                            "kind": "watch_page",
+                            "url": "https://example.org/technical",
+                            "packs": ["technical"],
+                        },
+                        {
+                            "id": "finance_board",
+                            "name": "Finance Board",
+                            "kind": "watch_page",
+                            "url": "https://example.org/finance",
+                            "packs": ["finance"],
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        private_source = {
+            "id": "private_board",
+            "name": "Private Board",
+            "kind": "watch_page",
+            "url": "https://example.net/opportunities",
+            "packs": ["technical"],
+            "enabled": True,
+        }
+        (self.root / "config" / "sources.local.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "selected_packs": ["technical", "finance"],
+                    "sources": [
+                        {"id": "finance_board", "enabled": True},
+                        {"id": "technical_board", "enabled": False},
+                        private_source,
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        lifecycle = self.root / "Application Support" / ".OpportunityRadar.lifecycle-lock"
+
+        with (
+            patch.object(config, "PROJECT_ROOT", self.root),
+            patch.object(profile_service, "_lifecycle_lock_path", return_value=lifecycle),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            payload = profile_service.profile_editor_payload()
+            payload["selected_packs"] = ["technical"]
+            profile_service.apply_editor_payload(payload, rebuild=False)
+
+        saved = json.loads(
+            (self.root / "config" / "sources.local.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(saved["selected_packs"], ["technical"])
+        self.assertEqual(
+            saved["sources"],
+            [{"id": "technical_board", "enabled": False}, private_source],
+        )
 
     def test_profile_editor_migrates_and_removes_hidden_legacy_aliases(self):
         (self.root / "config" / "profile.json").write_text(
@@ -821,6 +915,413 @@ class ConfigTests(unittest.TestCase):
                 "data",
                 "opportunities.sqlite3",
             )
+
+
+class ProfileSemanticReconciliationTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        (self.root / "config").mkdir()
+        (self.root / "config" / "profile.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "priority_organizations": [],
+                    "matching": {
+                        "engine": "structured_v2",
+                        "base_score": 25,
+                        "minimum_display_score": 40,
+                        "tier_thresholds": {
+                            "priority": 75,
+                            "strong": 60,
+                            "watch": 40,
+                        },
+                        "rules": [],
+                    },
+                    "documents": {"default": "General", "routes": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [
+                        {"id": "research", "default": True},
+                        {"id": "finance"},
+                    ],
+                    "sources": [
+                        {
+                            "id": "mixed",
+                            "name": "Mixed opportunities",
+                            "kind": "watch_page",
+                            "url": "https://example.org/mixed",
+                            "packs": ["research"],
+                        },
+                        {
+                            "id": "finance_only",
+                            "name": "Finance opportunities",
+                            "kind": "watch_page",
+                            "url": "https://example.org/finance",
+                            "packs": ["finance"],
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.root / "config" / "sources.local.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "selected_packs": ["research"],
+                    "sources": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.lifecycle = (
+            self.root
+            / "Application Support"
+            / ".OpportunityRadar.lifecycle-lock"
+        )
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def _context(self):
+        return (
+            patch.object(config, "PROJECT_ROOT", self.root),
+            patch.object(
+                profile_service,
+                "_lifecycle_lock_path",
+                return_value=self.lifecycle,
+            ),
+            patch.dict(os.environ, {}, clear=True),
+        )
+
+    @staticmethod
+    def _rule(rule_id, terms):
+        return {
+            "id": rule_id,
+            "label": rule_id.replace("_", " ").title(),
+            "weight": 30,
+            "fields": ["title", "category", "description"],
+            "terms": terms,
+            "match": "any",
+            "per_term": False,
+            "dimension": "interest",
+            "anchor": True,
+            "hard_gate": False,
+        }
+
+    def test_schema_migration_retires_off_domain_rules_and_refreshes_existing_rows(self):
+        local_profile = {
+            "schema_version": 2,
+            "targets": {
+                "opportunity_types": ["job"],
+                "cycles": [],
+                "role_families": ["field technician", "data engineer"],
+                "domains": ["marine ecology", "geospatial analysis"],
+                "supporting_skills": [],
+                "locations": [],
+                "exclusions": [],
+                "work_arrangements": [],
+            },
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 25,
+                "minimum_display_score": 40,
+                "tier_thresholds": {
+                    "priority": 75,
+                    "strong": 60,
+                    "watch": 40,
+                },
+                "rules": [
+                    self._rule(
+                        "retail_merchandising",
+                        ["retail", "store assortment"],
+                    ),
+                    self._rule(
+                        "retail_geospatial_crossover",
+                        ["store location", "geospatial analysis"],
+                    ),
+                    self._rule("data_role", ["data engineer"]),
+                ],
+            },
+        }
+        (self.root / "config" / "profile.local.json").write_text(
+            json.dumps(local_profile),
+            encoding="utf-8",
+        )
+
+        database = Database(self.root / "data" / "opportunities.sqlite3")
+        database.initialize()
+        old_effective = {
+            **json.loads(
+                (self.root / "config" / "profile.json").read_text(encoding="utf-8")
+            ),
+            **local_profile,
+        }
+        for source_id in ("mixed", "finance_only"):
+            database.sync_source(
+                {
+                    "id": source_id,
+                    "name": source_id,
+                    "kind": "watch_page",
+                    "url": "https://example.org/{}".format(source_id),
+                    "enabled": True,
+                }
+            )
+        off_target = Opportunity(
+            "mixed",
+            "retail-planner",
+            "Retail Merchandise Planner",
+            "Example Stores",
+            "https://example.org/mixed/retail-planner",
+            opportunity_type="job",
+        )
+        crossover = Opportunity(
+            "mixed",
+            "retail-geospatial",
+            "Geospatial Store Location Analyst",
+            "Example Stores",
+            "https://example.org/mixed/retail-geospatial",
+            opportunity_type="job",
+        )
+        retired_source = Opportunity(
+            "finance_only",
+            "prior-source-row",
+            "Retail Merchandise Planner",
+            "Old Disabled Source",
+            "https://example.org/finance/prior-source-row",
+            opportunity_type="job",
+        )
+        old_effective["schema_version"] = 3
+        for item in (off_target, crossover, retired_source):
+            score_opportunity(item, old_effective)
+            database.upsert_opportunity(item)
+        self.assertNotEqual(off_target.tier, "skip")
+        database.close()
+
+        rendered = {}
+
+        def capture(payload, profile):
+            rendered["payload"] = payload
+            rendered["profile"] = profile
+            return self.root / "dashboard" / "index.html"
+
+        with self._context()[0], self._context()[1], self._context()[2], patch(
+            "monitor.dashboard.render_dashboard",
+            side_effect=capture,
+        ):
+            payload = profile_service.profile_editor_payload()
+            self.assertEqual(
+                [rule["id"] for rule in payload["matching"]["rules"]],
+                ["retail_geospatial_crossover", "data_role"],
+            )
+            output = io.StringIO()
+            with (
+                patch.object(cli.sys, "stdin", io.StringIO(json.dumps(payload))),
+                redirect_stdout(output),
+            ):
+                self.assertEqual(
+                    cli.main(["profile", "apply", "--stdin"]),
+                    0,
+                )
+            result = json.loads(output.getvalue())
+
+        self.assertTrue(result["saved"])
+        self.assertTrue(result["profile_adjustments"]["semantic_schema_upgraded"])
+        self.assertEqual(
+            [entry["id"] for entry in result["profile_adjustments"]["retired_matching_rules"]],
+            ["retail_merchandising"],
+        )
+        saved = json.loads(
+            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(saved["schema_version"], 3)
+        self.assertEqual(
+            [rule["id"] for rule in saved["matching"]["rules"]],
+            ["retail_geospatial_crossover", "data_role"],
+        )
+        visible_titles = {
+            item["title"] for item in rendered["payload"]["opportunities"]
+        }
+        self.assertNotIn("Retail Merchandise Planner", visible_titles)
+        self.assertIn("Geospatial Store Location Analyst", visible_titles)
+        refreshed = Database(self.root / "data" / "opportunities.sqlite3")
+        try:
+            pure_row = refreshed.connection.execute(
+                "SELECT tier FROM opportunities WHERE external_id='retail-planner'"
+            ).fetchone()
+            finance_source = refreshed.connection.execute(
+                "SELECT enabled FROM sources WHERE id='finance_only'"
+            ).fetchone()
+            self.assertEqual(pure_row["tier"], "skip")
+            self.assertEqual(finance_source["enabled"], 0)
+        finally:
+            refreshed.close()
+
+    def test_removing_a_domain_retires_only_single_domain_rules(self):
+        local_profile = {
+            "schema_version": 3,
+            "targets": {
+                "opportunity_types": [],
+                "cycles": [],
+                "role_families": [],
+                "domains": ["retail operations", "geospatial analysis"],
+                "supporting_skills": [],
+                "locations": [],
+                "exclusions": [],
+                "work_arrangements": [],
+            },
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 25,
+                "minimum_display_score": 40,
+                "tier_thresholds": {
+                    "priority": 75,
+                    "strong": 60,
+                    "watch": 40,
+                },
+                "rules": [
+                    self._rule("retail_focus", ["retail operations"]),
+                    self._rule(
+                        "retail_geospatial_crossover",
+                        ["retail operations", "geospatial analysis"],
+                    ),
+                ],
+            },
+        }
+        (self.root / "config" / "profile.local.json").write_text(
+            json.dumps(local_profile),
+            encoding="utf-8",
+        )
+
+        with self._context()[0], self._context()[1], self._context()[2]:
+            payload = profile_service.profile_editor_payload()
+            payload["targets"]["domains"] = ["geospatial analysis"]
+            result = profile_service.apply_editor_payload(payload, rebuild=False)
+
+        self.assertFalse(result["profile_adjustments"]["semantic_schema_upgraded"])
+        self.assertEqual(
+            [entry["id"] for entry in result["profile_adjustments"]["retired_matching_rules"]],
+            ["retail_focus"],
+        )
+        saved = json.loads(
+            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [rule["id"] for rule in saved["matching"]["rules"]],
+            ["retail_geospatial_crossover"],
+        )
+
+    def test_removing_last_domain_retires_its_rule_and_keeps_independent_rules(self):
+        local_profile = {
+            "schema_version": 3,
+            "targets": {
+                "opportunity_types": [],
+                "cycles": [],
+                "role_families": [],
+                "domains": ["finance"],
+                "supporting_skills": [],
+                "locations": [],
+                "exclusions": [],
+                "work_arrangements": [],
+            },
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 25,
+                "minimum_display_score": 40,
+                "tier_thresholds": {
+                    "priority": 75,
+                    "strong": 60,
+                    "watch": 40,
+                },
+                "rules": [
+                    self._rule("quant_finance", ["quantitative finance"]),
+                    self._rule("independent_marine", ["marine ecology"]),
+                ],
+            },
+        }
+        (self.root / "config" / "profile.local.json").write_text(
+            json.dumps(local_profile),
+            encoding="utf-8",
+        )
+
+        with self._context()[0], self._context()[1], self._context()[2]:
+            payload = profile_service.profile_editor_payload()
+            payload["targets"]["domains"] = []
+            result = profile_service.apply_editor_payload(payload, rebuild=False)
+
+        self.assertEqual(
+            [
+                entry["id"]
+                for entry in result["profile_adjustments"]["retired_matching_rules"]
+            ],
+            ["quant_finance"],
+        )
+        saved = json.loads(
+            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [rule["id"] for rule in saved["matching"]["rules"]],
+            ["independent_marine"],
+        )
+
+    def test_removing_a_role_keeps_a_rule_that_still_matches_a_selected_role(self):
+        local_profile = {
+            "schema_version": 3,
+            "targets": {
+                "opportunity_types": [],
+                "cycles": [],
+                "role_families": ["store planner", "data engineer"],
+                "domains": [],
+                "supporting_skills": [],
+                "locations": [],
+                "exclusions": [],
+                "work_arrangements": [],
+            },
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 25,
+                "minimum_display_score": 40,
+                "tier_thresholds": {
+                    "priority": 75,
+                    "strong": 60,
+                    "watch": 40,
+                },
+                "rules": [
+                    self._rule("store_role", ["store planner"]),
+                    self._rule(
+                        "planning_crossover",
+                        ["store planner", "data engineer"],
+                    ),
+                ],
+            },
+        }
+        (self.root / "config" / "profile.local.json").write_text(
+            json.dumps(local_profile),
+            encoding="utf-8",
+        )
+
+        with self._context()[0], self._context()[1], self._context()[2]:
+            payload = profile_service.profile_editor_payload()
+            payload["targets"]["role_families"] = ["data engineer"]
+            result = profile_service.apply_editor_payload(payload, rebuild=False)
+
+        self.assertEqual(
+            [entry["id"] for entry in result["profile_adjustments"]["retired_matching_rules"]],
+            ["store_role"],
+        )
+        saved = json.loads(
+            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            [rule["id"] for rule in saved["matching"]["rules"]],
+            ["planning_crossover"],
+        )
 
 
 if __name__ == "__main__":

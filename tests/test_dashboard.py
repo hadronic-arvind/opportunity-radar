@@ -151,8 +151,17 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('{action: "profile", profile: payload}', script)
         self.assertIn('profileCommitted = cloneProfile(settings.profile_editor)', script)
         self.assertIn("function profileValidationMessage(profile)", script)
+        self.assertIn("function profileRangeField(", script)
+        self.assertIn("function setProfilePage(page, focusTab)", script)
         self.assertIn('button.textContent = isEmpty ? "Set up profile" : "Edit profile"', script)
         self.assertIn("const profilePackOptions = Array.isArray(settings.source_packs)", script)
+        self.assertIn("String(pack && pack.description || \"\").trim().slice(0, 240)", script)
+        self.assertIn('["students-early-career", "Students and early career"]', script)
+        self.assertIn('["space-aerospace", "Space and aerospace"]', script)
+        self.assertIn('["robotics-autonomy", "Robotics and autonomy"]', script)
+        self.assertIn('["education-social-impact", "Education and social impact"]', script)
+        self.assertIn('input.setAttribute("aria-describedby", description.id)', script)
+        self.assertIn("choice.title = option.description", script)
         self.assertIn('button.setAttribute("aria-disabled", String(state.busy))', script)
         self.assertNotIn("button.disabled = state.busy", script)
         self.assertIn("replaceChildren", script)
@@ -168,29 +177,60 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('id="pagination" aria-label="Opportunity result pages"', template)
         self.assertIn('id="page-previous"', template)
         self.assertIn('id="page-next"', template)
-        self.assertIn('id="theme-switcher" role="group" aria-label="Color theme"', template)
+        self.assertIn('id="filter-row" role="group" aria-label="Opportunity filters"', template)
+        self.assertIn('id="theme-select" aria-label="Color theme"', template)
+        self.assertIn('id="source-search" type="search"', template)
+        self.assertIn('id="source-status-filter" aria-label="Filter sources by status"', template)
+        self.assertIn('id="source-show-more" type="button" aria-controls="source-list"', template)
+        self.assertIn('id="source-add-details"', template)
+        self.assertIn('id="source-add-form" novalidate', template)
+        self.assertIn('id="source-add-name" name="name"', template)
+        self.assertIn('id="source-add-url" name="url" type="url"', template)
+        self.assertIn('id="source-add-status" role="status" aria-live="polite"', template)
+        self.assertIn("macOS app only", template)
         self.assertIn('id="profile-card" hidden', template)
         self.assertIn('id="edit-profile-button"', template)
         self.assertIn('id="profile-dialog" aria-labelledby="profile-dialog-title"', template)
         self.assertIn('id="profile-form"', template)
+        self.assertIn('role="tablist" aria-label="Profile settings"', template)
+        self.assertIn('id="profile-basics-tab"', template)
+        self.assertIn('id="profile-advanced-tab"', template)
         self.assertIn("python3 -m monitor profile set --help", template)
         for theme in ("system", "light", "dark"):
-            self.assertIn('data-theme-option="{}"'.format(theme), template)
-        self.assertNotIn('id="theme-select"', template)
+            self.assertIn('<option value="{}">'.format(theme), template)
+        self.assertNotIn('data-theme-option=', template)
 
     def test_dashboard_uses_structured_dates_matches_and_contrast_safe_tokens(self):
         root = Path(__file__).resolve().parents[1] / "dashboard"
         script = (root / "app.js").read_text(encoding="utf-8")
+        template = (root / "template.html").read_text(encoding="utf-8")
         styles = (root / "styles.css").read_text(encoding="utf-8")
         self.assertIn('const dates = item.dates && typeof item.dates === "object"', script)
+        self.assertIn('const legacy = {', script)
         self.assertIn('raw.status || raw.state || raw.kind', script)
+        self.assertIn('if (structured.value || !legacy[name]) return structured', script)
+        self.assertIn('function compareNewestItems(left, right)', script)
+        self.assertIn(
+            'if (Boolean(leftPosted) !== Boolean(rightPosted)) return leftPosted ? -1 : 1',
+            script,
+        )
+        self.assertIn('return compareNewestItems(left, right)', script)
+        self.assertNotIn('dateSortValue(right, "posted", right.first_seen_at || "")', script)
+        self.assertIn('<option value="newest">Latest posted</option>', template)
         self.assertIn('const timeNode = element("time"', script)
+        self.assertIn('element("span", "meta-label", value.prefix)', script)
         self.assertIn('item.match && Array.isArray(item.match.components)', script)
-        self.assertIn("function matchEvidenceLabel(value)", script)
+        self.assertIn("function matchEvidenceLabel(value, detailed)", script)
+        self.assertIn('normalizeSearchText(field) !== "description"', script)
+        self.assertIn('matchEvidenceLabel(value, true)', script)
         self.assertIn('addTag(tags, "Eligibility details incomplete", "eligibility")', script)
+        self.assertIn('if (!String(item.description || "").trim()) addTag(tags, "Limited listing details", "limited-details")', script)
+        self.assertIn(".tag.limited-details {", styles)
         self.assertIn('settings.timeframes', script)
         self.assertNotIn('settings.target_season + " search"', script)
+        self.assertIn('@media (min-width: 981px) and (min-height: 1000px)', styles)
         self.assertIn('.side-column { position: sticky; top: 92px;', styles)
+        self.assertIn('.date-meta { gap: .35em; }', styles)
         self.assertIn('clip-path: inset(50%);', styles)
         self.assertIn('color: var(--primary-action-text)', styles)
         self.assertIn('background: var(--primary-action)', styles)
@@ -214,6 +254,20 @@ class DashboardTests(unittest.TestCase):
             )
             self.assertGreaterEqual((lighter + 0.05) / (darker + 0.05), 4.5)
 
+        faint = re.search(r":root \{.*?--faint:\s*(#[0-9a-fA-F]{6})", styles, re.DOTALL)
+        amber = re.search(r":root \{.*?--amber:\s*(#[0-9a-fA-F]{6})", styles, re.DOTALL)
+        self.assertIsNotNone(faint)
+        self.assertIsNotNone(amber)
+        for foreground, background in (
+            (faint.group(1), "#f5f3ee"),
+            (faint.group(1), "#ffffff"),
+            (amber.group(1), "#f6e8c9"),
+        ):
+            lighter, darker = sorted(
+                (luminance(background), luminance(foreground)), reverse=True
+            )
+            self.assertGreaterEqual((lighter + 0.05) / (darker + 0.05), 4.5)
+
     def test_profile_editor_is_hybrid_bounded_and_native_only_for_writes(self):
         root = Path(__file__).resolve().parents[1] / "dashboard"
         script = (root / "app.js").read_text(encoding="utf-8")
@@ -222,6 +276,8 @@ class DashboardTests(unittest.TestCase):
 
         self.assertIn("function profileChoiceField(", script)
         self.assertIn("function profileTagField(", script)
+        self.assertIn("function profileRangeField(", script)
+        self.assertIn("function renderRangeMap(", script)
         self.assertIn("function renderProfileRules(", script)
         self.assertIn("function renderDocumentRoutes(", script)
         self.assertIn('profileChoiceField("Current stage"', script)
@@ -231,14 +287,72 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('profileTagField("Demonstrated skills"', script)
         self.assertIn('profileChoiceField("Remote preference"', script)
         self.assertIn('profileTagField("Priority organizations"', script)
+        self.assertIn('profileRangeField("Minimum score to display"', script)
+        self.assertIn('profileRangeField("Minimum anchor strength"', script)
+        self.assertIn('advanced.appendChild(scoring.section)', script)
+        self.assertIn('basics.appendChild(defaultDocument.section)', script)
+        self.assertIn('advanced.appendChild(documentSection.section)', script)
+        self.assertIn("fields.append(basics, advanced)", script)
+        self.assertIn("setProfilePage(profileActivePage, false)", script)
         self.assertIn("existing.length >= limit", script)
         self.assertIn("profileDraft.matching.rules.length >= 100", script)
         self.assertIn("profileDraft.documents.routes.length >= 50", script)
         self.assertIn('if (!hasNativeBridge()) {', script)
         self.assertIn('profile-save-button" type="submit"', template)
+        self.assertIn('data-profile-page-tab="basics"', template)
+        self.assertIn('data-profile-page-tab="advanced"', template)
         self.assertIn(".profile-dialog {", styles)
         self.assertIn(".profile-choice input:checked + span", styles)
+        self.assertIn(".profile-range-row {", styles)
+        self.assertIn(".profile-page {", styles)
         self.assertNotIn("innerHTML", script)
+
+    def test_dashboard_scales_source_details_and_marks_opened_new_items_reviewed(self):
+        root = Path(__file__).resolve().parents[1] / "dashboard"
+        script = (root / "app.js").read_text(encoding="utf-8")
+        template = (root / "template.html").read_text(encoding="utf-8")
+        styles = (root / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("const SOURCE_PREVIEW_LIMIT = 12", script)
+        self.assertIn("function renderSourceList()", script)
+        self.assertIn("statusOrder[sourceStatus(left)]", script)
+        self.assertIn('sourceView.status !== "all"', script)
+        self.assertIn('sourceView.expanded ? matching : matching.slice(0, SOURCE_PREVIEW_LIMIT)', script)
+        self.assertIn('id="source-list-note" role="status" aria-live="polite"', template)
+        self.assertIn(".source-tools {", styles)
+        self.assertIn(".source-show-more {", styles)
+        self.assertIn(".source-add {", styles)
+        self.assertIn(".native-only-badge {", styles)
+
+        self.assertIn("const MAX_SOURCE_NAME_LENGTH = 120", script)
+        self.assertIn("const MAX_SOURCE_URL_LENGTH = 2000", script)
+        self.assertIn("function publicHttpsUrl(value)", script)
+        self.assertIn("function updateSourceFormAvailability()", script)
+        self.assertIn("function addSource(event)", script)
+        self.assertIn('{action: "source", name, url}', script)
+        self.assertIn('source-add-form").addEventListener("submit", addSource)', script)
+        self.assertIn("Adding sources is available in the macOS app.", script)
+        self.assertIn('String(source.last_error || "").replace(/\\s+/g, " ").trim().slice(0, 240)', script)
+        self.assertIn('element("span", "source-error", lastError)', script)
+
+        self.assertIn('link.dataset.id = item.id', script)
+        self.assertIn('const reviewedLink = event.target.closest("a.official-link[data-id]")', script)
+        self.assertIn('if (item && effective(item).status === "new") updateWorkflow(item.id, {status: "reviewed"});', script)
+
+    def test_profile_editor_stays_available_during_scan_and_queues_one_save(self):
+        script = (
+            Path(__file__).resolve().parents[1] / "dashboard" / "app.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('if (state.busy && state.pendingAction !== "scan")', script)
+        self.assertIn('state.queuedProfile = {request, profile: cloneProfile(payload)}', script)
+        self.assertIn('postNative({action: "profile", profile: payload, request})', script)
+        self.assertIn('"Scanning... Profile saved for the next scan."', script)
+        self.assertIn('state.pendingAction === "scan" && !profileQueued', script)
+        self.assertIn('document.getElementById("profile-fields").inert = profileActionBusy || profileQueued', script)
+        self.assertIn('if (action === "scan" && state.queuedProfile)', script)
+        self.assertIn('setBusy(true, "Applying saved profile...", state.queuedProfile.request)', script)
+        self.assertIn('state.profileRetryDraft = cloneProfile(state.queuedProfile.profile)', script)
 
 
 if __name__ == "__main__":

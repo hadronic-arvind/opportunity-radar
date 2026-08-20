@@ -1,4 +1,5 @@
 import contextlib
+import csv
 import io
 import json
 import os
@@ -11,7 +12,7 @@ from unittest.mock import patch
 from monitor import cli, config
 from monitor import profile as profile_service
 from monitor.database import Database
-from monitor.models import Opportunity
+from monitor.models import FetchResult, Opportunity
 
 
 class CliTests(unittest.TestCase):
@@ -20,7 +21,16 @@ class CliTests(unittest.TestCase):
         help_text = parser.format_help()
         self.assertEqual(parser.prog, "opportunity-radar")
         self.assertIn("Opportunity Radar scans and tracks opportunities", help_text)
-        commands = ("init", "profile", "scan", "dashboard", "sources", "status", "bookmark")
+        commands = (
+            "init",
+            "profile",
+            "scan",
+            "dashboard",
+            "sources",
+            "opportunities",
+            "status",
+            "bookmark",
+        )
         for command in commands:
             with self.subTest(command=command):
                 self.assertIn(command, help_text)
@@ -35,6 +45,12 @@ class CliTests(unittest.TestCase):
                 self.assertRaises(SystemExit),
             ):
                 parser.parse_args(["status", value, "apply", "--quiet"])
+            with (
+                self.subTest(opportunity_value=value),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                parser.parse_args(["opportunities", "show", value])
 
     def test_status_and_bookmark_commands_update_private_database(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -121,6 +137,398 @@ class CliTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "install started"):
                         command()
                     self.assertEqual(lifecycle_check.call_count, 2)
+
+    def test_source_management_cli_parses_add_and_dispatches_mutations(self):
+        parser = cli.build_parser()
+        parsed = parser.parse_args(
+            [
+                "sources",
+                "add",
+                "--name",
+                "Example Research",
+                "--url",
+                "https://jobs.ashbyhq.com/example",
+                "--kind",
+                "auto",
+                "--packs",
+                "research,fellowships",
+                "--cadence-hours",
+                "8",
+                "--skip-test",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(parsed.source_command, "add")
+        self.assertEqual(parsed.name, "Example Research")
+        self.assertEqual(parsed.kind, "auto")
+        self.assertEqual(parsed.cadence_hours, 8)
+        self.assertTrue(parsed.skip_test)
+        self.assertTrue(parsed.dry_run)
+
+        source = {
+            "id": "example_research",
+            "name": "Example Research",
+            "kind": "ashby",
+            "url": "https://jobs.ashbyhq.com/example",
+            "board": "example",
+        }
+        output = io.StringIO()
+        with (
+            patch("monitor.cli.build_custom_source", return_value=source) as build,
+            patch(
+                "monitor.cli.add_source",
+                return_value={
+                    "action": "added",
+                    "source": source,
+                    "saved": False,
+                    "status": "valid",
+                },
+            ) as add,
+            patch("monitor.cli.fetch_source") as fetch,
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(
+                cli.main(
+                    [
+                        "sources",
+                        "add",
+                        "--name",
+                        "Example Research",
+                        "--url",
+                        "https://jobs.ashbyhq.com/example",
+                        "--packs",
+                        "research,fellowships",
+                        "--cadence-hours",
+                        "8",
+                        "--skip-test",
+                        "--dry-run",
+                    ]
+                ),
+                0,
+            )
+        build.assert_called_once_with(
+            name="Example Research",
+            url="https://jobs.ashbyhq.com/example",
+            source_id="",
+            kind="auto",
+            adapter="",
+            packs=["research", "fellowships"],
+            cadence_hours=8,
+        )
+        add.assert_called_once_with(source, dry_run=True)
+        fetch.assert_not_called()
+        self.assertFalse(json.loads(output.getvalue())["saved"])
+
+        mutation_cases = (
+            ("enable", "set_source_enabled", True),
+            ("disable", "set_source_enabled", False),
+            ("remove", "remove_source", None),
+        )
+        for action, target, enabled in mutation_cases:
+            result = {"action": action, "source_id": "example", "saved": False}
+            with (
+                self.subTest(action=action),
+                patch("monitor.cli.{}".format(target), return_value=result) as mutation,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(
+                    cli.main(["sources", action, "example", "--dry-run"]),
+                    0,
+                )
+            if enabled is None:
+                mutation.assert_called_once_with("example", dry_run=True)
+            else:
+                mutation.assert_called_once_with("example", enabled, dry_run=True)
+
+    def test_source_add_does_not_save_after_a_failed_live_test(self):
+        source = {
+            "id": "example",
+            "name": "Example",
+            "kind": "ashby",
+            "url": "https://jobs.ashbyhq.com/example",
+            "board": "example",
+        }
+        errors = io.StringIO()
+        with (
+            patch("monitor.cli.build_custom_source", return_value=source),
+            patch(
+                "monitor.cli.fetch_source",
+                return_value=FetchResult([], "hash", status="error", message="bad feed"),
+            ),
+            patch("monitor.cli.add_source") as add,
+            contextlib.redirect_stderr(errors),
+        ):
+            self.assertEqual(
+                cli.main(
+                    [
+                        "sources",
+                        "add",
+                        "--name",
+                        "Example",
+                        "--url",
+                        "https://jobs.ashbyhq.com/example",
+                    ]
+                ),
+                2,
+            )
+        add.assert_not_called()
+        self.assertIn("Source test returned status error", errors.getvalue())
+
+    def test_source_list_and_show_support_machine_readable_output(self):
+        sources = [
+            {
+                "id": "enabled",
+                "name": "Enabled source",
+                "kind": "ashby",
+                "enabled": True,
+            },
+            {
+                "id": "disabled",
+                "name": "Disabled source",
+                "kind": "greenhouse",
+                "enabled": False,
+            },
+        ]
+        output = io.StringIO()
+        with (
+            patch("monitor.cli.load_sources", return_value=sources) as load,
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(
+                cli.main(["sources", "list", "--all", "--json"]),
+                0,
+            )
+        load.assert_called_once_with(include_disabled=True)
+        self.assertEqual(json.loads(output.getvalue()), sources)
+
+        summary = {**sources[1], "custom": False, "board": "disabled"}
+        output = io.StringIO()
+        with (
+            patch("monitor.cli.source_summary", return_value=summary) as show,
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(cli.main(["sources", "show", "disabled"]), 0)
+        show.assert_called_once_with("disabled")
+        self.assertEqual(json.loads(output.getvalue()), summary)
+
+    def test_opportunities_cli_supports_json_csv_search_show_and_filters(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            database_path = root / "data" / "opportunities.sqlite3"
+            database = Database(database_path)
+            database.initialize()
+            for source in (
+                {
+                    "id": "alpha",
+                    "name": "Alpha Source",
+                    "kind": "ashby",
+                    "url": "https://jobs.ashbyhq.com/alpha",
+                    "enabled": True,
+                },
+                {
+                    "id": "beta",
+                    "name": "Beta Source",
+                    "kind": "greenhouse",
+                    "url": "https://boards.greenhouse.io/beta",
+                    "enabled": False,
+                },
+            ):
+                database.sync_source(source)
+            opportunities = (
+                Opportunity(
+                    "alpha",
+                    "percent",
+                    "100% Research Intern",
+                    "Alpha Labs",
+                    "https://example.org/percent",
+                    location="Remote",
+                    description="Research systems and scientific computing",
+                    opportunity_type="internship",
+                    posted_at="2026-08-01T00:00:00+00:00",
+                    deadline_at="2026-09-15",
+                    metadata={"team": "Research"},
+                    score=88,
+                    tier="priority",
+                    reasons=["Research match"],
+                    warnings=["Competitive"],
+                ),
+                Opportunity(
+                    "alpha",
+                    "designer",
+                    "Product Designer",
+                    "Alpha Labs",
+                    "https://example.org/designer",
+                    location="New York",
+                    opportunity_type="job",
+                    score=55,
+                    tier="watch",
+                ),
+                Opportunity(
+                    "beta",
+                    "fellow",
+                    "Public Interest Fellow",
+                    "Beta Foundation",
+                    "https://example.org/fellow",
+                    opportunity_type="fellowship",
+                    score=95,
+                    tier="priority",
+                ),
+            )
+            for opportunity in opportunities:
+                database.upsert_opportunity(opportunity)
+            identifiers = {
+                row["external_id"]: row["id"]
+                for row in database.connection.execute(
+                    "SELECT id, external_id FROM opportunities"
+                ).fetchall()
+            }
+            with database.transaction() as connection:
+                connection.execute(
+                    "UPDATE opportunities SET status='applied', active=0 "
+                    "WHERE external_id='designer'"
+                )
+                connection.execute(
+                    "UPDATE sources SET last_status='ok' WHERE id='alpha'"
+                )
+            database.close()
+
+            project_path = lambda *parts: root.joinpath(*parts)
+            output = io.StringIO()
+            with (
+                patch("monitor.cli.project_path", side_effect=project_path),
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(
+                    cli.main(
+                        [
+                            "opportunities",
+                            "list",
+                            "--status",
+                            "new",
+                            "--type",
+                            "internship",
+                            "--source",
+                            "alpha",
+                            "--min-score",
+                            "80",
+                            "--limit",
+                            "10",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+            rows = json.loads(output.getvalue())
+            self.assertEqual([row["id"] for row in rows], [identifiers["percent"]])
+            self.assertEqual(set(rows[0]), set(cli.OPPORTUNITY_OUTPUT_FIELDS))
+            self.assertEqual(rows[0]["source_name"], "Alpha Source")
+
+            output = io.StringIO()
+            with (
+                patch("monitor.cli.project_path", side_effect=project_path),
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(
+                    cli.main(["opportunities", "search", "100%", "--json"]),
+                    0,
+                )
+            self.assertEqual(
+                [row["id"] for row in json.loads(output.getvalue())],
+                [identifiers["percent"]],
+            )
+
+            output = io.StringIO()
+            with (
+                patch("monitor.cli.project_path", side_effect=project_path),
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(
+                    cli.main(
+                        [
+                            "opportunities",
+                            "list",
+                            "--include-inactive",
+                            "--limit",
+                            "3",
+                            "--csv",
+                        ]
+                    ),
+                    0,
+                )
+            reader = csv.DictReader(io.StringIO(output.getvalue()))
+            csv_rows = list(reader)
+            self.assertEqual(tuple(reader.fieldnames or ()), cli.OPPORTUNITY_OUTPUT_FIELDS)
+            self.assertEqual(
+                [row["id"] for row in csv_rows],
+                [identifiers["fellow"], identifiers["percent"], identifiers["designer"]],
+            )
+
+            output = io.StringIO()
+            with (
+                patch("monitor.cli.project_path", side_effect=project_path),
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(
+                    cli.main(
+                        [
+                            "opportunities",
+                            "show",
+                            identifiers["percent"],
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+            shown = json.loads(output.getvalue())
+            self.assertEqual(shown["reasons"], ["Research match"])
+            self.assertEqual(shown["warnings"], ["Competitive"])
+            self.assertEqual(shown["metadata"]["team"], "Research")
+            self.assertEqual(shown["source_name"], "Alpha Source")
+            self.assertEqual(shown["source_status"], "ok")
+            self.assertNotIn("reasons_json", shown)
+
+            output = io.StringIO()
+            with (
+                patch("monitor.cli.project_path", side_effect=project_path),
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(
+                    cli.main(["opportunities", "show", identifiers["percent"]]),
+                    0,
+                )
+            self.assertIn("100% Research Intern at Alpha Labs", output.getvalue())
+            self.assertIn("Research systems and scientific computing", output.getvalue())
+
+    def test_opportunity_query_bounds_are_enforced_with_or_without_a_database(self):
+        for database_exists in (False, True):
+            with self.subTest(database_exists=database_exists), tempfile.TemporaryDirectory() as tempdir:
+                root = Path(tempdir)
+                if database_exists:
+                    database = Database(root / "data" / "opportunities.sqlite3")
+                    database.initialize()
+                    database.close()
+                for arguments, message in (
+                    (["--limit", "0"], "--limit must be from 1 to 500"),
+                    (["--limit", "501"], "--limit must be from 1 to 500"),
+                    (["--min-score", "-1"], "--min-score must be from 0 to 100"),
+                    (["--min-score", "101"], "--min-score must be from 0 to 100"),
+                    (["--query", "x" * 241], "Search query must be at most 240 characters"),
+                ):
+                    errors = io.StringIO()
+                    with (
+                        self.subTest(arguments=arguments),
+                        patch(
+                            "monitor.cli.project_path",
+                            side_effect=lambda *parts: root.joinpath(*parts),
+                        ),
+                        contextlib.redirect_stderr(errors),
+                        contextlib.redirect_stdout(io.StringIO()),
+                    ):
+                        self.assertEqual(
+                            cli.main(["opportunities", "list"] + arguments),
+                            2,
+                        )
+                    self.assertIn(message, errors.getvalue())
 
     def test_profile_apply_stdin_uses_exact_editor_contract_and_private_files(self):
         with tempfile.TemporaryDirectory() as tempdir:

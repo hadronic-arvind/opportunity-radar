@@ -1,5 +1,6 @@
 import platform
 import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -57,7 +58,25 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn('response["request"] = requestID', self.source)
         self.assertIn("window.OpportunityRadarNative?.complete(", self.source)
         self.assertIn("window.OpportunityRadarNative?.setTheme(", self.source)
-        self.assertIn("action == .scan || action == .profile", self.source)
+        self.assertIn("action == .scan || action == .profile || action == .source", self.source)
+
+    def test_source_bridge_validates_a_bounded_public_url_and_uses_fixed_argv(self):
+        self.assertIn("case source", self.source)
+        self.assertIn('Set(["version", "action", "name", "url", "request"])', self.source)
+        self.assertIn('let name = payload["name"] as? String', self.source)
+        self.assertIn("validSourceName(name)", self.source)
+        self.assertIn('let url = payload["url"] as? String', self.source)
+        self.assertIn("validPublicHTTPSURL(url)", self.source)
+        self.assertIn('(1...120).contains(value.count)', self.source)
+        self.assertIn('(12...2_000).contains(value.utf8.count)', self.source)
+        self.assertIn('components.scheme?.lowercased() == "https"', self.source)
+        self.assertIn("components.user == nil", self.source)
+        self.assertIn("components.password == nil", self.source)
+        self.assertIn("host.contains(\".\")", self.source)
+        self.assertIn('"local" + "host", "local", "internal", "test", "invalid", "example", "onion"', self.source)
+        self.assertIn('"sources",\n                "add",\n                "--name",\n                name,\n                "--url",\n                url,', self.source)
+        self.assertIn("private func sourceFailureMessage(_ diagnostics: CommandDiagnostics)", self.source)
+        self.assertNotIn('arguments: ["-m", "monitor", "sources", "add", name, url]', self.source)
 
     def test_runtime_python_lookup_and_process_boundary_are_explicit(self):
         self.assertIn('appendingPathComponent("python-path"', self.source)
@@ -98,6 +117,34 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertNotIn("return diagnostics.standardError", self.source)
         self.assertNotIn("return diagnostics.standardOutput", self.source)
 
+    def test_profile_save_is_queued_behind_an_active_scan(self):
+        self.assertIn("private struct QueuedProfileCommand", self.source)
+        self.assertIn("private var queuedProfileCommand: QueuedProfileCommand?", self.source)
+        self.assertIn("if scanIsRunning || scanCompletionPending", self.source)
+        self.assertIn("guard queuedProfileCommand == nil else", self.source)
+        self.assertIn("queuedProfileCommand = QueuedProfileCommand(", self.source)
+        self.assertIn("private func finishScanCompletion()", self.source)
+        self.assertIn("input: queued.input", self.source)
+        self.assertIn("guard runningCommand != nil || queuedProfileCommand != nil else", self.source)
+
+    def test_failed_queued_profile_preserves_the_page_retry_draft(self):
+        dashboard = (PROJECT_ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")
+        self.assertIn(
+            "const wasQueuedProfile = action === \"profile\" && Boolean(state.queuedProfile)",
+            dashboard,
+        )
+        self.assertIn(
+            'wasQueuedProfile ? " Your edits are preserved here; retry to load the completed scan."',
+            dashboard,
+        )
+        self.assertIn("state.profileRetryDraft = completedProfile", dashboard)
+        self.assertNotIn("reloadAfterQueuedProfile", self.source)
+        profile_completion = self.source[
+            self.source.index("private func finishBridgeCommand("):
+            self.source.index("private func finishScanCompletion()")
+        ]
+        self.assertNotIn("reloadDashboard(after: .scan)", profile_completion)
+
     def test_quit_waits_for_helpers_and_cancels_safely_after_a_deadline(self):
         self.assertIn("private let terminationDeferralSeconds = 30.0", self.source)
         self.assertIn("NSWindowDelegate,", self.source)
@@ -120,12 +167,25 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
             finish.index("completeDeferredTerminationIfNeeded()"),
         )
 
+    def test_application_icon_uses_vector_radar_clock_geometry(self):
+        icon_start = self.source.index("private enum RadarIcon")
+        icon_end = self.source.index("private final class AppDelegate", icon_start)
+        icon = self.source[icon_start:icon_end]
+        self.assertIn("private static func radarSweep", icon)
+        self.assertIn("ring.windingRule = .evenOdd", icon)
+        self.assertIn("let signalDots:", icon)
+        self.assertIn("let handGradient", icon)
+        self.assertIn("NSBezierPath", icon)
+        self.assertNotIn("asymmetricTile", icon)
+        self.assertNotIn("NSImage(contentsOf", icon)
+
     @unittest.skipUnless(platform.system() == "Darwin", "native app compiles only on macOS")
-    def test_native_source_compiles_with_appkit_and_webkit(self):
+    def test_native_source_compiles_and_renders_declared_icon_contract(self):
         xcrun = shutil.which("xcrun")
         self.assertIsNotNone(xcrun)
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
+            executable = root / "opportunity-radar"
             completed = subprocess.run(
                 [
                     xcrun,
@@ -139,7 +199,7 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
                     "WebKit",
                     str(SOURCE),
                     "-o",
-                    str(root / "opportunity-radar"),
+                    str(executable),
                 ],
                 check=False,
                 stdout=subprocess.PIPE,
@@ -147,6 +207,19 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
+
+            icon = root / "icon.png"
+            rendered = subprocess.run(
+                [str(executable), "--render-icon", str(icon), "64"],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            payload = icon.read_bytes()
+            self.assertEqual(payload[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(struct.unpack(">II", payload[16:24]), (64, 64))
 
 
 if __name__ == "__main__":

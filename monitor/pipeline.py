@@ -197,7 +197,6 @@ def run_scan(force: bool = False, send_notifications: bool = False) -> Dict[str,
                 if not database.source_due(source["id"], force=force):
                     continue
                 checked += 1
-                previous_hash = database.source_hash(source["id"])
                 try:
                     result = fetch_source(source)
                     current_ids = []
@@ -223,15 +222,9 @@ def run_scan(force: bool = False, send_notifications: bool = False) -> Dict[str,
                         elif outcome == "updated":
                             updated_count += 1
                     database.mark_source_stale(source["id"], current_ids)
-                    page_changed = (
-                        previous_hash
-                        and previous_hash != result.content_hash
-                        and source["kind"] == "watch_page"
-                    )
-                    if page_changed:
-                        created = database.source_change_success(
+                    if source["kind"] == "watch_page":
+                        created = database.source_watch_success(
                             source["id"],
-                            previous_hash,
                             result.content_hash,
                             len(result.opportunities),
                             "Page changed: {}".format(source["name"]),

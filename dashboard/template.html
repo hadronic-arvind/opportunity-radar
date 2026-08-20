@@ -20,11 +20,14 @@
         <span class="scan-state" id="scan-state" role="status" aria-live="polite"></span>
         <button class="control subtle" id="refresh-button" type="button">Refresh</button>
         <button class="control accent" id="scan-all-button" type="button">Scan all</button>
-        <div class="theme-switcher" id="theme-switcher" role="group" aria-label="Color theme">
-          <button class="theme-option active" type="button" data-theme-option="system" aria-pressed="true">System</button>
-          <button class="theme-option" type="button" data-theme-option="light" aria-pressed="false">Light</button>
-          <button class="theme-option" type="button" data-theme-option="dark" aria-pressed="false">Dark</button>
-        </div>
+        <label class="theme-control" for="theme-select">
+          <span class="sr-only">Color theme</span>
+          <select class="theme-select" id="theme-select" aria-label="Color theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
       </div>
     </header>
 
@@ -62,13 +65,13 @@
               <span class="sr-only">Sort opportunities</span>
               <select id="sort" class="sort" aria-label="Sort opportunities">
                 <option value="fit">Best fit</option>
-                <option value="newest">Newest</option>
+                <option value="newest">Latest posted</option>
                 <option value="deadline">Deadline</option>
                 <option value="organization">Organization</option>
               </select>
             </label>
           </div>
-          <div class="filter-row" id="filter-row" aria-label="Opportunity filters"></div>
+          <div class="filter-row" id="filter-row" role="group" aria-label="Opportunity filters"></div>
           <div class="results-meta">
             <span id="results-note" role="status" aria-live="polite">0 opportunities</span>
             <button class="text-button" id="clear-filters" type="button" hidden>Clear filters</button>
@@ -99,9 +102,43 @@
               <span class="health-mark" id="health-mark" aria-hidden="true"></span>
             </div>
             <div class="source-overview" id="source-overview"></div>
-            <details>
-              <summary>View source details</summary>
+            <details id="source-details">
+              <summary>View source details <span id="source-detail-count"></span></summary>
+              <div class="source-tools" id="source-tools">
+                <label class="source-search-field">
+                  <span class="sr-only">Search sources</span>
+                  <input id="source-search" type="search" placeholder="Search sources..." autocomplete="off">
+                </label>
+                <label>
+                  <span class="sr-only">Filter sources by status</span>
+                  <select id="source-status-filter" aria-label="Filter sources by status">
+                    <option value="all">All statuses</option>
+                    <option value="error">Needs attention</option>
+                    <option value="blocked">Access limited</option>
+                    <option value="waiting">Waiting</option>
+                    <option value="ok">Healthy</option>
+                  </select>
+                </label>
+              </div>
+              <p class="source-list-note" id="source-list-note" role="status" aria-live="polite"></p>
               <div class="source-list" id="source-list"></div>
+              <button class="control subtle source-show-more" id="source-show-more" type="button" aria-controls="source-list" hidden>Show all sources</button>
+            </details>
+            <details class="source-add" id="source-add-details">
+              <summary>Add your own source <span class="native-only-badge">macOS app only</span></summary>
+              <form id="source-add-form" novalidate>
+                <p class="source-add-intro">Follow a company or program that is missing by adding its official jobs or careers page.</p>
+                <label class="source-add-field" for="source-add-name">
+                  <span>Company or program</span>
+                  <input id="source-add-name" name="name" type="text" autocomplete="organization" maxlength="120" placeholder="Example organization" required>
+                </label>
+                <label class="source-add-field" for="source-add-url">
+                  <span>Official jobs or careers URL</span>
+                  <input id="source-add-url" name="url" type="url" inputmode="url" autocomplete="url" maxlength="2000" placeholder="https://example.org/careers" required>
+                </label>
+                <p class="source-add-status" id="source-add-status" role="status" aria-live="polite"></p>
+                <button class="control accent source-add-submit" id="source-add-submit" type="submit">Test and add source</button>
+              </form>
             </details>
             <div class="event-section" id="event-section" hidden>
               <p class="kicker">Recent page changes</p>
@@ -143,6 +180,10 @@
       </div>
       <div class="profile-readonly-note" id="profile-readonly-note" hidden>
         This dashboard is read-only outside the app. To make changes, run <code>python3 -m monitor profile set --help</code> in Terminal.
+      </div>
+      <div class="profile-page-tabs" role="tablist" aria-label="Profile settings">
+        <button class="profile-page-tab active" id="profile-basics-tab" type="button" role="tab" aria-selected="true" aria-controls="profile-basics-page" data-profile-page-tab="basics">Basics</button>
+        <button class="profile-page-tab" id="profile-advanced-tab" type="button" role="tab" aria-selected="false" aria-controls="profile-advanced-page" data-profile-page-tab="advanced">Advanced</button>
       </div>
       <div class="profile-fields" id="profile-fields"></div>
       <div class="profile-sheet-actions">

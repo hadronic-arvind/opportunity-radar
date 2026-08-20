@@ -3,10 +3,11 @@
 import json
 import os
 import sqlite3
+import urllib.parse
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from .models import Opportunity
 from .scoring import (
@@ -19,7 +20,15 @@ from .text import stable_hash
 
 MAX_DASHBOARD_DISCOVERY_ITEMS = 5000
 PROFILE_FINGERPRINT_KEY = "profile_fingerprint"
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
+SOURCE_HASH_SCHEMA_VERSION = 5
+WORKFLOW_STATUS_RANK = {
+    "new": 0,
+    "reviewed": 1,
+    "skip": 2,
+    "apply": 3,
+    "applied": 4,
+}
 SOURCE_HASH_FIELDS = (
     "title",
     "organization",
@@ -49,7 +58,9 @@ CREATE TABLE IF NOT EXISTS sources (
     last_status TEXT NOT NULL DEFAULT 'never',
     last_error TEXT NOT NULL DEFAULT '',
     item_count INTEGER NOT NULL DEFAULT 0,
-    last_content_hash TEXT NOT NULL DEFAULT ''
+    last_content_hash TEXT NOT NULL DEFAULT '',
+    pending_content_hash TEXT NOT NULL DEFAULT '',
+    pending_content_checks INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS opportunities (
@@ -153,6 +164,92 @@ def _source_content_hash(values: Dict[str, Any]) -> str:
     return stable_hash(json.dumps(payload, sort_keys=True), 32)
 
 
+def _preserve_listing_dates(item: Opportunity, existing: sqlite3.Row) -> None:
+    """Keep authoritative dates and their provenance across sparse feed updates."""
+
+    try:
+        previous_metadata = json.loads(existing["metadata_json"])
+    except (TypeError, ValueError, json.JSONDecodeError):
+        previous_metadata = {}
+    previous_dates = (
+        previous_metadata.get("dates", {})
+        if isinstance(previous_metadata, dict)
+        and isinstance(previous_metadata.get("dates"), dict)
+        else {}
+    )
+    metadata = dict(item.metadata) if isinstance(item.metadata, dict) else {}
+    dates = dict(metadata.get("dates", {})) if isinstance(metadata.get("dates"), dict) else {}
+
+    for attribute, key in (("posted_at", "posted"), ("deadline_at", "deadline")):
+        previous_value = existing[attribute]
+        if getattr(item, attribute) is not None or previous_value in (None, ""):
+            continue
+        setattr(item, attribute, previous_value)
+        previous_evidence = previous_dates.get(key)
+        if isinstance(previous_evidence, dict) and previous_evidence.get("value"):
+            dates[key] = previous_evidence
+        else:
+            dates[key] = {
+                "state": "present" if key == "posted" else "date",
+                "kind": "posted" if key == "posted" else "deadline",
+                "value": previous_value,
+                "provenance": "database.preserved",
+                "confidence": "medium",
+            }
+
+    if dates:
+        metadata["dates"] = dates
+        item.metadata = metadata
+
+
+def _without_query_key(url: str, excluded_key: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    query = [
+        (key, value)
+        for key, value in urllib.parse.parse_qsl(
+            parsed.query,
+            keep_blank_values=True,
+        )
+        if key != excluded_key
+    ]
+    return urllib.parse.urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urllib.parse.urlencode(query),
+            parsed.fragment,
+        )
+    )
+
+
+def _merged_user_state(rows: Iterable[sqlite3.Row]) -> Dict[str, Any]:
+    """Merge duplicate identity rows without weakening deliberate user state."""
+
+    records = list(rows)
+    strongest = max(
+        records,
+        key=lambda row: (
+            WORKFLOW_STATUS_RANK.get(str(row["status"]), -1),
+            str(row["status_updated_at"] or ""),
+            str(row["id"]),
+        ),
+    )
+    first_seen_at = min(str(row["first_seen_at"]) for row in records)
+    applied_values = sorted(
+        str(row["applied_at"])
+        for row in records
+        if row["applied_at"] not in (None, "")
+    )
+    return {
+        "first_seen_at": first_seen_at,
+        "status": strongest["status"],
+        "status_updated_at": strongest["status_updated_at"],
+        "applied_at": applied_values[0] if applied_values else None,
+        "bookmarked": int(any(bool(row["bookmarked"]) for row in records)),
+    }
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -176,6 +273,21 @@ class Database:
             )
         self.connection.executescript(SCHEMA)
         with self.transaction() as connection:
+            source_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(sources)").fetchall()
+            }
+            source_additions = {
+                "pending_content_hash": "TEXT NOT NULL DEFAULT ''",
+                "pending_content_checks": "INTEGER NOT NULL DEFAULT 0",
+            }
+            for name, declaration in source_additions.items():
+                if name not in source_columns:
+                    connection.execute(
+                        "ALTER TABLE sources ADD COLUMN {} {}".format(
+                            name, declaration
+                        )
+                    )
             columns = {
                 row["name"]
                 for row in connection.execute("PRAGMA table_info(opportunities)").fetchall()
@@ -192,7 +304,7 @@ class Database:
                             name, declaration
                         )
                     )
-            if previous_version < SCHEMA_VERSION:
+            if previous_version < SOURCE_HASH_SCHEMA_VERSION:
                 last_identifier = ""
                 selected = ", ".join(
                     ("id",)
@@ -220,11 +332,24 @@ class Database:
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
+        nested = self.connection.in_transaction
+        savepoint = "opportunity_radar_nested"
+        if nested:
+            self.connection.execute("SAVEPOINT {}".format(savepoint))
+        else:
+            self.connection.execute("BEGIN")
         try:
             yield self.connection
-            self.connection.commit()
+            if nested:
+                self.connection.execute("RELEASE SAVEPOINT {}".format(savepoint))
+            else:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if nested:
+                self.connection.execute("ROLLBACK TO SAVEPOINT {}".format(savepoint))
+                self.connection.execute("RELEASE SAVEPOINT {}".format(savepoint))
+            else:
+                self.connection.rollback()
             raise
 
     def sync_source(self, source: Dict[str, Any]) -> None:
@@ -295,11 +420,86 @@ class Database:
             connection.execute(
                 """
                 UPDATE sources SET last_checked_at=?, last_success_at=?, last_status='ok',
-                    last_error='', item_count=?, last_content_hash=?
+                    last_error='', item_count=?, last_content_hash=?,
+                    pending_content_hash='', pending_content_checks=0
                 WHERE id=?
                 """,
                 (now, now, count, content_hash, source_id),
             )
+
+    def source_watch_success(
+        self,
+        source_id: str,
+        content_hash: str,
+        count: int,
+        title: str,
+        url: str,
+        confirmations: int = 2,
+    ) -> bool:
+        """Confirm a stable watch-page change before creating an event."""
+
+        required = max(1, min(int(confirmations), 3))
+        now = utc_now()
+        with self.transaction() as connection:
+            source = connection.execute(
+                """
+                SELECT last_content_hash, pending_content_hash,
+                       pending_content_checks
+                FROM sources WHERE id=?
+                """,
+                (source_id,),
+            ).fetchone()
+            if source is None:
+                return False
+            baseline = str(source["last_content_hash"] or "")
+            pending = str(source["pending_content_hash"] or "")
+            checks = int(source["pending_content_checks"] or 0)
+            if not baseline or content_hash == baseline:
+                connection.execute(
+                    """
+                    UPDATE sources SET last_checked_at=?, last_success_at=?,
+                        last_status='ok', last_error='', item_count=?,
+                        last_content_hash=?, pending_content_hash='',
+                        pending_content_checks=0
+                    WHERE id=?
+                    """,
+                    (now, now, count, content_hash, source_id),
+                )
+                return False
+
+            next_checks = checks + 1 if pending == content_hash else 1
+            if next_checks < required:
+                connection.execute(
+                    """
+                    UPDATE sources SET last_checked_at=?, last_success_at=?,
+                        last_status='ok', last_error='', item_count=?,
+                        pending_content_hash=?, pending_content_checks=?
+                    WHERE id=?
+                    """,
+                    (now, now, count, content_hash, next_checks, source_id),
+                )
+                return False
+
+            cursor = connection.execute(
+                """
+                INSERT INTO source_events(
+                    source_id, event_type, occurred_at, previous_hash,
+                    content_hash, title, url
+                ) VALUES (?, 'page_changed', ?, ?, ?, ?, ?)
+                """,
+                (source_id, now, baseline, content_hash, title[:240], url[:2000]),
+            )
+            connection.execute(
+                """
+                UPDATE sources SET last_checked_at=?, last_success_at=?,
+                    last_status='ok', last_error='', item_count=?,
+                    last_content_hash=?, pending_content_hash='',
+                    pending_content_checks=0
+                WHERE id=?
+                """,
+                (now, now, count, content_hash, source_id),
+            )
+        return cursor.rowcount > 0
 
     def source_error(self, source_id: str, error: str) -> None:
         with self.transaction() as connection:
@@ -344,16 +544,107 @@ class Database:
             connection.execute(
                 """
                 UPDATE sources SET last_checked_at=?, last_success_at=?, last_status='ok',
-                    last_error='', item_count=?, last_content_hash=?
+                    last_error='', item_count=?, last_content_hash=?,
+                    pending_content_hash='', pending_content_checks=0
                 WHERE id=?
                 """,
                 (now, now, count, content_hash, source_id),
             )
         return cursor.rowcount > 0
 
+    def _legacy_paginated_aliases(
+        self,
+        item: Opportunity,
+        excluded_id: Optional[str] = None,
+    ) -> List[sqlite3.Row]:
+        """Find only bounded HTML aliases that normalize to this exact listing URL."""
+
+        if not item.url:
+            return []
+        parsed_url = urllib.parse.urlsplit(item.url)
+        if any(
+            key == "page"
+            for key, _value in urllib.parse.parse_qsl(
+                parsed_url.query,
+                keep_blank_values=True,
+            )
+        ):
+            return []
+        base_url = urllib.parse.urlunsplit(
+            (parsed_url.scheme, parsed_url.netloc, parsed_url.path, "", "")
+        )
+        escaped_base = (
+            base_url.replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        exclusion = "AND opportunities.id != ?" if excluded_id else ""
+        parameters = [item.source_id]
+        if excluded_id:
+            parameters.append(excluded_id)
+        parameters.append(escaped_base + "%")
+        candidates = self.connection.execute(
+            """
+            SELECT opportunities.id, opportunities.raw_hash,
+                   opportunities.posted_at, opportunities.deadline_at,
+                   opportunities.metadata_json, opportunities.url,
+                   opportunities.status, opportunities.status_updated_at,
+                   opportunities.applied_at, opportunities.bookmarked,
+                   opportunities.first_seen_at, opportunities.last_seen_at,
+                   opportunities.active
+            FROM opportunities
+            JOIN sources ON sources.id = opportunities.source_id
+            WHERE opportunities.source_id=?
+              AND sources.kind='html_links'
+              {}
+              AND opportunities.url LIKE ? ESCAPE '\\'
+            ORDER BY opportunities.active DESC,
+                     opportunities.first_seen_at ASC
+            LIMIT 100
+            """.format(exclusion),
+            parameters,
+        ).fetchall()
+        return [
+            candidate
+            for candidate in candidates
+            if any(
+                key == "page"
+                for key, _value in urllib.parse.parse_qsl(
+                    urllib.parse.urlsplit(candidate["url"]).query,
+                    keep_blank_values=True,
+                )
+            )
+            and _without_query_key(candidate["url"], "page") == item.url
+        ]
+
     def upsert_opportunity(self, item: Opportunity, seen_at: Optional[str] = None) -> str:
         now = seen_at or utc_now()
         identifier = stable_hash("{}:{}".format(item.source_id, item.external_id), 24)
+        existing = self.connection.execute(
+            """
+            SELECT id, raw_hash, posted_at, deadline_at, metadata_json,
+                   status, status_updated_at, applied_at, bookmarked,
+                   first_seen_at, last_seen_at, active, url
+            FROM opportunities
+            WHERE source_id=? AND external_id=?
+            """,
+            (item.source_id, item.external_id),
+        ).fetchone()
+        legacy_identity = False
+        aliases = self._legacy_paginated_aliases(
+            item,
+            existing["id"] if existing is not None else None,
+        )
+        if existing is None and aliases:
+            existing = aliases.pop(0)
+            legacy_identity = True
+        if existing is not None:
+            _preserve_listing_dates(item, existing)
+            for alias in aliases:
+                if item.posted_at is not None and item.deadline_at is not None:
+                    break
+                _preserve_listing_dates(item, alias)
+        merged_state = _merged_user_state([existing] + aliases) if aliases else None
         raw_hash = _source_content_hash(
             {
                 **{field: getattr(item, field) for field in SOURCE_HASH_FIELDS},
@@ -361,12 +652,13 @@ class Database:
                 "recommended_resume": item.recommended_resume,
             }
         )
-        existing = self.connection.execute(
-            "SELECT raw_hash FROM opportunities WHERE source_id=? AND external_id=?",
-            (item.source_id, item.external_id),
-        ).fetchone()
         result = "new" if existing is None else ("updated" if existing["raw_hash"] != raw_hash else "unchanged")
         with self.transaction() as connection:
+            if legacy_identity:
+                connection.execute(
+                    "UPDATE opportunities SET external_id=? WHERE id=?",
+                    (item.external_id, existing["id"]),
+                )
             connection.execute(
                 """
                 INSERT INTO opportunities(
@@ -423,6 +715,29 @@ class Database:
                     raw_hash,
                 ),
             )
+            if merged_state is not None:
+                canonical_id = existing["id"] if existing is not None else identifier
+                connection.execute(
+                    """
+                    UPDATE opportunities
+                    SET first_seen_at=?, status=?, status_updated_at=?,
+                        applied_at=?, bookmarked=?
+                    WHERE id=?
+                    """,
+                    (
+                        merged_state["first_seen_at"],
+                        merged_state["status"],
+                        merged_state["status_updated_at"],
+                        merged_state["applied_at"],
+                        merged_state["bookmarked"],
+                        canonical_id,
+                    ),
+                )
+                placeholders = ",".join("?" for _alias in aliases)
+                connection.execute(
+                    "DELETE FROM opportunities WHERE id IN ({})".format(placeholders),
+                    [alias["id"] for alias in aliases],
+                )
         return result
 
     def rescore_for_profile(self, profile: Dict[str, Any]) -> Dict[str, Any]:
@@ -621,7 +936,8 @@ class Database:
             for row in self.connection.execute(
                 """
                 SELECT id, name, kind, category, url, cadence_hours, enabled,
-                       last_checked_at, last_success_at, last_status, item_count
+                       last_checked_at, last_success_at, last_status, last_error,
+                       item_count
                 FROM sources
                 WHERE enabled=1
                 ORDER BY name

@@ -8,6 +8,8 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List
 
+from . import __version__
+
 
 def summarize(items: List[Dict[str, Any]]) -> str:
     if not items:
@@ -49,7 +51,10 @@ def notify_webhook(payload: Dict[str, Any]) -> bool:
     request = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json", "User-Agent": "OpportunityRadar/0.3"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "OpportunityRadar/{}".format(__version__),
+        },
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=20):

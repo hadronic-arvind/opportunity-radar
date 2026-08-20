@@ -2,6 +2,7 @@
 """Fail when the exact Git publication set contains private local data."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -65,6 +66,10 @@ FORBIDDEN_PUBLIC_SOURCE_KEYS = {
     "recommended_resume",
     "target_season",
     "tier",
+}
+PUBLIC_BINARY_BLOBS = {
+    "assets/opportunity-radar-icon-v2.png":
+        "0d0866faeb538da1a0fc2327338e5f47584ee6bee12b734411c940acf3e13fde",
 }
 
 
@@ -368,6 +373,14 @@ def _quoted_value_present(content: str, value: str) -> bool:
     )
 
 
+def _intentional_legal_identity(relative: str, content: str, value: str) -> bool:
+    """Allow an explicit copyright-holder name only on LICENSE's copyright line."""
+    if relative != "LICENSE":
+        return False
+    pattern = r"^Copyright \(c\) \d{{4}} {}\.?$".format(re.escape(value.strip()))
+    return bool(re.search(pattern, content, flags=re.MULTILINE))
+
+
 def content_patterns() -> Iterable[Tuple[str, re.Pattern[str]]]:
     return [
         ("absolute macOS home path", re.compile("/" + "Users" + r"/[A-Za-z0-9._-]+/")),
@@ -477,7 +490,10 @@ def scan(include_history: bool = False) -> List[str]:
             failures.append("symbolic link is publishable: {}".format(relative))
             continue
         if b"\0" in raw_content:
-            failures.append("binary blob requires an explicit public allowlist: {}".format(relative))
+            expected_digest = PUBLIC_BINARY_BLOBS.get(relative)
+            actual_digest = hashlib.sha256(raw_content).hexdigest()
+            if not expected_digest or expected_digest != actual_digest:
+                failures.append("binary blob requires an explicit public allowlist: {}".format(relative))
         if relative in {"config/profile.json", "config/sources.json"}:
             kind = "profile" if relative.endswith("profile.json") else "sources"
             try:
@@ -499,7 +515,10 @@ def scan(include_history: bool = False) -> List[str]:
             if pattern.search(content):
                 failures.append("{} in {}".format(label, relative))
         for value in dynamic_values:
-            if value.casefold() in content.casefold():
+            if (
+                value.casefold() in content.casefold()
+                and not _intentional_legal_identity(relative, content, value)
+            ):
                 failures.append("local profile value in {}".format(relative))
                 break
         if any(_quoted_value_present(content, value) for value in local_labels):

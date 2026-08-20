@@ -25,6 +25,13 @@ NONCE_MARKER = "__OPPORTUNITY_NONCE__"
 MARKER = DATA_MARKER
 
 
+def _bounded_setting(value: Any, fallback: str, limit: int) -> str:
+    text = " ".join(str(value or fallback).split())
+    if len(text) <= limit:
+        return text
+    return text[: max(1, limit - 3)].rstrip() + "..."
+
+
 def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
     dashboard = profile.get("dashboard", {})
     configured_timeframes = profile.get("timeframes", dashboard.get("timeframes", []))
@@ -49,19 +56,31 @@ def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
         if str(pack.get("id", "")).strip()
     ]
     return {
-        "title": str(dashboard.get("title", "Opportunity Radar")),
-        "subtitle": str(
+        "title": _bounded_setting(
+            dashboard.get("title"),
+            "Opportunity Radar",
+            80,
+        ),
+        "subtitle": _bounded_setting(
             dashboard.get(
                 "subtitle",
                 "Review matches and track applications from the sources you follow.",
-            )
+            ),
+            "Review matches and track applications from the sources you follow.",
+            240,
         ),
         "timeframes": timeframes,
         "target_season": legacy_target,
-        "default_reason": str(
-            dashboard.get("default_reason", "Matched by your configured preferences.")
+        "default_reason": _bounded_setting(
+            dashboard.get("default_reason"),
+            "Matched by your configured preferences.",
+            240,
         ),
-        "document_label": str(dashboard.get("document_label", "Application track")),
+        "document_label": _bounded_setting(
+            dashboard.get("document_label"),
+            "Application track",
+            80,
+        ),
         "profile_editor": profile_editor_payload(profile),
         "source_packs": packs,
     }

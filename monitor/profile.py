@@ -17,6 +17,11 @@ from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Seque
 
 from . import config
 from .scoring import DEFAULT_FIELDS, MATCH_FIELDS
+from .targeting import (
+    PROFILE_SEMANTICS_SCHEMA_VERSION,
+    effective_matching_rules,
+    reconcile_matching_rules,
+)
 
 
 EDITOR_VERSION = 1
@@ -342,7 +347,7 @@ def _legacy_rules(profile: Mapping[str, Any]) -> List[Dict[str, Any]]:
 def _matching_projection(profile: Mapping[str, Any]) -> Dict[str, Any]:
     configured = profile.get("matching", {})
     matching = dict(configured) if isinstance(configured, dict) else {}
-    matching["rules"] = _legacy_rules(profile)
+    matching["rules"] = effective_matching_rules(profile, _legacy_rules(profile))
     # Every profile edited through the app or current CLI uses the structured,
     # field-aware scorer. This makes simple editor fields effective even when a
     # pre-editor profile did not have an explicit engine setting.
@@ -884,6 +889,48 @@ def _existing_local_payload(destination: Path, name: str) -> Dict[str, Any]:
     return {}
 
 
+def _reconcile_editor_semantics(
+    previous_profile: Mapping[str, Any],
+    editor: Dict[str, Any],
+    previous_schema_version: int,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Make basic target removals authoritative over stale positive rules."""
+    reconciled = deepcopy(editor)
+    previous_targets = previous_profile.get("targets", {})
+    previous_targets = previous_targets if isinstance(previous_targets, dict) else {}
+    next_targets = reconciled.get("targets", {})
+    next_targets = next_targets if isinstance(next_targets, dict) else {}
+    matching = reconciled.get("matching", {})
+    matching = matching if isinstance(matching, dict) else {}
+    configured_rules = matching.get("rules", [])
+    configured_rules = configured_rules if isinstance(configured_rules, list) else []
+    retained_rules, adjustments = reconcile_matching_rules(
+        previous_targets,
+        next_targets,
+        configured_rules,
+        previous_schema_version,
+    )
+    if previous_schema_version < PROFILE_SEMANTICS_SCHEMA_VERSION:
+        _effective_rules, migration_adjustments = reconcile_matching_rules(
+            previous_targets,
+            previous_targets,
+            _legacy_rules(previous_profile),
+            previous_schema_version,
+        )
+        known_retired = {
+            (entry["id"], entry["label"], entry["reason"])
+            for entry in adjustments["retired_matching_rules"]
+        }
+        for entry in migration_adjustments["retired_matching_rules"]:
+            key = (entry["id"], entry["label"], entry["reason"])
+            if key not in known_retired:
+                known_retired.add(key)
+                adjustments["retired_matching_rules"].append(entry)
+    matching["rules"] = retained_rules
+    reconciled["matching"] = matching
+    return reconciled, adjustments
+
+
 def _replace_known(mapping: Dict[str, Any], known: Iterable[str], values: Mapping[str, Any]) -> None:
     for key in known:
         mapping.pop(key, None)
@@ -895,7 +942,7 @@ def _updated_local_profile(current: Dict[str, Any], editor: Mapping[str, Any]) -
     schema_version = updated.get("schema_version", 2)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         schema_version = 2
-    updated["schema_version"] = max(2, schema_version)
+    updated["schema_version"] = max(PROFILE_SEMANTICS_SCHEMA_VERSION, schema_version)
     updated["timeframes"] = deepcopy(editor["timeframes"])
 
     candidate = updated.get("candidate", {})
@@ -958,7 +1005,32 @@ def _updated_local_sources(current: Dict[str, Any], selected_packs: Sequence[str
     sources = updated.get("sources", [])
     if not isinstance(sources, list):
         raise ProfileValidationError("Local source overrides must be a list")
-    updated["sources"] = deepcopy(sources)
+    chosen = {str(value) for value in selected_packs}
+    layers = _source_layers()
+    public_sources = layers[0].get("sources", []) if layers else []
+    public_packs = {
+        str(source.get("id")): {
+            str(value) for value in source.get("packs", []) if str(value).strip()
+        }
+        for source in public_sources
+        if isinstance(source, dict) and str(source.get("id", "")).strip()
+    }
+    retained_sources = []
+    for entry in sources:
+        # A profile pack change is authoritative over a prior positive override
+        # for a built-in source. Keep explicit disables and complete private
+        # source definitions, but do not let a hidden `enabled: true` entry
+        # silently re-enable a source whose packs the user just turned off.
+        if (
+            isinstance(entry, dict)
+            and set(entry).issubset({"id", "enabled"})
+            and entry.get("enabled") is True
+        ):
+            packs = public_packs.get(str(entry.get("id", "")))
+            if packs and not chosen.intersection(packs):
+                continue
+        retained_sources.append(deepcopy(entry))
+    updated["sources"] = retained_sources
     return updated
 
 
@@ -1334,9 +1406,13 @@ def refresh_profile_state() -> Dict[str, Any]:
     database = Database(database_path)
     try:
         database.initialize()
-        _register_sources(database, all_sources, profile)
-        rescore = database.rescore_for_profile(profile)
-        render_dashboard(database.dashboard_payload(), profile=profile)
+        # Keep source reconciliation and rescoring in one outer transaction.
+        # Database helpers use nested savepoints, so a dashboard-render failure
+        # leaves the database exactly as it was before the settings refresh.
+        with database.transaction():
+            _register_sources(database, all_sources, profile)
+            rescore = database.rescore_for_profile(profile)
+            render_dashboard(database.dashboard_payload(), profile=profile)
     finally:
         database.close()
     return {
@@ -1442,6 +1518,21 @@ def apply_editor_payload(
             sources_path = config.local_sources_path()
             local_profile = _existing_local_payload(profile_path, "profile.local.json")
             local_sources = _existing_local_payload(sources_path, "sources.local.json")
+            raw_schema_version = local_profile.get(
+                "schema_version",
+                effective.get("schema_version", 2),
+            )
+            previous_schema_version = (
+                raw_schema_version
+                if isinstance(raw_schema_version, int)
+                and not isinstance(raw_schema_version, bool)
+                else 2
+            )
+            editor, adjustments = _reconcile_editor_semantics(
+                effective,
+                editor,
+                previous_schema_version,
+            )
             updated_profile = _updated_local_profile(local_profile, editor)
             updated_sources = _updated_local_sources(
                 local_sources, editor["selected_packs"]
@@ -1453,6 +1544,7 @@ def apply_editor_payload(
                     "revision": current_revision,
                     "profile_path": str(profile_path),
                     "sources_path": str(sources_path),
+                    "profile_adjustments": adjustments,
                 }
             _destinations, refresh = _persist_and_refresh(
                 updated_profile,
@@ -1467,5 +1559,6 @@ def apply_editor_payload(
         "revision": new_revision,
         "selected_packs": list(editor["selected_packs"]),
         "timeframes": list(editor["timeframes"]),
+        "profile_adjustments": adjustments,
         **refresh,
     }
