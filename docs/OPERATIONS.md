@@ -13,7 +13,7 @@ Neither waits for a network scan before first paint.
 
 The native dashboard buttons can check due sources or force all enabled sources.
 The native profile manager creates, duplicates, renames, activates, and deletes named profiles without opening a terminal.
-The editor updates keywords, targets, timeframes, source packs, preferred organizations, score visibility, and document routes for the active profile.
+The editor updates keywords, targets, timeframes, a target-aware STEM coverage preset, source packs, preferred organizations, score visibility, and document routes for the active profile.
 It remains available during a scan and queues one saved revision behind that scan.
 The running scan keeps its original profile snapshot, then the queued save rescores the database before the dashboard reloads.
 The native Sources card can add a company or program from its official hosted job-board or careers URL.
@@ -31,7 +31,7 @@ Use the CLI for the same profile workflow when the app is not installed:
 
 ```bash
 python3 -m monitor profile show
-python3 -m monitor profile set --include "research software,physics" --timeframe "Summer 2028"
+python3 -m monitor profile set --include "research software,physics" --timeframe "Summer 2028" --coverage-preset automatic
 python3 -m monitor profile validate
 python3 -m monitor profile list
 python3 -m monitor profile activate "Profile name"

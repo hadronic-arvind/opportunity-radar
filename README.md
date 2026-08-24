@@ -24,7 +24,9 @@ python3 -m monitor init
 ./scripts/open_dashboard.sh
 ```
 
-`init` creates private, ignored configuration files and lets you choose source packs, preferred work, locations, organizations, and a default resume or CV label.
+`init` creates private, ignored configuration files and lets you choose a target-aware STEM coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
+Automatic coverage is the default and derives a broad source mix from the roles, fields, skills, career stage, and opportunity types in that profile.
+Choosing a named field preset also seeds practical role, domain, and skill targets that remain editable.
 Skip it to use the neutral starter profile and five diverse structured feeds.
 
 ## Choose an interface
@@ -74,7 +76,8 @@ python3 -m monitor profile show
 python3 -m monitor profile set \
   --timeframe "Summer 2028" \
   --include "scientific computing,machine learning" \
-  --opportunity-types "internship,research_program"
+  --opportunity-types "internship,research_program" \
+  --coverage-preset automatic
 python3 -m monitor profile validate
 ```
 
@@ -103,9 +106,11 @@ They are not acceptance probabilities.
 
 ## Sources and customization
 
-The public catalog contains more than 250 official resources across computing, mathematical sciences, physics, quantum science, astronomy, chemistry, materials, Earth and geospatial science, ecology, environment, agriculture, food science, medicine, clinical research, public health, pharma, neuroscience, civil infrastructure, electronics, semiconductors, ocean science, veterinary science, and the original cross-industry packs.
+The public catalog contains 274 official resources across computing, mathematical sciences, physics, quantum science, astronomy, chemistry, materials, Earth and geospatial science, ecology, environment, agriculture, food science, medicine, clinical research, public health, pharma, neuroscience, civil infrastructure, electronics, semiconductors, ocean science, veterinary science, and the original cross-industry packs.
+It includes 115 automated listing feeds, with 39 feeds spanning medicine, clinical research, biotech, pharma, public health, and neuroscience.
 The five-source starter stays small, while the broader packs remain opt-in.
-Supported structured feeds become searchable listings when their pack is selected.
+Supported structured feeds become searchable listings when their pack is selected directly or through a profile coverage preset.
+Named presets add bounded target suggestions as well as sources, which gives a new profile useful matches before the user learns the advanced scoring controls.
 Large official directories remain available in the dashboard resource library without being fetched automatically, so broad coverage does not make scans unexpectedly slow.
 
 ```bash

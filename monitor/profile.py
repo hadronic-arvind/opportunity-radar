@@ -17,6 +17,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from . import config
+from .coverage import (
+    AUTOMATIC_PRESET,
+    validate_coverage_preset,
+)
 from .scoring import DEFAULT_FIELDS, MATCH_FIELDS
 from .targeting import (
     PROFILE_SEMANTICS_SCHEMA_VERSION,
@@ -44,6 +48,7 @@ EXPECTED_EDITOR_KEYS = {
     "version",
     "expected_revision",
     "timeframes",
+    "coverage_preset",
     "selected_packs",
     "candidate",
     "targets",
@@ -51,6 +56,7 @@ EXPECTED_EDITOR_KEYS = {
     "matching",
     "documents",
 }
+OPTIONAL_EDITOR_KEYS = {"coverage_preset"}
 CANDIDATE_KEYS = {
     "current_stage",
     "expected_graduation",
@@ -765,6 +771,18 @@ def _source_layers() -> List[Dict[str, Any]]:
     return config.source_payloads()
 
 
+def _coverage_preset() -> str:
+    selected = AUTOMATIC_PRESET
+    for payload in _source_layers():
+        if "coverage_preset" not in payload:
+            continue
+        try:
+            selected = validate_coverage_preset(payload["coverage_preset"])
+        except ValueError as error:
+            raise ProfileValidationError(str(error)) from error
+    return selected
+
+
 def _selected_packs() -> List[str]:
     selected: Optional[List[str]] = None
     for payload in _source_layers():
@@ -790,6 +808,7 @@ def _revision(profile: Mapping[str, Any]) -> str:
         "source_preferences": [
             {
                 "selected_packs": layer.get("selected_packs"),
+                "coverage_preset": layer.get("coverage_preset", AUTOMATIC_PRESET),
                 "sources": layer.get("sources", []),
             }
             for layer in source_layers[1:]
@@ -808,10 +827,12 @@ def profile_editor_payload(profile: Optional[Dict[str, Any]] = None) -> Dict[str
     """Return only fields the dashboard editor is allowed to read and change."""
     effective = config.load_profile() if profile is None else deepcopy(profile)
     timeframes = _profile_timeframes(effective)
+    coverage_preset = _coverage_preset()
     payload = {
         "version": EDITOR_VERSION,
         "expected_revision": _revision(effective),
         "timeframes": timeframes,
+        "coverage_preset": coverage_preset,
         "selected_packs": _selected_packs(),
         "candidate": _candidate_projection(effective),
         "targets": _targets_projection(effective, timeframes),
@@ -828,7 +849,7 @@ def validate_editor_payload(
 ) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         raise ProfileValidationError("Profile editor payload must be an object")
-    missing = sorted(EXPECTED_EDITOR_KEYS - set(payload))
+    missing = sorted((EXPECTED_EDITOR_KEYS - OPTIONAL_EDITOR_KEYS) - set(payload))
     extra = sorted(set(payload) - EXPECTED_EDITOR_KEYS)
     if missing or extra:
         details = []
@@ -848,6 +869,12 @@ def validate_editor_payload(
     timeframes = _string_list(
         payload["timeframes"], "timeframes", MAX_TIMEFRAMES, 120
     )
+    try:
+        coverage_preset = validate_coverage_preset(
+            payload.get("coverage_preset", AUTOMATIC_PRESET)
+        )
+    except ValueError as error:
+        raise ProfileValidationError(str(error)) from error
     selected_packs = _string_list(payload["selected_packs"], "selected_packs", 64, 80)
     if not selected_packs:
         raise ProfileValidationError("Select at least one source pack")
@@ -870,6 +897,7 @@ def validate_editor_payload(
         "version": EDITOR_VERSION,
         "expected_revision": expected_revision,
         "timeframes": timeframes,
+        "coverage_preset": coverage_preset,
         "selected_packs": selected_packs,
         "candidate": candidate,
         "targets": targets,
@@ -1099,12 +1127,17 @@ def _updated_local_profile(current: Dict[str, Any], editor: Mapping[str, Any]) -
     return updated
 
 
-def _updated_local_sources(current: Dict[str, Any], selected_packs: Sequence[str]) -> Dict[str, Any]:
+def _updated_local_sources(
+    current: Dict[str, Any],
+    selected_packs: Sequence[str],
+    coverage_preset: str,
+) -> Dict[str, Any]:
     updated = deepcopy(current)
     schema_version = updated.get("schema_version", 2)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         schema_version = 2
     updated["schema_version"] = max(2, schema_version)
+    updated["coverage_preset"] = validate_coverage_preset(coverage_preset)
     updated["selected_packs"] = list(selected_packs)
     sources = updated.get("sources", [])
     if not isinstance(sources, list):
@@ -1152,6 +1185,7 @@ def _normalize_initial_configuration(
             "version": EDITOR_VERSION,
             "expected_revision": "",
             "timeframes": timeframes,
+            "coverage_preset": source_registry.get("coverage_preset", AUTOMATIC_PRESET),
             "selected_packs": source_registry.get("selected_packs", []),
             "candidate": _candidate_projection(profile),
             "targets": _targets_projection(profile, timeframes),
@@ -1165,7 +1199,11 @@ def _normalize_initial_configuration(
     )
     return (
         _updated_local_profile(profile, editor),
-        _updated_local_sources(source_registry, editor["selected_packs"]),
+        _updated_local_sources(
+            source_registry,
+            editor["selected_packs"],
+            editor["coverage_preset"],
+        ),
     )
 
 
@@ -1680,7 +1718,9 @@ def apply_editor_payload(
             )
             updated_profile = _updated_local_profile(local_profile, editor)
             updated_sources = _updated_local_sources(
-                local_sources, editor["selected_packs"]
+                local_sources,
+                editor["selected_packs"],
+                editor["coverage_preset"],
             )
             if dry_run:
                 return {
@@ -1703,6 +1743,7 @@ def apply_editor_payload(
         "status": "saved",
         "saved": True,
         "revision": new_revision,
+        "coverage_preset": editor["coverage_preset"],
         "selected_packs": list(editor["selected_packs"]),
         "timeframes": list(editor["timeframes"]),
         "profile_adjustments": adjustments,
@@ -1838,6 +1879,7 @@ def apply_profile_management_payload(
                         "profile": {},
                         "sources": {
                             "schema_version": 2,
+                            "coverage_preset": AUTOMATIC_PRESET,
                             "selected_packs": default_packs,
                             "sources": [],
                         },

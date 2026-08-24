@@ -19,6 +19,7 @@ from .config import (
     resolve_private_state_path,
     resolve_project_value,
 )
+from .coverage import AUTOMATIC_PRESET, coverage_preset_ids, target_defaults_for_preset
 from .dashboard import render_dashboard
 from .database import Database
 from .fetchers import MAX_HTML_LINK_PAGES, _remote_url_parts, fetch_source
@@ -153,6 +154,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--packs", default="", help="Comma-separated source pack ids"
     )
     initialize_parser.add_argument(
+        "--coverage-preset",
+        choices=coverage_preset_ids(),
+        default=AUTOMATIC_PRESET,
+        help="Automatic, manual, or field-specific STEM source coverage",
+    )
+    initialize_parser.add_argument(
         "--include", default="", help="Comma-separated roles, skills, or domains to favor"
     )
     initialize_parser.add_argument(
@@ -230,6 +237,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Target season or cycle; repeat to select more than one",
     )
     profile_set.add_argument("--packs", help="Comma-separated source pack ids")
+    profile_set.add_argument(
+        "--coverage-preset",
+        choices=coverage_preset_ids(),
+        help="Automatic, manual, or field-specific STEM source coverage",
+    )
     profile_set.add_argument("--current-stage", help="Current education or career stage")
     profile_set.add_argument("--expected-graduation", help="Expected graduation month or year")
     profile_set.add_argument("--opportunity-types", help="Comma-separated target opportunity types")
@@ -677,6 +689,7 @@ def command_init(args: argparse.Namespace) -> int:
     else:
         values = {
             "pack_ids": comma_values(args.packs) or default_pack_ids(),
+            "coverage_preset": args.coverage_preset,
             "include_terms": comma_values(args.include),
             "exclude_terms": comma_values(args.exclude),
             "locations": comma_values(args.locations),
@@ -722,6 +735,7 @@ def _print_profile_summary(payload: Dict[str, Any]) -> None:
     thresholds = matching.get("tier_thresholds", {})
     print("Profile revision: {}".format(payload["expected_revision"][:12]))
     print("Timeframes: {}".format(", ".join(payload["timeframes"]) or "Any timeframe"))
+    print("Coverage preset: {}".format(payload["coverage_preset"]))
     print("Source packs: {}".format(", ".join(payload["selected_packs"])))
     print("Current stage: {}".format(candidate.get("current_stage", "Not specified")))
     print("Expected graduation: {}".format(candidate.get("expected_graduation", "Not specified")))
@@ -945,6 +959,17 @@ def command_profile_set(args: argparse.Namespace) -> int:
             changed = True
         if args.packs is not None:
             payload["selected_packs"] = comma_values(args.packs)
+            changed = True
+        if args.coverage_preset is not None:
+            payload["coverage_preset"] = args.coverage_preset
+            for key, values in target_defaults_for_preset(args.coverage_preset).items():
+                current = targets.get(key, [])
+                current = current if isinstance(current, list) else []
+                targets[key] = list(
+                    dict.fromkeys(
+                        [str(value) for value in current if str(value).strip()] + values
+                    )
+                )
             changed = True
         if args.current_stage is not None:
             if args.current_stage.strip():

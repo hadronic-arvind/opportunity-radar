@@ -4,6 +4,13 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .config import load_source_packs, load_sources
+from .coverage import (
+    AUTOMATIC_PRESET,
+    MANUAL_PRESET,
+    coverage_preset_payload,
+    target_defaults_for_preset,
+    validate_coverage_preset,
+)
 from .profile import initialize_local_configuration
 
 
@@ -150,8 +157,21 @@ def interactive_values() -> Dict[str, Any]:
             selected.append(str(packs[int(token) - 1]["id"]))
         else:
             selected.append(token)
+    print("Choose a STEM coverage preset:")
+    print("   0. automatic (recommended) - Infer broad source coverage from your goals")
+    for index, preset in enumerate(coverage_preset_payload(), 1):
+        print("  {:>2}. {} - {}".format(index, preset["id"], preset["description"]))
+    print("   m. manual - Use only the source packs selected above")
+    raw_preset = input("Coverage preset [automatic]: ").strip().casefold()
+    if raw_preset.isdigit() and 1 <= int(raw_preset) <= len(coverage_preset_payload()):
+        coverage_preset = str(coverage_preset_payload()[int(raw_preset) - 1]["id"])
+    elif raw_preset == "m":
+        coverage_preset = MANUAL_PRESET
+    else:
+        coverage_preset = raw_preset or AUTOMATIC_PRESET
     return {
         "pack_ids": validate_pack_ids(selected),
+        "coverage_preset": validate_coverage_preset(coverage_preset),
         "include_terms": comma_values(input("Roles, skills, or domains to favor (optional): ")),
         "exclude_terms": comma_values(input("Terms to exclude (optional): ")),
         "locations": comma_values(input("Preferred locations or remote (optional): ")),
@@ -173,9 +193,11 @@ def initialize(
     default_document: str = "General",
     target: str = "",
     timeframes: Sequence[str] = (),
+    coverage_preset: str = MANUAL_PRESET,
     force: bool = False,
 ) -> Dict[str, Any]:
     selected = validate_pack_ids(pack_ids)
+    preset = validate_coverage_preset(coverage_preset)
     source_counts = source_selection_counts(selected)
     profile = build_profile(
         selected,
@@ -187,14 +209,24 @@ def initialize(
         target,
         timeframes,
     )
+    defaults = target_defaults_for_preset(preset)
+    for key, values in defaults.items():
+        existing = profile["targets"].get(key, [])
+        profile["targets"][key] = list(dict.fromkeys(list(existing) + values))
     profile_path, sources_path = write_local_configuration(
         profile,
-        {"schema_version": 2, "selected_packs": selected, "sources": []},
+        {
+            "schema_version": 2,
+            "coverage_preset": preset,
+            "selected_packs": selected,
+            "sources": [],
+        },
         force=force,
         known_pack_ids=available_packs(),
     )
     return {
         "packs": selected,
+        "coverage_preset": preset,
         **source_counts,
         "profile": profile_path.name,
         "sources": sources_path.name,

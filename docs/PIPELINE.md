@@ -38,6 +38,10 @@ Normalized text, URLs, metadata values, macOS notification arguments, and in-mem
 
 The public catalog groups sources into overlapping packs.
 A source selected by several packs is still registered and fetched once.
+Each profile stores an automatic, named, or manual coverage preset alongside explicit pack choices.
+Automatic coverage infers broad packs from target roles, domains, skills, career stage, and opportunity types, while named presets provide a stable field baseline and manual mode is an explicit opt-out.
+When selected during onboarding or profile editing, a named preset also merges bounded role, domain, and skill suggestions into empty or existing target lists so its collected listings can be matched immediately.
+The effective pack set is the union of preset packs and explicit choices, so new catalog feeds become available to matching profiles without rewriting their private files.
 Only a small structured starter pack is enabled before onboarding.
 Private source additions and state changes are scoped to the active named profile, schema-validated, serialized with profile and scan activity, written with mode `0600`, and reconciled with SQLite in one rollback-safe refresh.
 Manual directories can remain visible in the bounded resource library with `auto_enable: false`, so selecting a broad pack does not schedule a large set of non-listing page checks.
@@ -105,6 +109,8 @@ Search input is debounced, and each search, filter, or view change resets to the
 The generated dashboard includes at most the 5,000 highest-fit active discovery records while always preserving every planned or applied record.
 When that safety limit is reached, the result summary says so explicitly.
 
+The desktop layout keeps the established compact control and type scale, and new profile and coverage selectors reuse the same native-select styling as sorting controls.
+Narrow layouts retain larger touch targets.
 In a regular browser, workflow state has a bounded local-storage fallback and scan controls show the corresponding CLI command.
 In the optional macOS app, SQLite is authoritative.
 

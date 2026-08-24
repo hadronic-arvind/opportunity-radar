@@ -93,6 +93,27 @@ NEW_STEM_DOMAINS = {
 }
 
 VERIFIED_2026_08_23_STEM_FEEDS = {
+    "flatiron_health_greenhouse",
+    "eikon_therapeutics_greenhouse",
+    "neumora_therapeutics_greenhouse",
+    "beam_therapeutics_greenhouse",
+    "verve_therapeutics_greenhouse",
+    "oscar_health_greenhouse",
+    "adaptive_biotechnologies_greenhouse",
+    "abcellera_greenhouse",
+    "revolution_medicines_greenhouse",
+    "relay_therapeutics_greenhouse",
+    "sword_health_greenhouse",
+    "zocdoc_greenhouse",
+    "open_evidence_ashby",
+    "freed_ashby",
+    "insitro_ashby",
+    "ambience_healthcare_ashby",
+    "benchling_ashby",
+    "abridge_ashby",
+    "commure_ashby",
+    "deep_genomics_lever",
+    "lyra_health_lever",
     "xaira_therapeutics_greenhouse",
     "bond_vet_greenhouse",
     "generate_biomedicines_greenhouse",
@@ -351,7 +372,7 @@ class PublicSourceCatalogTests(unittest.TestCase):
             self.assertEqual(source["verified_at"], "2026-08-23", source_id)
             self.assertEqual(source["source_type"], "listing_feed", source_id)
             self.assertEqual(source["support_level"], "supported", source_id)
-            self.assertIn(source["kind"], {"greenhouse", "lever"}, source_id)
+            self.assertIn(source["kind"], {"ashby", "greenhouse", "lever"}, source_id)
 
         for source_id, expected in REPRESENTATIVE_STEM_FEEDS.items():
             source = sources[source_id]

@@ -16,6 +16,7 @@ For scripts or reproducible setup, use non-interactive flags:
 
 ```bash
 python3 -m monitor init --non-interactive \
+  --coverage-preset software-data-ai \
   --packs data-software,cybersecurity \
   --include "backend,distributed systems,security engineering" \
   --exclude "unpaid,commission only" \
@@ -29,7 +30,7 @@ Onboarding asks only about work preferences.
 It does not request demographic or other protected personal attributes.
 
 The optional macOS app presents the same profile as a guided setup screen with separate Basics and Advanced pages.
-It uses selectable single- and multiple-choice controls for source packs, career stage, opportunity types, work arrangements, and remote preference, with open text entries for timeframes, roles, skills, locations, exclusions, and organizations.
+It uses consistent select and multiple-choice controls for the STEM coverage preset, source packs, career stage, opportunity types, work arrangements, and remote preference, with open text entries for timeframes, roles, skills, locations, exclusions, and organizations.
 Advanced contains exact scoring controls, matching rules, and document routing, while the most intuitive bounded values use accessible sliders.
 
 After onboarding, inspect or change the profile at any time:
@@ -41,6 +42,7 @@ python3 -m monitor profile set \
   --include "research software,scientific machine learning" \
   --exclude "sales,marketing" \
   --opportunity-types "internship,research_program" \
+  --coverage-preset automatic \
   --packs "engineering,data-software,academia-research"
 python3 -m monitor profile validate
 ```
@@ -51,7 +53,7 @@ Every successful change rescores stored opportunities and rebuilds the dashboard
 
 ## Named profiles
 
-Each saved profile has its own name, matching preferences, source packs, source overrides, and private additions.
+Each saved profile has its own name, matching preferences, coverage preset, source packs, source overrides, and private additions.
 Only one profile is active at a time.
 The active profile controls dashboard scores, discovery visibility, enabled source packs, scheduled scans, CLI searches, and notifications.
 
@@ -138,7 +140,22 @@ The public catalog includes these packs:
 
 A source may belong to multiple packs but is fetched only once per scan.
 The starter pack enables five structured, no-secret employer feeds.
-Other packs are opt-in so a new clone remains fast and predictable.
+Other packs are selected directly or by a coverage preset, while a new clone without onboarding remains fast and predictable.
+
+## STEM coverage presets
+
+The default `automatic` preset recalculates effective source packs from the profile's roles, domains, skills, career stage, and opportunity types whenever the profile is saved.
+It recognizes broad software, data, AI, engineering, robotics, mathematics, quantitative science, physics, space, chemistry, materials, Earth science, climate, life science, medicine, pharma, public health, agriculture, infrastructure, electronics, ocean science, and veterinary targets.
+The editor and onboarding also offer named presets for each of those areas when a user wants a predictable fixed baseline.
+Selecting a named preset merges a short editable set of representative roles, domains, and skills into the profile, without replacing targets the user already entered.
+The `manual` preset uses only explicitly checked packs.
+Explicitly checked packs are retained in automatic and named modes, so a user can extend a preset without cloning its whole definition into private configuration.
+
+```bash
+python3 -m monitor profile set --coverage-preset medicine-health
+python3 -m monitor profile set --coverage-preset automatic
+python3 -m monitor profile set --coverage-preset manual --packs medicine-clinical,public-health
+```
 
 ## Matching rules
 
@@ -273,6 +290,7 @@ The source object within an entry uses the same registry shape as the older `con
 ```json
 {
   "schema_version": 2,
+  "coverage_preset": "automatic",
   "selected_packs": ["data-software", "public-interest"],
   "sources": [
     {"id": "figma_greenhouse", "enabled": false},
@@ -281,7 +299,7 @@ The source object within an entry uses the same registry shape as the older `con
 }
 ```
 
-Pack selection applies dynamically, so future catalog sources in a selected pack follow the user's choice without rewriting the local file.
+Pack selection and coverage presets apply dynamically, so future catalog sources in an effective pack follow the user's choice without rewriting the local file.
 An individual `enabled` entry in the same local registry overrides pack membership.
 Saving a pack change through the profile editor removes positive built-in overrides that no longer belong to any selected pack, so turning off a pack also hides those sources and their prior listings.
 Explicit disables and complete private source definitions are preserved.

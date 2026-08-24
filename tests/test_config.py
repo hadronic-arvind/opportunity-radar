@@ -261,6 +261,108 @@ class ConfigTests(unittest.TestCase):
                 ["manual_resource"],
             )
 
+    def test_automatic_coverage_adds_packs_from_profile_targets(self):
+        (self.root / "config" / "profile.json").write_text(
+            json.dumps({"targets": {"domains": ["clinical medicine"]}}),
+            encoding="utf-8",
+        )
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [
+                        {"id": "starter-diverse", "default": True},
+                        {"id": "medicine-clinical"},
+                    ],
+                    "sources": [
+                        {
+                            "id": "starter",
+                            "packs": ["starter-diverse"],
+                            "enabled": False,
+                        },
+                        {
+                            "id": "clinical",
+                            "packs": ["medicine-clinical"],
+                            "enabled": False,
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        local = self.root / "config" / "sources.local.json"
+        local.write_text(
+            json.dumps(
+                {
+                    "coverage_preset": "automatic",
+                    "selected_packs": ["starter-diverse"],
+                    "sources": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with patch.object(config, "PROJECT_ROOT", self.root):
+            self.assertEqual(
+                [source["id"] for source in config.load_sources()],
+                ["starter", "clinical"],
+            )
+
+            local.write_text(
+                json.dumps(
+                    {
+                        "coverage_preset": "manual",
+                        "selected_packs": ["starter-diverse"],
+                        "sources": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [source["id"] for source in config.load_sources()],
+                ["starter"],
+            )
+
+            local.write_text(
+                json.dumps(
+                    {
+                        "selected_packs": ["starter-diverse"],
+                        "sources": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [source["id"] for source in config.load_sources()],
+                ["starter"],
+            )
+
+            store = self.root / "config" / "profiles.local.json"
+            store.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "active_profile_id": "p_" + "1" * 32,
+                        "profiles": [
+                            {
+                                "id": "p_" + "1" * 32,
+                                "name": "Migrated",
+                                "profile": {},
+                                "sources": {
+                                    "selected_packs": ["starter-diverse"],
+                                    "sources": [],
+                                },
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            store.chmod(0o600)
+            self.assertEqual(
+                [source["id"] for source in config.load_sources()],
+                ["starter", "clinical"],
+            )
+
     def test_onboarding_writes_only_private_local_files(self):
         sources = [
             {

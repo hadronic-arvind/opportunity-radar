@@ -3902,6 +3902,1138 @@
       "enabled": false
     },
     {
+      "id": "flatiron_health_greenhouse",
+      "name": "Flatiron Health",
+      "kind": "greenhouse",
+      "board": "flatironhealth",
+      "url": "https://job-boards.greenhouse.io/flatironhealth",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/flatironhealth/jobs"
+    },
+    {
+      "id": "eikon_therapeutics_greenhouse",
+      "name": "Eikon Therapeutics",
+      "kind": "greenhouse",
+      "board": "eikontherapeutics",
+      "url": "https://job-boards.greenhouse.io/eikontherapeutics",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/eikontherapeutics/jobs"
+    },
+    {
+      "id": "neumora_therapeutics_greenhouse",
+      "name": "Neumora Therapeutics",
+      "kind": "greenhouse",
+      "board": "neumora",
+      "url": "https://job-boards.greenhouse.io/neumora",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/neumora/jobs"
+    },
+    {
+      "id": "beam_therapeutics_greenhouse",
+      "name": "Beam Therapeutics",
+      "kind": "greenhouse",
+      "board": "beamtherapeutics",
+      "url": "https://job-boards.greenhouse.io/beamtherapeutics",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "students-early-career"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/beamtherapeutics/jobs"
+    },
+    {
+      "id": "verve_therapeutics_greenhouse",
+      "name": "Verve Therapeutics",
+      "kind": "greenhouse",
+      "board": "verve",
+      "url": "https://job-boards.greenhouse.io/verve",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/verve/jobs"
+    },
+    {
+      "id": "oscar_health_greenhouse",
+      "name": "Oscar Health",
+      "kind": "greenhouse",
+      "board": "oscar",
+      "url": "https://job-boards.greenhouse.io/oscar",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/oscar/jobs"
+    },
+    {
+      "id": "adaptive_biotechnologies_greenhouse",
+      "name": "Adaptive Biotechnologies",
+      "kind": "greenhouse",
+      "board": "adaptivebiotechnologies",
+      "url": "https://job-boards.greenhouse.io/adaptivebiotechnologies",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/adaptivebiotechnologies/jobs"
+    },
+    {
+      "id": "abcellera_greenhouse",
+      "name": "AbCellera",
+      "kind": "greenhouse",
+      "board": "abcellera",
+      "url": "https://job-boards.greenhouse.io/abcellera",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "students-early-career"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/abcellera/jobs"
+    },
+    {
+      "id": "revolution_medicines_greenhouse",
+      "name": "Revolution Medicines",
+      "kind": "greenhouse",
+      "board": "revolutionmedicines",
+      "url": "https://job-boards.greenhouse.io/revolutionmedicines",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/revolutionmedicines/jobs"
+    },
+    {
+      "id": "relay_therapeutics_greenhouse",
+      "name": "Relay Therapeutics",
+      "kind": "greenhouse",
+      "board": "relaytherapeutics",
+      "url": "https://job-boards.greenhouse.io/relaytherapeutics",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/relaytherapeutics/jobs"
+    },
+    {
+      "id": "sword_health_greenhouse",
+      "name": "Sword Health",
+      "kind": "greenhouse",
+      "board": "swordhealth",
+      "url": "https://job-boards.greenhouse.io/swordhealth",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/swordhealth/jobs"
+    },
+    {
+      "id": "zocdoc_greenhouse",
+      "name": "Zocdoc",
+      "kind": "greenhouse",
+      "board": "zocdoc",
+      "url": "https://job-boards.greenhouse.io/zocdoc",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false,
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/zocdoc/jobs"
+    },
+    {
+      "id": "open_evidence_ashby",
+      "name": "OpenEvidence",
+      "kind": "ashby",
+      "board": "openevidence",
+      "url": "https://jobs.ashbyhq.com/openevidence",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/openevidence",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "ai-research",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "freed_ashby",
+      "name": "Freed",
+      "kind": "ashby",
+      "board": "freed",
+      "url": "https://jobs.ashbyhq.com/freed",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/freed",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "ai-research",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "insitro_ashby",
+      "name": "insitro",
+      "kind": "ashby",
+      "board": "insitro",
+      "url": "https://jobs.ashbyhq.com/insitro",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/insitro",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "ambience_healthcare_ashby",
+      "name": "Ambience Healthcare",
+      "kind": "ashby",
+      "board": "ambiencehealthcare",
+      "url": "https://jobs.ashbyhq.com/ambiencehealthcare",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/ambiencehealthcare",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health",
+        "ai-research"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "benchling_ashby",
+      "name": "Benchling",
+      "kind": "ashby",
+      "board": "benchling",
+      "url": "https://jobs.ashbyhq.com/benchling",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/benchling",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "product-design",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "abridge_ashby",
+      "name": "Abridge",
+      "kind": "ashby",
+      "board": "abridge",
+      "url": "https://jobs.ashbyhq.com/abridge",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/abridge",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health",
+        "ai-research"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "commure_ashby",
+      "name": "Commure",
+      "kind": "ashby",
+      "board": "commure",
+      "url": "https://jobs.ashbyhq.com/commure",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/commure",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "deep_genomics_lever",
+      "name": "Deep Genomics",
+      "kind": "lever",
+      "site": "deepgenomics",
+      "url": "https://jobs.lever.co/deepgenomics",
+      "api_url": "https://api.lever.co/v0/postings/deepgenomics?mode=json",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "lyra_health_lever",
+      "name": "Lyra Health",
+      "kind": "lever",
+      "site": "lyrahealth",
+      "url": "https://jobs.lever.co/lyrahealth",
+      "api_url": "https://api.lever.co/v0/postings/lyrahealth?mode=json",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
       "id": "mathjobs_portal",
       "name": "MathJobs.org",
       "kind": "watch_page",

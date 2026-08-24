@@ -144,6 +144,21 @@
       String(pack && pack.description || "").trim().slice(0, 240),
     ]).filter(([id, label]) => id && label).slice(0, 64)
     : PACK_OPTIONS;
+  const coveragePresetOptions = [
+    ["automatic", "Automatic from my goals", "Broad source coverage is recalculated from roles, domains, skills, stage, and opportunity types whenever you save."],
+    ...(Array.isArray(settings.coverage_presets) ? settings.coverage_presets : []).map((preset) => [
+      String(preset && preset.id || "").trim(),
+      String(preset && (preset.name || preset.id) || "").trim(),
+      String(preset && preset.description || "").trim().slice(0, 240),
+    ]).filter(([id, label]) => id && label).slice(0, 32),
+    ["manual", "Manual pack selection", "Use only the source packs checked below."],
+  ];
+  const coveragePresetTargets = new Map(
+    (Array.isArray(settings.coverage_presets) ? settings.coverage_presets : []).map((preset) => [
+      String(preset && preset.id || "").trim(),
+      preset && typeof preset.target_defaults === "object" ? preset.target_defaults : {},
+    ]).filter(([id]) => id)
+  );
   const restoredView = loadTransientView();
   const byId = new Map((data.opportunities || []).map((item) => [String(item.id), item]));
   const searchIndex = new Map(
@@ -659,6 +674,29 @@
     return shell.field;
   }
 
+  function profileSelectField(label, path, value, options, config) {
+    const settings = config || {};
+    const shell = profileFieldShell(label, path, settings);
+    const select = element("select", "profile-input profile-select");
+    select.id = shell.id;
+    select.dataset.profilePath = path;
+    select.dataset.profileKind = "string";
+    select.disabled = Boolean(settings.disabled);
+    (options || []).forEach(([optionValue, copy, description]) => {
+      const option = element("option", "", copy);
+      option.value = String(optionValue);
+      option.selected = String(optionValue) === String(value || "");
+      if (description) option.title = String(description);
+      select.appendChild(option);
+    });
+    if (typeof settings.onChange === "function") {
+      select.addEventListener("change", () => settings.onChange(select.value));
+    }
+    shell.field.appendChild(select);
+    if (settings.help) shell.field.appendChild(element("span", "profile-help", settings.help));
+    return shell.field;
+  }
+
   function profileRangeField(label, path, value, options) {
     const config = options || {};
     const shell = profileFieldShell(label, path, config);
@@ -1045,6 +1083,30 @@
     const focus = profileSection("Search focus", "Set the time frames and broad source collections you want to follow. Turning off a source pack also hides its prior listings after you save.");
     focus.grid.append(
       profileTagField("Time frames", "timeframes", profileDraft.timeframes, {wide: true, disabled, limit: 12, placeholder: "Summer 2028", help: "Add more than one if you are considering several cycles."}),
+      profileSelectField(
+        "STEM coverage preset",
+        "coverage_preset",
+        profileDraft.coverage_preset || "automatic",
+        coveragePresetOptions,
+        {
+          wide: true,
+          disabled,
+          help: "Automatic is recommended. Checked packs extend automatic or named coverage; manual uses only the checked packs.",
+          onChange: (value) => {
+            profileDraft = collectProfileForm();
+            profileDraft.coverage_preset = value;
+            const defaults = coveragePresetTargets.get(value) || {};
+            profileDraft.targets = profileDraft.targets || {};
+            ["role_families", "domains", "supporting_skills"].forEach((key) => {
+              profileDraft.targets[key] = Array.from(new Set([
+                ...profileStrings(profileDraft.targets[key]),
+                ...profileStrings(defaults[key]),
+              ]));
+            });
+            renderProfileForm();
+          },
+        }
+      ),
       profileChoiceField("Source packs", "selected_packs", profileDraft.selected_packs, profilePackOptions, true, disabled, true)
     );
     basics.appendChild(focus.section);
@@ -1161,6 +1223,10 @@
   function profileValidationMessage(profile) {
     if (!profileStrings(profile && profile.selected_packs).length) {
       return "Choose at least one source pack.";
+    }
+    const coveragePreset = String(profile && profile.coverage_preset || "");
+    if (!coveragePresetOptions.some(([value]) => value === coveragePreset)) {
+      return "Choose a valid STEM coverage preset.";
     }
     if (profileStrings(profile.timeframes).length > 12) {
       return "Choose no more than 12 time frames.";

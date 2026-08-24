@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from . import __version__
+from .coverage import (
+    AUTOMATIC_PRESET,
+    MANUAL_PRESET,
+    effective_source_packs,
+    validate_coverage_preset,
+)
 from .database import SCHEMA_VERSION
 
 
@@ -369,13 +375,30 @@ def source_files() -> List[Path]:
 
 
 def load_sources(include_disabled: bool = False) -> List[Dict[str, Any]]:
+    files = source_files()
     payloads = _source_payloads()
     sources = _merge_sources(payloads)
     selection_index = None
     selected_packs: List[str] = []
+    coverage_preset = MANUAL_PRESET
+    store_path = _profile_store_read_path()
+    named_profile_layer = next(
+        (
+            index
+            for index, path in enumerate(files)
+            if store_path is not None and path == store_path
+        ),
+        None,
+    )
     for index, payload in enumerate(payloads):
+        if "coverage_preset" in payload:
+            coverage_preset = validate_coverage_preset(payload["coverage_preset"])
         if "selected_packs" not in payload:
             continue
+        if "coverage_preset" not in payload:
+            coverage_preset = (
+                AUTOMATIC_PRESET if index == named_profile_layer else MANUAL_PRESET
+            )
         raw_selection = payload["selected_packs"]
         if not isinstance(raw_selection, list):
             raise ValueError("Source configuration 'selected_packs' must be a list")
@@ -397,7 +420,13 @@ def load_sources(include_disabled: bool = False) -> List[Dict[str, Any]]:
                     # values such as the string "false" instead of enabling a
                     # source through Python truthiness.
                     explicit_enabled[str(entry["id"])] = entry["enabled"]
-        chosen = set(selected_packs)
+        chosen = set(
+            effective_source_packs(
+                load_profile(),
+                selected_packs,
+                coverage_preset,
+            )
+        )
         for source in sources:
             packs = {str(value) for value in source.get("packs", [])}
             if packs:

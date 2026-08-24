@@ -599,6 +599,7 @@ class CliTests(unittest.TestCase):
                         "version",
                         "expected_revision",
                         "timeframes",
+                        "coverage_preset",
                         "selected_packs",
                         "candidate",
                         "targets",

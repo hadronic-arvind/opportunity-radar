@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
+from .coverage import coverage_preset_payload
 from .config import (
     load_profile,
     load_source_packs,
@@ -122,6 +123,7 @@ def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "profile_catalog": profile_catalog_payload(),
         "profile_editor": profile_editor_payload(profile),
+        "coverage_presets": coverage_preset_payload(),
         "source_packs": packs,
         "source_resources": _source_resource_directory(),
     }
