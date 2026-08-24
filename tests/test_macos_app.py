@@ -298,9 +298,29 @@ class MacOSAppTests(unittest.TestCase):
             runtime = Path(tempdir) / "runtime"
             (runtime / "monitor").mkdir(parents=True)
             (runtime / "monitor" / "__main__.py").write_text("", encoding="utf-8")
+            for name in ("__init__.py", "database.py"):
+                (runtime / "monitor" / name).write_text(
+                    (project / "monitor" / name).read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
             self.assertEqual(module.select_runtime_root(project, runtime), runtime.resolve())
             (runtime / "monitor" / "__main__.py").unlink()
             self.assertEqual(module.select_runtime_root(project, runtime), project)
+
+    def test_refuses_to_bind_a_new_app_to_an_old_private_runtime(self):
+        project, module = load_installer()
+        with tempfile.TemporaryDirectory() as tempdir:
+            runtime = Path(tempdir) / "runtime"
+            (runtime / "monitor").mkdir(parents=True)
+            (runtime / "monitor" / "__main__.py").write_text("", encoding="utf-8")
+            (runtime / "monitor" / "__init__.py").write_text(
+                '__version__ = "0.1.0"\n', encoding="utf-8"
+            )
+            (runtime / "monitor" / "database.py").write_text(
+                "SCHEMA_VERSION = 5\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(RuntimeError, "install_launch_agent"):
+                module.select_runtime_root(project, runtime)
 
 
 if __name__ == "__main__":

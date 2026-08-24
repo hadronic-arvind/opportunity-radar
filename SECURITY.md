@@ -33,7 +33,7 @@ Webhook endpoints must be absolute HTTPS URLs and are loaded from macOS Keychain
 ## Trust model
 
 Configuration files are trusted local input.
-Do not install a profile, source registry, or curated Markdown seed from an untrusted party without reviewing it.
+Do not install a named-profile store, legacy profile, source registry, or curated Markdown seed from an untrusted party without reviewing it.
 Do not run the project from a repository whose code you have not reviewed.
 
 The monitor treats employer content as untrusted data.
@@ -51,7 +51,7 @@ External listing navigation is limited to HTTP and HTTPS and opens in the defaul
 
 The following files must never be committed:
 
-- Local profile and source overrides.
+- Named-profile stores and legacy local profile or source overrides.
 - Generated dashboards.
 - SQLite databases and lock files.
 - Curated private seeds.

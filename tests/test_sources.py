@@ -41,6 +41,136 @@ REQUIRED_PACK_IDS = {
     "education-social-impact",
 }
 
+NEW_STEM_PACK_IDS = {
+    "mathematical-sciences",
+    "physics-quantum-astronomy",
+    "chemistry-materials",
+    "earth-geospatial",
+    "ecology-environment",
+    "agriculture-food",
+    "medicine-clinical",
+    "public-health",
+    "pharma-drug-discovery",
+    "biomedical-neuroscience",
+    "civil-infrastructure",
+    "electronics-semiconductors",
+    "ocean-marine",
+    "veterinary-animal",
+}
+
+NEW_STEM_DOMAINS = {
+    "mathematics",
+    "statistics",
+    "physics",
+    "astronomy",
+    "quantum",
+    "chemistry",
+    "materials_science",
+    "geoscience",
+    "geospatial",
+    "environmental_science",
+    "ecology",
+    "meteorology",
+    "hydrology",
+    "agriculture",
+    "food_science",
+    "medicine",
+    "clinical_research",
+    "public_health",
+    "epidemiology",
+    "pharmacology",
+    "drug_discovery",
+    "biomedical_engineering",
+    "medical_devices",
+    "neuroscience",
+    "civil_engineering",
+    "infrastructure",
+    "electrical_engineering",
+    "semiconductors",
+    "oceanography",
+    "marine_science",
+    "veterinary_science",
+}
+
+VERIFIED_2026_08_23_STEM_FEEDS = {
+    "xaira_therapeutics_greenhouse",
+    "bond_vet_greenhouse",
+    "generate_biomedicines_greenhouse",
+    "schrodinger_greenhouse",
+    "komodo_health_greenhouse",
+    "precision_for_medicine_greenhouse",
+    "formation_bio_greenhouse",
+    "freenome_greenhouse",
+    "natera_greenhouse",
+    "profluent_greenhouse",
+    "ionq_greenhouse",
+    "psiquantum_greenhouse",
+    "tenstorrent_greenhouse",
+    "tenstorrent_university_greenhouse",
+    "planet_greenhouse",
+    "blacksky_greenhouse",
+    "lightmatter_greenhouse",
+    "astera_labs_greenhouse",
+    "rebuild_manufacturing_greenhouse",
+    "pronto_greenhouse",
+    "scout_ai_greenhouse",
+    "sma_america_greenhouse",
+    "sound_agriculture_greenhouse",
+    "atom_computing_lever",
+    "rigetti_lever",
+    "dronedeploy_lever",
+    "oceanx_careers",
+}
+
+REPRESENTATIVE_STEM_FEEDS = {
+    "precision_for_medicine_greenhouse": {
+        "packs": {"medicine-clinical", "public-health", "pharma-drug-discovery"},
+        "domains": {"medicine", "clinical_research", "epidemiology"},
+    },
+    "ionq_greenhouse": {
+        "packs": {
+            "mathematical-sciences",
+            "physics-quantum-astronomy",
+            "electronics-semiconductors",
+        },
+        "domains": {"physics", "quantum", "electrical_engineering"},
+    },
+    "planet_greenhouse": {
+        "packs": {"earth-geospatial", "ecology-environment"},
+        "domains": {"geospatial", "environmental_science", "meteorology"},
+    },
+    "sound_agriculture_greenhouse": {
+        "packs": {"agriculture-food", "chemistry-materials"},
+        "domains": {"agriculture", "food_science", "chemistry"},
+    },
+    "dronedeploy_lever": {
+        "packs": {"earth-geospatial", "civil-infrastructure"},
+        "domains": {"geospatial", "civil_engineering", "infrastructure"},
+    },
+    "tenstorrent_greenhouse": {
+        "packs": {"electronics-semiconductors", "robotics-autonomy"},
+        "domains": {"semiconductors", "electrical_engineering", "robotics"},
+    },
+    "bond_vet_greenhouse": {
+        "packs": {"veterinary-animal", "medicine-clinical"},
+        "domains": {"veterinary_science", "medicine"},
+    },
+    "oceanx_careers": {
+        "packs": {"ocean-marine", "earth-geospatial", "ecology-environment"},
+        "domains": {"oceanography", "marine_science", "environmental_science"},
+    },
+}
+
+REPRESENTATIVE_MANUAL_STEM_RESOURCES = {
+    "mathjobs_portal": ({"mathematical-sciences"}, {"mathematics", "statistics"}),
+    "noaa_careers": ({"earth-geospatial", "ocean-marine"}, {"meteorology", "oceanography"}),
+    "mayo_clinic_jobs": ({"medicine-clinical", "biomedical-neuroscience"}, {"medicine", "neuroscience"}),
+    "cdc_careers": ({"public-health", "medicine-clinical"}, {"public_health", "epidemiology"}),
+    "asce_career_connections": ({"civil-infrastructure"}, {"civil_engineering", "infrastructure"}),
+    "whoi_careers": ({"ocean-marine"}, {"oceanography", "marine_science"}),
+    "avma_jobs": ({"veterinary-animal"}, {"veterinary_science"}),
+}
+
 RELIABLE_LISTING_KINDS = {"ashby", "greenhouse", "lever", "jibe"}
 LISTING_KINDS = RELIABLE_LISTING_KINDS | {"html_links"}
 
@@ -191,6 +321,67 @@ class PublicSourceCatalogTests(unittest.TestCase):
             self.assertTrue(pack["name"].strip())
             self.assertTrue(pack["description"].strip())
 
+    def test_cross_stem_catalog_is_large_balanced_and_opt_in(self):
+        pack_ids = {pack["id"] for pack in self.packs}
+        self.assertGreaterEqual(len(self.sources), 230)
+        self.assertTrue(NEW_STEM_PACK_IDS <= pack_ids)
+
+        packs = {pack["id"]: pack for pack in self.packs}
+        for pack_id in NEW_STEM_PACK_IDS:
+            self.assertFalse(packs[pack_id].get("default", False), pack_id)
+            members = [source for source in self.sources if pack_id in source["packs"]]
+            self.assertGreaterEqual(len(members), 5, pack_id)
+            self.assertTrue(all(not source["enabled"] for source in members), pack_id)
+            listing_feeds = [
+                source for source in members if source["source_type"] == "listing_feed"
+            ]
+            self.assertGreaterEqual(len(listing_feeds), 1, pack_id)
+
+    def test_cross_stem_domains_cover_full_taxonomy(self):
+        domains = {domain for source in self.sources for domain in source["domains"]}
+        self.assertTrue(NEW_STEM_DOMAINS <= domains)
+
+    def test_verified_cross_stem_structured_feeds_are_supported_opt_in(self):
+        sources = {source["id"]: source for source in self.sources}
+        self.assertTrue(VERIFIED_2026_08_23_STEM_FEEDS <= sources.keys())
+        for source_id in VERIFIED_2026_08_23_STEM_FEEDS:
+            source = sources[source_id]
+            self.assertFalse(source["enabled"], source_id)
+            self.assertTrue(source.get("auto_enable", True), source_id)
+            self.assertEqual(source["verified_at"], "2026-08-23", source_id)
+            self.assertEqual(source["source_type"], "listing_feed", source_id)
+            self.assertEqual(source["support_level"], "supported", source_id)
+            self.assertIn(source["kind"], {"greenhouse", "lever"}, source_id)
+
+        for source_id, expected in REPRESENTATIVE_STEM_FEEDS.items():
+            source = sources[source_id]
+            self.assertTrue(expected["packs"] <= set(source["packs"]), source_id)
+            self.assertTrue(expected["domains"] <= set(source["domains"]), source_id)
+
+    def test_manual_stem_directories_never_auto_enable_or_publish(self):
+        sources = {source["id"]: source for source in self.sources}
+        manual = [
+            source
+            for source in self.sources
+            if source["verified_at"] == "2026-08-23" and source["kind"] == "watch_page"
+        ]
+        self.assertGreaterEqual(len(manual), 100)
+        for source in manual:
+            self.assertFalse(source["enabled"], source["id"])
+            self.assertFalse(source["auto_enable"], source["id"])
+            self.assertFalse(source["publish_as_opportunity"], source["id"])
+            self.assertEqual(source["support_level"], "manual", source["id"])
+            self.assertIn(
+                source["source_type"],
+                {"official_portal", "manual_page", "program_calendar"},
+                source["id"],
+            )
+
+        for source_id, (packs, domains) in REPRESENTATIVE_MANUAL_STEM_RESOURCES.items():
+            source = sources[source_id]
+            self.assertTrue(packs <= set(source["packs"]), source_id)
+            self.assertTrue(domains <= set(source["domains"]), source_id)
+
     def test_starter_is_small_diverse_structured_and_no_secret(self):
         enabled = {source["id"] for source in self.sources if source["enabled"]}
         self.assertEqual(enabled, STARTER_SOURCE_IDS)
@@ -293,6 +484,11 @@ class PublicSourceCatalogTests(unittest.TestCase):
         self.assertEqual(rise["support_level"], "manual")
         self.assertTrue({"internship", "research_program"} <= set(rise["opportunity_types"]))
         self.assertTrue({"undergraduate", "graduate", "phd"} <= set(rise["career_levels"]))
+
+        emerging_talent = sources["openai_emerging_talent"]
+        self.assertEqual(emerging_talent["expected_http_statuses"], [403])
+        self.assertEqual(emerging_talent["verified_at"], "2026-08-21")
+        self.assertEqual(emerging_talent["support_level"], "manual")
 
         nreip = sources["nreip"]
         self.assertEqual(
@@ -441,8 +637,10 @@ class PublicSourceCatalogTests(unittest.TestCase):
     def test_sources_are_generic_structured_and_https_only(self):
         pack_ids = {pack["id"] for pack in self.packs}
         source_ids = [source["id"] for source in self.sources]
+        source_urls = [source["url"].rstrip("/") for source in self.sources]
         self.assertEqual(len(source_ids), len(set(source_ids)))
-        self.assertGreaterEqual(len(self.sources), 100)
+        self.assertEqual(len(source_urls), len(set(source_urls)))
+        self.assertGreaterEqual(len(self.sources), 230)
 
         for source in self.sources:
             self.assertRegex(source["id"], r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
@@ -490,6 +688,7 @@ class PublicSourceCatalogTests(unittest.TestCase):
         self.assertGreater(len(manual_sources), 0)
         for source in manual_sources:
             self.assertFalse(source["enabled"], source["id"])
+            self.assertFalse(source["auto_enable"], source["id"])
             self.assertEqual(source["kind"], "watch_page", source["id"])
             self.assertEqual(source["support_level"], "manual", source["id"])
             self.assertFalse(source.get("publish_as_opportunity", False), source["id"])

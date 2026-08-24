@@ -37,7 +37,7 @@ python3 -m monitor scan
 ```
 
 On macOS, the native app is optional.
-It opens the dashboard directly and enables profile editing, Refresh, Scan all, Save, and application-status controls.
+It opens the dashboard directly and enables named profiles, profile editing, Refresh, Scan all, Save, and application-status controls.
 
 ```bash
 ./scripts/install_launch_agent.sh
@@ -84,13 +84,29 @@ If a scan is already running, the app keeps the profile editor available and app
 The app keeps everyday profile choices on the Basics page and scoring, matching rules, and document routing on Advanced.
 Removing a basic role or domain retires obsolete positive advanced rules tied only to the removed target, while retained cross-domain, negative, qualification, and hard-gate rules stay intact.
 
+Save separate profiles for different people, disciplines, career stages, or search strategies, then activate the one that should control sources and matching.
+
+```bash
+python3 -m monitor profile list
+python3 -m monitor profile create "Clinical research"
+python3 -m monitor profile duplicate "Clinical research" "Public health"
+python3 -m monitor profile activate "Public health"
+python3 -m monitor profile rename "Public health" "Epidemiology"
+python3 -m monitor profile delete "Clinical research"
+```
+
+Activating a profile atomically changes its matching preferences and source packs, rescores existing opportunities, and rebuilds the dashboard.
+Bookmarks and application status remain shared, so switching profiles never loses workflow history.
+
 Fit scores are deterministic triage from your rules.
 They are not acceptance probabilities.
 
 ## Sources and customization
 
-The public catalog contains more than 100 official resources across software, data, engineering, design, product, cybersecurity, biotech and health, climate and energy, public-interest work, academia, fellowships, quantitative finance, AI, skilled technical work, national laboratories, national security, early-career programs, aerospace, robotics, education, and social impact.
+The public catalog contains more than 250 official resources across computing, mathematical sciences, physics, quantum science, astronomy, chemistry, materials, Earth and geospatial science, ecology, environment, agriculture, food science, medicine, clinical research, public health, pharma, neuroscience, civil infrastructure, electronics, semiconductors, ocean science, veterinary science, and the original cross-industry packs.
 The five-source starter stays small, while the broader packs remain opt-in.
+Supported structured feeds become searchable listings when their pack is selected.
+Large official directories remain available in the dashboard resource library without being fetched automatically, so broad coverage does not make scans unexpectedly slow.
 
 ```bash
 python3 -m monitor sources packs
@@ -120,8 +136,8 @@ The app and CLI write personal settings to one canonical private location.
 Before scheduler installation that location is the clone, and afterward it is the installed private runtime.
 These ignored files hold the data:
 
-- `config/profile.local.json` for matching, organizations, labels, and document routing.
-- `config/sources.local.json` for enabled packs, source overrides, and private additions.
+- `config/profiles.local.json` for named profiles, the active profile, matching preferences, source-pack choices, and private source additions.
+- `config/profile.local.json` and `config/sources.local.json` as preserved legacy migration inputs and recovery backups when they already exist.
 
 See [Configuration](docs/CONFIGURATION.md) for the schema and examples.
 Official source names in the dashboard are clickable, including manual resources that do not expose a structured listing feed.

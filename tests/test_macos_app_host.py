@@ -108,6 +108,10 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
 
     def test_profile_failures_are_classified_without_returning_raw_output(self):
         self.assertIn("private func profileFailureMessage(_ diagnostics: CommandDiagnostics)", self.source)
+        self.assertIn("private func commandFailureMessage(", self.source)
+        self.assertIn('detail.contains("database schema version")', self.source)
+        self.assertIn('detail.contains("private runtime does not match")', self.source)
+        self.assertIn("Opportunity Radar needs a runtime update.", self.source)
         self.assertIn("profile changed after it was opened", self.source)
         self.assertIn("Reload the dashboard and try again.", self.source)
         self.assertIn("busy with another scan or profile update", self.source)
@@ -126,6 +130,33 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn("private func finishScanCompletion()", self.source)
         self.assertIn("input: queued.input", self.source)
         self.assertIn("guard runningCommand != nil || queuedProfileCommand != nil else", self.source)
+
+    def test_profile_management_is_strict_and_never_queued_behind_a_scan(self):
+        self.assertIn("private func validProfileManagementRequest(", self.source)
+        self.assertIn(
+            '["activate", "create", "duplicate", "rename", "delete"].contains(operation)',
+            self.source,
+        )
+        self.assertIn(
+            'keys = Set(["version", "operation", "expected_revision", "profile_id"])',
+            self.source,
+        )
+        self.assertIn(
+            'keys = Set(["version", "operation", "expected_revision", "name"])',
+            self.source,
+        )
+        self.assertIn("guard Set(value.keys) == keys else", self.source)
+        self.assertIn("validProfileID(profileID)", self.source)
+        self.assertIn("validProfileName(name)", self.source)
+        self.assertIn(
+            'if profile["operation"] != nil && (scanIsRunning || scanCompletionPending)',
+            self.source,
+        )
+        self.assertIn("Wait for the current scan to finish before managing profiles.", self.source)
+        self.assertLess(
+            self.source.index('if profile["operation"] != nil && (scanIsRunning || scanCompletionPending)'),
+            self.source.index("queuedProfileCommand = QueuedProfileCommand("),
+        )
 
     def test_failed_queued_profile_preserves_the_page_retry_draft(self):
         dashboard = (PROJECT_ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")

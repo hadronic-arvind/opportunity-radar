@@ -11,10 +11,11 @@ from urllib.parse import urlparse
 from .config import (
     load_profile,
     load_source_packs,
+    load_sources,
     project_path,
     resolve_private_state_path,
 )
-from .profile import profile_editor_payload
+from .profile import profile_catalog_payload, profile_editor_payload
 
 
 STYLE_MARKER = "/*__OPPORTUNITY_STYLES__*/"
@@ -23,6 +24,7 @@ APP_MARKER = "/*__OPPORTUNITY_APP__*/"
 NONCE_MARKER = "__OPPORTUNITY_NONCE__"
 # Backward-compatible export for integrations which imported the old marker.
 MARKER = DATA_MARKER
+MAX_SOURCE_RESOURCES = 500
 
 
 def _bounded_setting(value: Any, fallback: str, limit: int) -> str:
@@ -30,6 +32,43 @@ def _bounded_setting(value: Any, fallback: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: max(1, limit - 3)].rstrip() + "..."
+
+
+def _bounded_string_list(value: Any, maximum_items: int = 24) -> list:
+    if not isinstance(value, list):
+        return []
+    return [
+        _bounded_setting(entry, "", 80)
+        for entry in value[:maximum_items]
+        if str(entry).strip()
+    ]
+
+
+def _source_resource_directory() -> list:
+    resources = []
+    for source in load_sources(include_disabled=True)[:MAX_SOURCE_RESOURCES]:
+        source_id = _bounded_setting(source.get("id"), "", 100)
+        name = _bounded_setting(source.get("name"), source_id, 160)
+        if not source_id or not name:
+            continue
+        resources.append(
+            {
+                "id": source_id,
+                "name": name,
+                "url": safe_external_url(source.get("url")),
+                "packs": _bounded_string_list(source.get("packs")),
+                "domains": _bounded_string_list(source.get("domains")),
+                "source_type": _bounded_setting(
+                    source.get("source_type"), source.get("kind", "resource"), 80
+                ),
+                "support_level": _bounded_setting(
+                    source.get("support_level"), "manual", 40
+                ),
+                "enabled": bool(source.get("enabled", True)),
+                "auto_enable": bool(source.get("auto_enable", True)),
+            }
+        )
+    return resources
 
 
 def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,8 +120,10 @@ def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
             "Application track",
             80,
         ),
+        "profile_catalog": profile_catalog_payload(),
         "profile_editor": profile_editor_payload(profile),
         "source_packs": packs,
+        "source_resources": _source_resource_directory(),
     }
 
 

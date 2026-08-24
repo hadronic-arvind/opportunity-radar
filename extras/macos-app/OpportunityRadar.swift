@@ -1083,6 +1083,7 @@ private final class AppDelegate: NSObject,
             Set(payload.keys) == Set(["version", "action", "profile", "request"]),
             let profile = payload["profile"] as? [String: Any],
             boundedProfileValue(profile),
+            profile["operation"] == nil || validProfileManagementRequest(profile),
             JSONSerialization.isValidJSONObject(profile),
             let input = try? JSONSerialization.data(withJSONObject: profile),
             input.count <= maximumProfilePayloadBytes
@@ -1100,6 +1101,15 @@ private final class AppDelegate: NSObject,
             scanIsRunning = true
         } else {
             scanIsRunning = false
+        }
+        if profile["operation"] != nil && (scanIsRunning || scanCompletionPending) {
+            complete(
+                action: .profile,
+                requestID: requestID,
+                ok: false,
+                message: "Wait for the current scan to finish before managing profiles."
+            )
+            return
         }
         if scanIsRunning || scanCompletionPending {
             guard queuedProfileCommand == nil else {
@@ -1349,11 +1359,26 @@ private final class AppDelegate: NSObject,
         let message: String
         switch action {
         case .scan:
-            message = succeeded ? "Refresh complete." : "The refresh could not be completed."
+            message = succeeded
+                ? "Refresh complete."
+                : commandFailureMessage(
+                    diagnostics,
+                    fallback: "The refresh could not be completed."
+                )
         case .status:
-            message = succeeded ? "Application status updated." : "The status could not be updated."
+            message = succeeded
+                ? "Application status updated."
+                : commandFailureMessage(
+                    diagnostics,
+                    fallback: "The status could not be updated."
+                )
         case .bookmark:
-            message = succeeded ? "Bookmark updated." : "The bookmark could not be updated."
+            message = succeeded
+                ? "Bookmark updated."
+                : commandFailureMessage(
+                    diagnostics,
+                    fallback: "The bookmark could not be updated."
+                )
         case .profile:
             message = succeeded
                 ? "Profile updated."
@@ -1421,12 +1446,36 @@ private final class AppDelegate: NSObject,
         guard diagnostics.inputSucceeded else {
             return "The profile data could not be sent to the helper. Try saving again."
         }
+        let compatibility = commandFailureMessage(diagnostics, fallback: "")
+        if !compatibility.isEmpty {
+            return compatibility
+        }
         let detail = (diagnostics.standardError + "\n" + diagnostics.standardOutput)
             .lowercased()
         if detail.contains("profile changed after it was opened")
             || detail.contains("stale revision")
         {
             return "Your profile changed after this editor opened. Reload the dashboard and try again."
+        }
+        if detail.contains("saved profile list changed")
+            || detail.contains("profile catalog changed")
+            || detail.contains("profile collection changed")
+        {
+            return "The saved profiles changed after this dashboard opened. Reload it and try again."
+        }
+        if detail.contains("saved profile")
+            && detail.contains("name")
+            && detail.contains("already")
+        {
+            return "A profile with that name already exists. Choose a different name."
+        }
+        if (detail.contains("active profile") && detail.contains("delete"))
+            || detail.contains("activate another saved profile before deleting")
+        {
+            return "Switch to another profile before deleting this one."
+        }
+        if detail.contains("profile") && detail.contains("not found") {
+            return "That profile is no longer available. Reload the dashboard and try again."
         }
         if detail.contains("already running")
             || detail.contains("database is locked")
@@ -1472,7 +1521,25 @@ private final class AppDelegate: NSObject,
         return "The profile could not be saved. Try again in a moment."
     }
 
+    private func commandFailureMessage(
+        _ diagnostics: CommandDiagnostics,
+        fallback: String
+    ) -> String {
+        let detail = (diagnostics.standardError + "\n" + diagnostics.standardOutput)
+            .lowercased()
+        if detail.contains("database schema version")
+            || detail.contains("private runtime does not match")
+        {
+            return "Opportunity Radar needs a runtime update. Run the scheduler installer again, reinstall the app, and reopen it."
+        }
+        return fallback
+    }
+
     private func sourceFailureMessage(_ diagnostics: CommandDiagnostics) -> String {
+        let compatibility = commandFailureMessage(diagnostics, fallback: "")
+        if !compatibility.isEmpty {
+            return compatibility
+        }
         let detail = (diagnostics.standardError + "\n" + diagnostics.standardOutput)
             .lowercased()
         if detail.contains("already exists") || detail.contains("already configured") {
@@ -1596,6 +1663,69 @@ private final class AppDelegate: NSObject,
         return value == trimmed
             && (1...120).contains(value.count)
             && value.utf8.count <= 240
+            && !value.unicodeScalars.contains {
+                CharacterSet.controlCharacters.contains($0)
+            }
+    }
+
+    private func validProfileManagementRequest(_ value: [String: Any]) -> Bool {
+        guard
+            isBridgeVersionOne(value["version"]),
+            let operation = value["operation"] as? String,
+            ["activate", "create", "duplicate", "rename", "delete"].contains(operation),
+            let revision = value["expected_revision"] as? String,
+            revision.utf8.count == 64,
+            revision.utf8.allSatisfy({ byte in
+                (48...57).contains(byte) || (97...102).contains(byte)
+            })
+        else {
+            return false
+        }
+        let keys: Set<String>
+        switch operation {
+        case "activate", "delete":
+            keys = Set(["version", "operation", "expected_revision", "profile_id"])
+        case "create":
+            keys = Set(["version", "operation", "expected_revision", "name"])
+        case "duplicate", "rename":
+            keys = Set(["version", "operation", "expected_revision", "profile_id", "name"])
+        default:
+            return false
+        }
+        guard Set(value.keys) == keys else { return false }
+        if keys.contains("profile_id") {
+            guard
+                let profileID = value["profile_id"] as? String,
+                validProfileID(profileID)
+            else {
+                return false
+            }
+        }
+        if keys.contains("name") {
+            guard
+                let name = value["name"] as? String,
+                validProfileName(name)
+            else {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func validProfileID(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value == trimmed
+            && (1...80).contains(value.utf8.count)
+            && !value.unicodeScalars.contains {
+                CharacterSet.controlCharacters.contains($0)
+            }
+    }
+
+    private func validProfileName(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value == trimmed
+            && (1...80).contains(value.count)
+            && value.utf8.count <= 320
             && !value.unicodeScalars.contains {
                 CharacterSet.controlCharacters.contains($0)
             }

@@ -120,13 +120,24 @@ def _validate_private_regular_artifact(
     label: str,
     artifact_type: str,
     uid: int,
+    allow_legacy_readable_log: bool = False,
 ) -> None:
     details = path.lstat()
     if not stat.S_ISREG(details.st_mode):
         raise ValueError("{} must be a regular file".format(label))
     if details.st_uid != uid:
         raise ValueError("{} is not owned by the current user".format(label))
-    if stat.S_IMODE(details.st_mode) != 0o600:
+    mode = stat.S_IMODE(details.st_mode)
+    repairable_log = (
+        allow_legacy_readable_log
+        and artifact_type == "log"
+        and bool(mode & stat.S_IRUSR)
+        and not bool(
+            mode
+            & (stat.S_IXUSR | stat.S_IWGRP | stat.S_IXGRP | stat.S_IWOTH | stat.S_IXOTH)
+        )
+    )
+    if mode != 0o600 and not repairable_log:
         raise ValueError("{} must have private mode 0600".format(label))
     _validate_artifact_signature(path, label, artifact_type)
 
@@ -286,6 +297,7 @@ def _validate_existing_runtime(path: Path, label: str, uid: int) -> None:
                 "{} {}".format(label, relative),
                 artifact_type,
                 uid,
+                allow_legacy_readable_log=True,
             )
 
 

@@ -17,6 +17,7 @@ def main() -> int:
         project_path("data", "opportunities.sqlite3"),
         "data",
         "opportunities.sqlite3",
+        require_compatible=False,
     )
     with exclusive_lock(database_path.with_name("scan.lock")):
         pass

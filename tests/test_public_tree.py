@@ -196,6 +196,40 @@ class PublicTreeTests(unittest.TestCase):
             self.assertTrue(any(".env.local" in failure for failure in failures))
             self.assertTrue(any("seed/private.md" in failure for failure in failures))
 
+    def test_privacy_gate_rejects_a_force_tracked_profile_store(self):
+        module = load_privacy_module()
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            (root / "config").mkdir()
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            store = root / "config" / "profiles.local.json"
+            store.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "active_profile_id": "p_private",
+                        "profiles": [
+                            {
+                                "id": "p_private",
+                                "name": "Private profile",
+                                "profile": {"candidate": {"name": "Private Candidate"}},
+                                "sources": {},
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            subprocess.run(
+                ["git", "add", "-f", "config/profiles.local.json"],
+                cwd=root,
+                check=True,
+            )
+            module.PROJECT_ROOT = root
+            self.assertTrue(
+                any("config/profiles.local.json" in failure for failure in module.scan())
+            )
+
     def test_privacy_gate_rejects_staged_and_untracked_symbolic_links(self):
         module = load_privacy_module()
         with tempfile.TemporaryDirectory() as tempdir:

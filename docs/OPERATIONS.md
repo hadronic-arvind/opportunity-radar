@@ -12,7 +12,8 @@ Both paths show the latest dashboard immediately.
 Neither waits for a network scan before first paint.
 
 The native dashboard buttons can check due sources or force all enabled sources.
-The native profile editor updates keywords, targets, timeframes, source packs, preferred organizations, score visibility, and document routes without opening a terminal.
+The native profile manager creates, duplicates, renames, activates, and deletes named profiles without opening a terminal.
+The editor updates keywords, targets, timeframes, source packs, preferred organizations, score visibility, and document routes for the active profile.
 It remains available during a scan and queues one saved revision behind that scan.
 The running scan keeps its original profile snapshot, then the queued save rescores the database before the dashboard reloads.
 The native Sources card can add a company or program from its official hosted job-board or careers URL.
@@ -32,9 +33,13 @@ Use the CLI for the same profile workflow when the app is not installed:
 python3 -m monitor profile show
 python3 -m monitor profile set --include "research software,physics" --timeframe "Summer 2028"
 python3 -m monitor profile validate
+python3 -m monitor profile list
+python3 -m monitor profile activate "Profile name"
 ```
 
 A successful profile change immediately rescores the local database and rebuilds the dashboard.
+Activation also reconciles enabled sources from the selected profile before the dashboard reloads.
+Application status and bookmarks remain shared across profiles.
 The next scheduled or forced scan loads that saved revision before collecting sources.
 
 Use the CLI to add and manage a private source or to search stored opportunities:
@@ -70,7 +75,7 @@ Malformed managed markers fail closed and never remove unrelated crontab content
 If an exact managed cron schedule already exists and no launchd installation exists, upgrades preserve that working backend instead of forcing a protected crontab rewrite.
 
 Run the installer again after pulling code changes.
-Profile and source-pack edits made through the app or CLI use the canonical installed settings and do not require an upgrade.
+Profile and source-pack edits made through the app or CLI use the canonical installed named-profile store and do not require an upgrade.
 
 ## Optional app
 
@@ -102,7 +107,7 @@ After installation, these project paths point into the private runtime:
 
 The runtime, database, profile, source overrides, seed, dashboard, logs, and Python cache use private permissions.
 The previous runtime remains beside the current runtime as a recovery copy after an upgrade.
-Installer upgrades preserve the current runtime's local profile and source preferences before swapping the replaceable code and assets.
+Installer upgrades preserve the current runtime's named-profile store and any legacy profile or source backup files before swapping the replaceable code and assets.
 
 ## Health and troubleshooting
 

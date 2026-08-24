@@ -1,11 +1,9 @@
 """Validated, atomic management of private opportunity sources."""
 
 import json
-import os
 import re
 import urllib.parse
 from copy import deepcopy
-from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from . import config
@@ -13,10 +11,10 @@ from .fetchers import MAX_HTML_LINK_PAGES, _remote_url_parts
 from .pipeline import exclusive_lock
 from .profile import (
     ProfileValidationError,
+    _active_store_entry,
     _ensure_local_writes_are_effective,
-    _existing_local_payload,
-    _restore_local_configuration,
-    _stage_json,
+    _persist_profile_store,
+    _profile_store_for_update,
     profile_lifecycle_lock,
     refresh_profile_state,
 )
@@ -128,6 +126,10 @@ def validate_source(source: Any) -> Dict[str, Any]:
     if "enabled" in result and not isinstance(result["enabled"], bool):
         raise ProfileValidationError("Source enabled value must be true or false")
     result["enabled"] = bool(result.get("enabled", True))
+    if "auto_enable" in result and not isinstance(result["auto_enable"], bool):
+        raise ProfileValidationError("Source auto_enable value must be true or false")
+    if "auto_enable" in result:
+        result["auto_enable"] = bool(result["auto_enable"])
     result["cadence_hours"] = _bounded_integer(
         result.get("cadence_hours", 12), "Source cadence", 1, 24 * 31
     )
@@ -230,9 +232,9 @@ def public_source_ids() -> set:
     }
 
 
-def _local_registry() -> Tuple[Path, Dict[str, Any]]:
-    path = config.local_sources_path()
-    payload = _existing_local_payload(path, "sources.local.json")
+def _local_registry() -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    store = _profile_store_for_update()
+    payload = deepcopy(_active_store_entry(store)["sources"])
     if not isinstance(payload, dict):
         raise ProfileValidationError("Local source configuration must be an object")
     payload = deepcopy(payload)
@@ -241,7 +243,7 @@ def _local_registry() -> Tuple[Path, Dict[str, Any]]:
     payload.setdefault("sources", [])
     if not isinstance(payload["packs"], list) or not isinstance(payload["sources"], list):
         raise ProfileValidationError("Local source configuration has invalid lists")
-    return path, payload
+    return store, payload
 
 
 def _ensure_custom_pack(payload: Dict[str, Any]) -> None:
@@ -296,28 +298,17 @@ def _write_registry(
     )
     with profile_lifecycle_lock():
         with exclusive_lock(database_path.with_name("scan.lock")):
-            path, current = _local_registry()
+            store, current = _local_registry()
             updated, result = mutator(deepcopy(current))
             updated = _validate_registry(updated)
+            _active_store_entry(store)["sources"] = updated
+            path = config.local_profile_store_path()
             if dry_run:
                 return {**result, "saved": False, "status": "valid", "path": str(path)}
-            previous = path.read_bytes() if path.exists() else None
-            staged = _stage_json(path, updated)
-            try:
-                os.replace(staged, path)
-                os.chmod(path, 0o600)
-                descriptor = os.open(str(path.parent), os.O_RDONLY)
-                try:
-                    os.fsync(descriptor)
-                finally:
-                    os.close(descriptor)
-                refresh = refresh_profile_state() if rebuild else {}
-            except Exception:
-                _restore_local_configuration({path: previous})
-                raise
-            finally:
-                if staged.exists():
-                    staged.unlink()
+            _destinations, refresh = _persist_profile_store(
+                store,
+                rebuild=rebuild,
+            )
     return {**result, **refresh, "saved": True, "status": "saved", "path": str(path)}
 
 

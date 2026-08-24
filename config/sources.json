@@ -96,6 +96,76 @@
       "id": "education-social-impact",
       "name": "Education and social impact",
       "description": "Education, civil rights, nonprofit technology, justice, and community impact."
+    },
+    {
+      "id": "mathematical-sciences",
+      "name": "Mathematical sciences",
+      "description": "Mathematics, statistics, operations research, actuarial science, and quantitative methods."
+    },
+    {
+      "id": "physics-quantum-astronomy",
+      "name": "Physics, quantum, and astronomy",
+      "description": "Physics, quantum science, photonics, astronomy, observatories, and experimental instrumentation."
+    },
+    {
+      "id": "chemistry-materials",
+      "name": "Chemistry and materials",
+      "description": "Chemistry, chemical engineering, materials science, electrochemistry, and advanced manufacturing."
+    },
+    {
+      "id": "earth-geospatial",
+      "name": "Earth and geospatial sciences",
+      "description": "Geoscience, geography, GIS, remote sensing, meteorology, hydrology, and Earth observation."
+    },
+    {
+      "id": "ecology-environment",
+      "name": "Ecology and environment",
+      "description": "Ecology, conservation, environmental science, natural resources, and sustainability."
+    },
+    {
+      "id": "agriculture-food",
+      "name": "Agriculture and food science",
+      "description": "Agriculture, crop and soil science, food science, forestry, and agricultural engineering."
+    },
+    {
+      "id": "medicine-clinical",
+      "name": "Medicine and clinical work",
+      "description": "Medicine, clinical research, diagnostics, health systems, laboratory medicine, and patient care."
+    },
+    {
+      "id": "public-health",
+      "name": "Public health and epidemiology",
+      "description": "Public health, epidemiology, biostatistics, global health, health policy, and disease surveillance."
+    },
+    {
+      "id": "pharma-drug-discovery",
+      "name": "Pharma and drug discovery",
+      "description": "Pharmacology, therapeutics, drug discovery, clinical development, manufacturing, and regulatory science."
+    },
+    {
+      "id": "biomedical-neuroscience",
+      "name": "Biomedical engineering and neuroscience",
+      "description": "Biomedical engineering, medical devices, neurotechnology, neuroscience, and computational biology."
+    },
+    {
+      "id": "civil-infrastructure",
+      "name": "Civil engineering and infrastructure",
+      "description": "Civil, structural, transportation, water, construction, and critical-infrastructure engineering."
+    },
+    {
+      "id": "electronics-semiconductors",
+      "name": "Electronics and semiconductors",
+      "description": "Electrical engineering, microelectronics, semiconductors, photonics, embedded systems, and chip manufacturing."
+    },
+    {
+      "id": "ocean-marine",
+      "name": "Ocean and marine sciences",
+      "description": "Oceanography, marine science, ocean engineering, fisheries, and aquatic research."
+    },
+    {
+      "id": "veterinary-animal",
+      "name": "Veterinary and animal science",
+      "description": "Veterinary medicine, animal health, zoology, comparative medicine, and animal science."
     }
   ],
   "sources": [
@@ -593,6 +663,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-20",
       "cadence_hours": 24,
       "enabled": false
@@ -1442,6 +1513,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1459,6 +1531,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1476,6 +1549,7 @@
       "regions": ["europe", "global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1493,6 +1567,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1510,6 +1585,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "expected_http_statuses": [403],
       "verified_at": "2026-08-20",
       "cadence_hours": 24,
@@ -1528,6 +1604,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-20",
       "cadence_hours": 24,
       "enabled": false
@@ -1545,6 +1622,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1562,6 +1640,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1579,6 +1658,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1596,6 +1676,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1613,6 +1694,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1630,6 +1712,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1647,6 +1730,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1664,6 +1748,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1681,6 +1766,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1698,6 +1784,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1715,6 +1802,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1732,6 +1820,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1749,6 +1838,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1766,7 +1856,9 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
-      "verified_at": "2026-08-10",
+      "auto_enable": false,
+      "expected_http_statuses": [403],
+      "verified_at": "2026-08-21",
       "cadence_hours": 24,
       "enabled": false
     },
@@ -1783,6 +1875,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1800,6 +1893,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1817,6 +1911,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1834,6 +1929,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1851,6 +1947,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1868,6 +1965,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1885,6 +1983,7 @@
       "regions": ["united_states", "global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1902,6 +2001,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1919,6 +2019,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1936,6 +2037,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1953,6 +2055,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1970,6 +2073,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -1987,6 +2091,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2004,6 +2109,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2021,6 +2127,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2038,6 +2145,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2055,6 +2163,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2072,6 +2181,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2089,6 +2199,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2106,6 +2217,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "expected_http_statuses": [403],
       "verified_at": "2026-08-20",
       "cadence_hours": 24,
@@ -2124,6 +2236,7 @@
       "regions": ["global"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2141,6 +2254,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-20",
       "cadence_hours": 24,
       "enabled": false
@@ -2158,6 +2272,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "verified_at": "2026-08-10",
       "cadence_hours": 24,
       "enabled": false
@@ -2175,6 +2290,7 @@
       "regions": ["united_states"],
       "official": true,
       "support_level": "manual",
+      "auto_enable": false,
       "expected_http_statuses": [403],
       "verified_at": "2026-08-20",
       "cadence_hours": 24,
@@ -2203,6 +2319,7388 @@
       "support_level": "experimental",
       "verified_at": "2026-08-20",
       "cadence_hours": 12,
+      "enabled": false
+    },
+    {
+      "id": "ten_x_genomics_greenhouse",
+      "name": "10x Genomics",
+      "kind": "watch_page",
+      "url": "https://careers.10xgenomics.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "ai-research",
+        "students-early-career",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "ai_ml",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "auto_enable": false,
+      "enabled": false
+    },
+    {
+      "id": "insitro_greenhouse",
+      "name": "insitro",
+      "kind": "watch_page",
+      "url": "https://www.insitro.com/join-us/",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "ai_ml",
+        "medicine",
+        "clinical_research",
+        "drug_discovery",
+        "pharmacology",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "auto_enable": false,
+      "enabled": false
+    },
+    {
+      "id": "generate_biomedicines_greenhouse",
+      "name": "Generate Biomedicines",
+      "kind": "greenhouse",
+      "board": "generatebiomedicines",
+      "url": "https://job-boards.greenhouse.io/generatebiomedicines",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/generatebiomedicines/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "ai_ml",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "drug_discovery",
+        "pharmacology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "schrodinger_greenhouse",
+      "name": "Schrödinger",
+      "kind": "greenhouse",
+      "board": "schrdinger",
+      "url": "https://job-boards.greenhouse.io/schrdinger",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/schrdinger/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "physics-quantum-astronomy",
+        "chemistry-materials",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "ai_ml",
+        "physics",
+        "chemistry",
+        "materials_science",
+        "drug_discovery",
+        "pharmacology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "komodo_health_greenhouse",
+      "name": "Komodo Health",
+      "kind": "greenhouse",
+      "board": "komodohealth",
+      "url": "https://job-boards.greenhouse.io/komodohealth",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/komodohealth/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "product",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "precision_for_medicine_greenhouse",
+      "name": "Precision for Medicine",
+      "kind": "greenhouse",
+      "board": "pfm",
+      "url": "https://job-boards.greenhouse.io/pfm",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/pfm/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "pharmacology",
+        "drug_discovery"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "formation_bio_greenhouse",
+      "name": "Formation Bio",
+      "kind": "greenhouse",
+      "board": "formationbio",
+      "url": "https://job-boards.greenhouse.io/formationbio",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/formationbio/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "ai-research",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "ai_ml",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "pharmacology",
+        "drug_discovery"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "freenome_greenhouse",
+      "name": "Freenome",
+      "kind": "greenhouse",
+      "board": "freenome",
+      "url": "https://job-boards.greenhouse.io/freenome",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/freenome/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "ai-research",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "ai_ml",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "natera_greenhouse",
+      "name": "Natera",
+      "kind": "greenhouse",
+      "board": "natera",
+      "url": "https://job-boards.greenhouse.io/natera",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/natera/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "profluent_greenhouse",
+      "name": "Profluent",
+      "kind": "greenhouse",
+      "board": "profluent",
+      "url": "https://job-boards.greenhouse.io/profluent",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/profluent/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "chemistry-materials",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "ai_ml",
+        "chemistry",
+        "drug_discovery",
+        "pharmacology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "ionq_greenhouse",
+      "name": "IonQ",
+      "kind": "greenhouse",
+      "board": "ionq",
+      "url": "https://job-boards.greenhouse.io/ionq",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/ionq/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "academia-research",
+        "ai-research",
+        "skilled-technical",
+        "national-security",
+        "space-aerospace",
+        "mathematical-sciences",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "academia_research",
+        "ai_ml",
+        "skilled_technical",
+        "national_security",
+        "aerospace",
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "psiquantum_greenhouse",
+      "name": "PsiQuantum",
+      "kind": "greenhouse",
+      "board": "psiquantum",
+      "url": "https://job-boards.greenhouse.io/psiquantum",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/psiquantum/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "ai-research",
+        "skilled-technical",
+        "mathematical-sciences",
+        "physics-quantum-astronomy",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "ai_ml",
+        "skilled_technical",
+        "physics",
+        "quantum",
+        "mathematics",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "tenstorrent_greenhouse",
+      "name": "Tenstorrent",
+      "kind": "greenhouse",
+      "board": "tenstorrent",
+      "url": "https://job-boards.greenhouse.io/tenstorrent",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/tenstorrent/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "skilled-technical",
+        "robotics-autonomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "skilled_technical",
+        "robotics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "tenstorrent_university_greenhouse",
+      "name": "Tenstorrent University Jobs",
+      "kind": "greenhouse",
+      "board": "tenstorrentuniversity",
+      "url": "https://job-boards.greenhouse.io/tenstorrentuniversity",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/tenstorrentuniversity/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "students-early-career",
+        "robotics-autonomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "robotics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "internship",
+        "co_op",
+        "job"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "planet_greenhouse",
+      "name": "Planet",
+      "kind": "greenhouse",
+      "board": "planetlabs",
+      "url": "https://job-boards.greenhouse.io/planetlabs",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/planetlabs/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "product-design",
+        "climate-energy",
+        "public-interest",
+        "ai-research",
+        "space-aerospace",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "product",
+        "design",
+        "climate_energy",
+        "public_interest",
+        "ai_ml",
+        "aerospace",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "meteorology",
+        "hydrology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "blacksky_greenhouse",
+      "name": "BlackSky",
+      "kind": "greenhouse",
+      "board": "blacksky",
+      "url": "https://job-boards.greenhouse.io/blacksky",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/blacksky/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "national-security",
+        "space-aerospace",
+        "earth-geospatial"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "national_security",
+        "aerospace",
+        "geoscience",
+        "geospatial",
+        "meteorology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "lightmatter_greenhouse",
+      "name": "Lightmatter",
+      "kind": "greenhouse",
+      "board": "lightmatter",
+      "url": "https://job-boards.greenhouse.io/lightmatter",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/lightmatter/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "ai-research",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "ai_ml",
+        "physics",
+        "quantum",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "groq_greenhouse",
+      "name": "Groq",
+      "kind": "watch_page",
+      "url": "https://groq.com/careers-at-groq",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "skilled-technical",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "skilled_technical",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "auto_enable": false,
+      "enabled": false
+    },
+    {
+      "id": "rebuild_manufacturing_greenhouse",
+      "name": "Re:Build Manufacturing",
+      "kind": "greenhouse",
+      "board": "rebuildmanufacturing",
+      "url": "https://job-boards.greenhouse.io/rebuildmanufacturing",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/rebuildmanufacturing/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "climate-energy",
+        "skilled-technical",
+        "students-early-career",
+        "robotics-autonomy",
+        "chemistry-materials",
+        "civil-infrastructure",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "climate_energy",
+        "skilled_technical",
+        "robotics",
+        "chemistry",
+        "materials_science",
+        "civil_engineering",
+        "infrastructure",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "pronto_greenhouse",
+      "name": "Pronto",
+      "kind": "greenhouse",
+      "board": "pronto",
+      "url": "https://job-boards.greenhouse.io/pronto",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/pronto/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "ai-research",
+        "skilled-technical",
+        "robotics-autonomy",
+        "earth-geospatial",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "ai_ml",
+        "skilled_technical",
+        "robotics",
+        "geoscience",
+        "geospatial",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "scout_ai_greenhouse",
+      "name": "Scout AI",
+      "kind": "greenhouse",
+      "board": "scoutai",
+      "url": "https://job-boards.greenhouse.io/scoutai",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/scoutai/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "skilled-technical",
+        "national-security",
+        "robotics-autonomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "skilled_technical",
+        "national_security",
+        "robotics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "sma_america_greenhouse",
+      "name": "SMA America",
+      "kind": "greenhouse",
+      "board": "smaamerica",
+      "url": "https://job-boards.greenhouse.io/smaamerica",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/smaamerica/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "climate-energy",
+        "skilled-technical",
+        "civil-infrastructure",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "climate_energy",
+        "skilled_technical",
+        "civil_engineering",
+        "infrastructure",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "pow_bio_greenhouse",
+      "name": "Pow.bio",
+      "kind": "watch_page",
+      "url": "https://pow.bio/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "ai-research",
+        "skilled-technical",
+        "chemistry-materials",
+        "agriculture-food",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "ai_ml",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "agriculture",
+        "food_science",
+        "drug_discovery"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "auto_enable": false,
+      "enabled": false
+    },
+    {
+      "id": "atom_computing_lever",
+      "name": "Atom Computing",
+      "kind": "lever",
+      "site": "atomcomputing",
+      "url": "https://jobs.lever.co/atomcomputing",
+      "api_url": "https://api.lever.co/v0/postings/atomcomputing?mode=json",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "ai-research",
+        "skilled-technical",
+        "mathematical-sciences",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "ai_ml",
+        "skilled_technical",
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "rigetti_lever",
+      "name": "Rigetti Computing",
+      "kind": "lever",
+      "site": "rigetti",
+      "url": "https://jobs.lever.co/rigetti",
+      "api_url": "https://api.lever.co/v0/postings/rigetti?mode=json",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "ai-research",
+        "skilled-technical",
+        "students-early-career",
+        "mathematical-sciences",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "ai_ml",
+        "skilled_technical",
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "dronedeploy_lever",
+      "name": "DroneDeploy",
+      "kind": "lever",
+      "site": "dronedeploy",
+      "url": "https://jobs.lever.co/dronedeploy",
+      "api_url": "https://api.lever.co/v0/postings/dronedeploy?mode=json",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "product-design",
+        "ai-research",
+        "robotics-autonomy",
+        "earth-geospatial",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "product",
+        "design",
+        "ai_ml",
+        "robotics",
+        "geoscience",
+        "geospatial",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "xaira_therapeutics_greenhouse",
+      "name": "Xaira Therapeutics",
+      "kind": "greenhouse",
+      "board": "xairatherapeutics",
+      "url": "https://job-boards.greenhouse.io/xairatherapeutics",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/xairatherapeutics/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "ai-research",
+        "students-early-career",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "ai_ml",
+        "chemistry",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "residency",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "bond_vet_greenhouse",
+      "name": "Bond Vet",
+      "kind": "greenhouse",
+      "board": "bondvet",
+      "url": "https://job-boards.greenhouse.io/bondvet",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/bondvet/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "skilled-technical",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "skilled_technical",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "vocational",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "astera_labs_greenhouse",
+      "name": "Astera Labs",
+      "kind": "greenhouse",
+      "board": "asteralabs",
+      "url": "https://job-boards.greenhouse.io/asteralabs",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/asteralabs/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "skilled-technical",
+        "students-early-career",
+        "physics-quantum-astronomy",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "skilled_technical",
+        "physics",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "co_op"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "vocational",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "sound_agriculture_greenhouse",
+      "name": "Sound Agriculture",
+      "kind": "greenhouse",
+      "board": "soundagriculture",
+      "url": "https://job-boards.greenhouse.io/soundagriculture",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/soundagriculture/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "climate-energy",
+        "academia-research",
+        "students-early-career",
+        "chemistry-materials",
+        "earth-geospatial",
+        "ecology-environment",
+        "agriculture-food"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "climate_energy",
+        "academia_research",
+        "chemistry",
+        "geoscience",
+        "environmental_science",
+        "ecology",
+        "hydrology",
+        "agriculture",
+        "food_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "auto_enable": true,
+      "enabled": false
+    },
+    {
+      "id": "mathjobs_portal",
+      "name": "MathJobs.org",
+      "kind": "watch_page",
+      "url": "https://www.mathjobs.org/jobs",
+      "source_type": "official_portal",
+      "packs": [
+        "mathematical-sciences",
+        "academia-research",
+        "students-early-career"
+      ],
+      "domains": [
+        "mathematics",
+        "statistics",
+        "academia_research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ams_employment_services",
+      "name": "American Mathematical Society Employment Services",
+      "kind": "watch_page",
+      "url": "https://www.ams.org/profession/employment-services",
+      "source_type": "official_portal",
+      "packs": [
+        "mathematical-sciences",
+        "academia-research",
+        "students-early-career"
+      ],
+      "domains": [
+        "mathematics",
+        "statistics",
+        "academia_research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "siam_career_center",
+      "name": "SIAM Career Center",
+      "kind": "watch_page",
+      "url": "https://jobs.siam.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "academia-research"
+      ],
+      "domains": [
+        "mathematics",
+        "statistics",
+        "software",
+        "data",
+        "academia_research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "asa_jobweb",
+      "name": "American Statistical Association JobWeb",
+      "kind": "watch_page",
+      "url": "https://jobs.amstat.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "public-health",
+        "academia-research"
+      ],
+      "domains": [
+        "mathematics",
+        "statistics",
+        "data",
+        "public_health",
+        "epidemiology",
+        "academia_research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "maa_career_center",
+      "name": "Mathematical Association of America Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.maa.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "mathematical-sciences",
+        "academia-research",
+        "education-social-impact"
+      ],
+      "domains": [
+        "mathematics",
+        "statistics",
+        "academia_research",
+        "education"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aip_career_resources",
+      "name": "American Institute of Physics Career Resources",
+      "kind": "watch_page",
+      "url": "https://www.aip.org/career-resources",
+      "source_type": "official_portal",
+      "packs": [
+        "physics-quantum-astronomy",
+        "academia-research",
+        "students-early-career"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "astronomy",
+        "academia_research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aps_physics_careers",
+      "name": "APS Physics Careers",
+      "kind": "watch_page",
+      "url": "https://www.apsphysics.org/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "physics-quantum-astronomy",
+        "academia-research",
+        "students-early-career"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "academia_research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aas_job_register",
+      "name": "American Astronomical Society Job Register",
+      "kind": "watch_page",
+      "url": "https://jobregister.aas.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "physics-quantum-astronomy",
+        "academia-research",
+        "space-aerospace"
+      ],
+      "domains": [
+        "physics",
+        "astronomy",
+        "academia_research",
+        "aerospace"
+      ],
+      "opportunity_types": [
+        "job",
+        "fellowship",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "cern_careers",
+      "name": "CERN Careers",
+      "kind": "watch_page",
+      "url": "https://careers.cern/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "fellowships",
+        "students-early-career",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "fellowships",
+        "physics",
+        "quantum",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "fermilab_careers",
+      "name": "Fermilab Careers",
+      "kind": "watch_page",
+      "url": "https://jobs.fnal.gov/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "national-labs",
+        "students-early-career",
+        "physics-quantum-astronomy"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "physics",
+        "quantum"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "slac_careers",
+      "name": "SLAC National Accelerator Laboratory Careers",
+      "kind": "watch_page",
+      "url": "https://careers.slac.stanford.edu/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "national-labs",
+        "students-early-career",
+        "physics-quantum-astronomy",
+        "chemistry-materials"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "physics",
+        "quantum",
+        "chemistry",
+        "materials_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "stsci_opportunities",
+      "name": "Space Telescope Science Institute Opportunities",
+      "kind": "watch_page",
+      "url": "https://www.stsci.edu/opportunities",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "space-aerospace",
+        "physics-quantum-astronomy"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "aerospace",
+        "physics",
+        "astronomy"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nrao_careers",
+      "name": "National Radio Astronomy Observatory Careers",
+      "kind": "watch_page",
+      "url": "https://public.nrao.edu/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "physics",
+        "astronomy",
+        "electrical_engineering"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "noirlab_careers",
+      "name": "NSF NOIRLab Careers",
+      "kind": "watch_page",
+      "url": "https://noirlab.edu/public/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "physics-quantum-astronomy"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "physics",
+        "astronomy"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ligo_careers",
+      "name": "LIGO Careers",
+      "kind": "watch_page",
+      "url": "https://www.ligo.caltech.edu/page/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "physics-quantum-astronomy"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "physics",
+        "astronomy"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "acs_careers",
+      "name": "American Chemical Society Careers",
+      "kind": "watch_page",
+      "url": "https://jobs.acs.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "chemistry-materials",
+        "academia-research",
+        "students-early-career",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "chemistry",
+        "materials_science",
+        "academia_research",
+        "drug_discovery",
+        "pharmacology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "mrs_career_center",
+      "name": "Materials Research Society Career Center",
+      "kind": "watch_page",
+      "url": "https://jobs.mrs.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "academia-research",
+        "students-early-career",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "academia_research",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aiche_career_engineer",
+      "name": "AIChE CareerEngineer",
+      "kind": "watch_page",
+      "url": "https://careerengineer.aiche.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "climate-energy",
+        "academia-research",
+        "chemistry-materials",
+        "agriculture-food",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "engineering",
+        "climate_energy",
+        "academia_research",
+        "chemistry",
+        "materials_science",
+        "agriculture",
+        "food_science",
+        "drug_discovery"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ceramic_society_careers",
+      "name": "American Ceramic Society Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.ceramics.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "academia-research",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "academia_research",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usgs_careers",
+      "name": "U.S. Geological Survey Careers",
+      "kind": "watch_page",
+      "url": "https://www.usgs.gov/human-capital",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "meteorology",
+        "hydrology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "noaa_careers",
+      "name": "NOAA Careers",
+      "kind": "watch_page",
+      "url": "https://www.noaa.gov/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "meteorology",
+        "hydrology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "agu_career_center",
+      "name": "American Geophysical Union Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.agu.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "meteorology",
+        "hydrology",
+        "oceanography"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "gsa_career_center",
+      "name": "Geological Society of America Career Center",
+      "kind": "watch_page",
+      "url": "https://www.geosociety.org/GSA/GSA/Careers_Events/Career_Center.aspx",
+      "source_type": "official_portal",
+      "packs": [
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aag_career_center",
+      "name": "American Association of Geographers Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.aag.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "earth-geospatial"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "geoscience",
+        "geospatial"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "esri_careers",
+      "name": "Esri Careers",
+      "kind": "watch_page",
+      "url": "https://www.esri.com/en-us/about/careers/overview",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "product-design",
+        "public-interest",
+        "ai-research",
+        "students-early-career",
+        "earth-geospatial"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "product",
+        "design",
+        "public_interest",
+        "ai_ml",
+        "geoscience",
+        "geospatial"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "agi_workforce",
+      "name": "American Geosciences Institute Workforce Resources",
+      "kind": "watch_page",
+      "url": "https://www.americangeosciences.org/workforce/",
+      "source_type": "official_portal",
+      "packs": [
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial"
+      ],
+      "domains": [
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "research_program"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "epa_careers",
+      "name": "U.S. Environmental Protection Agency Careers",
+      "kind": "watch_page",
+      "url": "https://www.epa.gov/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "public-interest",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "public-health",
+        "chemistry-materials"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "public_interest",
+        "geoscience",
+        "environmental_science",
+        "ecology",
+        "public_health",
+        "epidemiology",
+        "chemistry",
+        "hydrology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usfws_careers",
+      "name": "U.S. Fish and Wildlife Service Careers",
+      "kind": "watch_page",
+      "url": "https://www.fws.gov/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "public-interest",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "public_interest",
+        "geoscience",
+        "environmental_science",
+        "ecology",
+        "oceanography",
+        "marine_science",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nps_careers",
+      "name": "National Park Service Careers",
+      "kind": "watch_page",
+      "url": "https://www.nps.gov/aboutus/workwithus.htm",
+      "source_type": "official_portal",
+      "packs": [
+        "public-interest",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "public_interest",
+        "geoscience",
+        "environmental_science",
+        "ecology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "esa_careers",
+      "name": "Ecological Society of America Careers",
+      "kind": "watch_page",
+      "url": "https://www.esa.org/careers-and-certification/",
+      "source_type": "official_portal",
+      "packs": [
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "academia_research",
+        "geoscience",
+        "environmental_science",
+        "ecology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "scb_career_center",
+      "name": "Society for Conservation Biology Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.conbio.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "ecology-environment"
+      ],
+      "domains": [
+        "public_interest",
+        "academia_research",
+        "environmental_science",
+        "ecology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nature_conservancy_careers",
+      "name": "The Nature Conservancy Careers",
+      "kind": "watch_page",
+      "url": "https://careers.nature.org/",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "conservation_international_careers",
+      "name": "Conservation International Careers",
+      "kind": "watch_page",
+      "url": "https://www.conservation.org/about/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "earth-geospatial",
+        "ecology-environment"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "wri_careers",
+      "name": "World Resources Institute Careers",
+      "kind": "watch_page",
+      "url": "https://www.wri.org/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "climate-energy",
+        "public-interest",
+        "earth-geospatial",
+        "ecology-environment",
+        "agriculture-food"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "climate_energy",
+        "public_interest",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usda_careers",
+      "name": "U.S. Department of Agriculture Careers",
+      "kind": "watch_page",
+      "url": "https://www.usda.gov/about-usda/general-information/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "public-interest",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "agriculture-food",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "public_interest",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usda_ars_careers",
+      "name": "USDA Agricultural Research Service Careers",
+      "kind": "watch_page",
+      "url": "https://www.ars.usda.gov/careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "ecology-environment",
+        "agriculture-food",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usda_aphis_careers",
+      "name": "USDA APHIS Careers",
+      "kind": "watch_page",
+      "url": "https://www.aphis.usda.gov/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "public-interest",
+        "students-early-career",
+        "ecology-environment",
+        "agriculture-food",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "public_interest",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "fao_careers",
+      "name": "Food and Agriculture Organization Careers",
+      "kind": "watch_page",
+      "url": "https://www.fao.org/employment/home/en",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "earth-geospatial",
+        "ecology-environment",
+        "agriculture-food",
+        "public-health",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science",
+        "public_health",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "cgiar_careers",
+      "name": "CGIAR Careers",
+      "kind": "watch_page",
+      "url": "https://www.cgiar.org/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "climate-energy",
+        "public-interest",
+        "academia-research",
+        "earth-geospatial",
+        "ecology-environment",
+        "agriculture-food",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "climate_energy",
+        "public_interest",
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science",
+        "public_health"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ifpri_careers",
+      "name": "International Food Policy Research Institute Careers",
+      "kind": "watch_page",
+      "url": "https://www.ifpri.org/careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "mathematical-sciences",
+        "agriculture-food",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "mathematics",
+        "statistics",
+        "agriculture",
+        "food_science",
+        "public_health",
+        "epidemiology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ift_career_center",
+      "name": "Institute of Food Technologists Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.ift.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "biotech-health",
+        "academia-research",
+        "chemistry-materials",
+        "agriculture-food",
+        "public-health"
+      ],
+      "domains": [
+        "engineering",
+        "biotech_health",
+        "academia_research",
+        "chemistry",
+        "materials_science",
+        "agriculture",
+        "food_science",
+        "public_health"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "asabe_career_center",
+      "name": "ASABE Career Center",
+      "kind": "watch_page",
+      "url": "https://careercenter.asabe.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "climate-energy",
+        "academia-research",
+        "earth-geospatial",
+        "ecology-environment",
+        "agriculture-food",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "climate_energy",
+        "academia_research",
+        "geoscience",
+        "environmental_science",
+        "ecology",
+        "agriculture",
+        "food_science",
+        "civil_engineering",
+        "infrastructure",
+        "hydrology"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "cargill_careers",
+      "name": "Cargill Careers",
+      "kind": "watch_page",
+      "url": "https://careers.cargill.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "skilled-technical",
+        "chemistry-materials",
+        "agriculture-food"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "agriculture",
+        "food_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "mayo_clinic_jobs",
+      "name": "Mayo Clinic Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.mayoclinic.org/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "cleveland_clinic_jobs",
+      "name": "Cleveland Clinic Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.clevelandclinic.org/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "hopkins_medicine_jobs",
+      "name": "Johns Hopkins Medicine Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.hopkinsmedicine.org/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "mass_general_brigham_careers",
+      "name": "Mass General Brigham Careers",
+      "kind": "watch_page",
+      "url": "https://www.massgeneralbrigham.org/en/about/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nyu_langone_jobs",
+      "name": "NYU Langone Health Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.nyulangone.org/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ucsf_careers",
+      "name": "UCSF Careers",
+      "kind": "watch_page",
+      "url": "https://careers.ucsf.edu/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "kaiser_permanente_jobs",
+      "name": "Kaiser Permanente Jobs",
+      "kind": "watch_page",
+      "url": "https://www.kaiserpermanentejobs.org/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "who_careers",
+      "name": "World Health Organization Careers",
+      "kind": "watch_page",
+      "url": "https://www.who.int/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "public_interest",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "pharmacology",
+        "drug_discovery"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nih_careers",
+      "name": "National Institutes of Health Careers",
+      "kind": "watch_page",
+      "url": "https://hr.nih.gov/jobs",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "public_interest",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "cdc_careers",
+      "name": "Centers for Disease Control and Prevention Careers",
+      "kind": "watch_page",
+      "url": "https://www.cdc.gov/careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "public_interest",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "fda_careers",
+      "name": "U.S. Food and Drug Administration Careers",
+      "kind": "watch_page",
+      "url": "https://www.fda.gov/about-fda/jobs-and-training-fda",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "public-interest",
+        "students-early-career",
+        "chemistry-materials",
+        "agriculture-food",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "public_interest",
+        "chemistry",
+        "materials_science",
+        "agriculture",
+        "food_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "apha_career_center",
+      "name": "American Public Health Association Career Center",
+      "kind": "watch_page",
+      "url": "https://careers.apha.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "astho_careers",
+      "name": "Association of State and Territorial Health Officials Careers",
+      "kind": "watch_page",
+      "url": "https://www.astho.org/careers-at-astho/",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "naccho_careers",
+      "name": "National Association of County and City Health Officials Careers",
+      "kind": "watch_page",
+      "url": "https://www.naccho.org/about/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "public_health_institute_jobs",
+      "name": "Public Health Institute Jobs",
+      "kind": "watch_page",
+      "url": "https://www.phi.org/work-with-us/",
+      "source_type": "manual_page",
+      "packs": [
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "cdc_eis",
+      "name": "CDC Epidemic Intelligence Service",
+      "kind": "watch_page",
+      "url": "https://www.cdc.gov/eis/",
+      "source_type": "program_calendar",
+      "packs": [
+        "biotech-health",
+        "public-interest",
+        "academia-research",
+        "fellowships",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "biotech_health",
+        "public_interest",
+        "academia_research",
+        "fellowships",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "fellowship",
+        "research_program"
+      ],
+      "career_levels": [
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "paho_careers",
+      "name": "Pan American Health Organization Careers",
+      "kind": "watch_page",
+      "url": "https://www.paho.org/en/careers-paho",
+      "source_type": "official_portal",
+      "packs": [
+        "data-software",
+        "biotech-health",
+        "public-interest",
+        "medicine-clinical",
+        "public-health"
+      ],
+      "domains": [
+        "software",
+        "data",
+        "biotech_health",
+        "public_interest",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "pfizer_careers",
+      "name": "Pfizer Careers",
+      "kind": "watch_page",
+      "url": "https://www.pfizer.com/about/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "merck_careers",
+      "name": "Merck Careers",
+      "kind": "watch_page",
+      "url": "https://jobs.merck.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "moderna_careers",
+      "name": "Moderna Careers",
+      "kind": "watch_page",
+      "url": "https://careers.modernatx.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "amgen_careers",
+      "name": "Amgen Careers",
+      "kind": "watch_page",
+      "url": "https://careers.amgen.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "genentech_careers",
+      "name": "Genentech Careers",
+      "kind": "watch_page",
+      "url": "https://careers.gene.com/us/en/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "gilead_careers",
+      "name": "Gilead Sciences Careers",
+      "kind": "watch_page",
+      "url": "https://jobs.gilead.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "skilled-technical"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "skilled_technical"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "medtronic_careers",
+      "name": "Medtronic Careers",
+      "kind": "watch_page",
+      "url": "https://www.medtronic.com/en-us/our-company/careers.html",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "biotech-health",
+        "skilled-technical",
+        "chemistry-materials",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "biotech_health",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "stryker_careers",
+      "name": "Stryker Careers",
+      "kind": "watch_page",
+      "url": "https://careers.stryker.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "biotech-health",
+        "skilled-technical",
+        "chemistry-materials",
+        "medicine-clinical",
+        "biomedical-neuroscience",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "biotech_health",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "biomedical_engineering",
+        "medical_devices",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "boston_scientific_jobs",
+      "name": "Boston Scientific Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.bostonscientific.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "biotech-health",
+        "skilled-technical",
+        "chemistry-materials",
+        "medicine-clinical",
+        "biomedical-neuroscience",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "biotech_health",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "biomedical_engineering",
+        "medical_devices",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "edwards_careers",
+      "name": "Edwards Lifesciences Careers",
+      "kind": "watch_page",
+      "url": "https://www.edwards.com/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "skilled-technical",
+        "chemistry-materials",
+        "medicine-clinical",
+        "biomedical-neuroscience",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "biomedical_engineering",
+        "medical_devices",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "intuitive_careers",
+      "name": "Intuitive Careers",
+      "kind": "watch_page",
+      "url": "https://careers.intuitive.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "biotech-health",
+        "ai-research",
+        "skilled-technical",
+        "robotics-autonomy",
+        "medicine-clinical",
+        "biomedical-neuroscience",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "biotech_health",
+        "ai_ml",
+        "skilled_technical",
+        "robotics",
+        "medicine",
+        "clinical_research",
+        "biomedical_engineering",
+        "medical_devices",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "abbott_careers",
+      "name": "Abbott Careers",
+      "kind": "watch_page",
+      "url": "https://www.jobs.abbott/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "skilled-technical",
+        "chemistry-materials",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "asce_career_connections",
+      "name": "ASCE Career Connections",
+      "kind": "watch_page",
+      "url": "https://careers.asce.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aecom_careers",
+      "name": "AECOM Careers",
+      "kind": "watch_page",
+      "url": "https://aecom.jobs/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "climate-energy",
+        "skilled-technical",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "climate_energy",
+        "skilled_technical",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "jacobs_careers",
+      "name": "Jacobs Careers",
+      "kind": "watch_page",
+      "url": "https://careers.jacobs.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "climate-energy",
+        "skilled-technical",
+        "national-security",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "climate_energy",
+        "skilled_technical",
+        "national_security",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "wsp_careers",
+      "name": "WSP Careers",
+      "kind": "watch_page",
+      "url": "https://www.wsp.com/en-gl/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "climate-energy",
+        "skilled-technical",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "climate_energy",
+        "skilled_technical",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "arup_careers",
+      "name": "Arup Careers",
+      "kind": "watch_page",
+      "url": "https://www.arup.com/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "product-design",
+        "climate-energy",
+        "skilled-technical",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "product",
+        "design",
+        "climate_energy",
+        "skilled_technical",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "hdr_careers",
+      "name": "HDR Careers",
+      "kind": "watch_page",
+      "url": "https://www.hdrinc.com/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "climate-energy",
+        "skilled-technical",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "climate_energy",
+        "skilled_technical",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "stantec_careers",
+      "name": "Stantec Careers",
+      "kind": "watch_page",
+      "url": "https://www.stantec.com/en/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "climate-energy",
+        "skilled-technical",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "climate_energy",
+        "skilled_technical",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "bechtel_careers",
+      "name": "Bechtel Careers",
+      "kind": "watch_page",
+      "url": "https://jobs.bechtel.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "climate-energy",
+        "skilled-technical",
+        "national-security",
+        "earth-geospatial",
+        "civil-infrastructure",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "climate_energy",
+        "skilled_technical",
+        "national_security",
+        "geoscience",
+        "geospatial",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure",
+        "electrical_engineering"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usdot_careers",
+      "name": "U.S. Department of Transportation Careers",
+      "kind": "watch_page",
+      "url": "https://www.transportation.gov/careers",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "public-interest",
+        "students-early-career",
+        "skilled-technical",
+        "earth-geospatial",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "public_interest",
+        "skilled_technical",
+        "geoscience",
+        "geospatial",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "usace_careers",
+      "name": "U.S. Army Corps of Engineers Careers",
+      "kind": "watch_page",
+      "url": "https://www.usace.army.mil/Careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "public-interest",
+        "students-early-career",
+        "skilled-technical",
+        "national-security",
+        "earth-geospatial",
+        "ecology-environment",
+        "civil-infrastructure"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "public_interest",
+        "skilled_technical",
+        "national_security",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "hydrology",
+        "civil_engineering",
+        "infrastructure"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "ieee_jobs",
+      "name": "IEEE Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.ieee.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "academia-research",
+        "students-early-career",
+        "ai-research",
+        "robotics-autonomy",
+        "physics-quantum-astronomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "academia_research",
+        "ai_ml",
+        "robotics",
+        "physics",
+        "quantum",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "intel_jobs",
+      "name": "Intel Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.intel.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "students-early-career",
+        "skilled-technical",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "skilled_technical",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "amd_careers",
+      "name": "AMD Careers",
+      "kind": "watch_page",
+      "url": "https://careers.amd.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "students-early-career",
+        "skilled-technical",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "skilled_technical",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nvidia_careers",
+      "name": "NVIDIA Careers",
+      "kind": "watch_page",
+      "url": "https://www.nvidia.com/en-us/about-nvidia/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "students-early-career",
+        "robotics-autonomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "robotics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "qualcomm_careers",
+      "name": "Qualcomm Careers",
+      "kind": "watch_page",
+      "url": "https://careers.qualcomm.com/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "ai-research",
+        "students-early-career",
+        "robotics-autonomy",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "ai_ml",
+        "robotics",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "texas_instruments_careers",
+      "name": "Texas Instruments Careers",
+      "kind": "watch_page",
+      "url": "https://careers.ti.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "students-early-career",
+        "skilled-technical",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "skilled_technical",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "micron_careers",
+      "name": "Micron Careers",
+      "kind": "watch_page",
+      "url": "https://careers.micron.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "students-early-career",
+        "skilled-technical",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "applied_materials_careers",
+      "name": "Applied Materials Careers",
+      "kind": "watch_page",
+      "url": "https://careers.appliedmaterials.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "students-early-career",
+        "skilled-technical",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "lam_research_careers",
+      "name": "Lam Research Careers",
+      "kind": "watch_page",
+      "url": "https://www.lamresearch.com/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "students-early-career",
+        "skilled-technical",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "skilled_technical",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "asml_careers",
+      "name": "ASML Careers",
+      "kind": "watch_page",
+      "url": "https://www.asml.com/en/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "cybersecurity",
+        "students-early-career",
+        "skilled-technical",
+        "physics-quantum-astronomy",
+        "chemistry-materials",
+        "electronics-semiconductors"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "cybersecurity",
+        "skilled_technical",
+        "physics",
+        "quantum",
+        "chemistry",
+        "materials_science",
+        "electrical_engineering",
+        "semiconductors"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "whoi_careers",
+      "name": "Woods Hole Oceanographic Institution Careers",
+      "kind": "watch_page",
+      "url": "https://www.whoi.edu/what-we-do/educate/careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "meteorology",
+        "hydrology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "mbari_careers",
+      "name": "Monterey Bay Aquarium Research Institute Careers",
+      "kind": "watch_page",
+      "url": "https://www.mbari.org/about/careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "robotics-autonomy",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "robotics",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "scripps_oceanography_jobs",
+      "name": "Scripps Institution of Oceanography Jobs",
+      "kind": "watch_page",
+      "url": "https://scripps.ucsd.edu/about/jobs",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "meteorology",
+        "hydrology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "schmidt_ocean_careers",
+      "name": "Schmidt Ocean Institute Careers",
+      "kind": "watch_page",
+      "url": "https://schmidtocean.org/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "public-interest",
+        "academia-research",
+        "robotics-autonomy",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "public_interest",
+        "academia_research",
+        "robotics",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "oceanx_careers",
+      "name": "OceanX",
+      "kind": "greenhouse",
+      "board": "oceanx",
+      "url": "https://job-boards.greenhouse.io/oceanx",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/oceanx/jobs",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "data-software",
+        "public-interest",
+        "education-social-impact",
+        "robotics-autonomy",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "public_interest",
+        "education",
+        "social_impact",
+        "robotics",
+        "geoscience",
+        "geospatial",
+        "environmental_science",
+        "ecology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 12,
+      "enabled": false
+    },
+    {
+      "id": "marine_technology_society_careers",
+      "name": "Marine Technology Society Career Center",
+      "kind": "watch_page",
+      "url": "https://www.marinetech.org/careers/",
+      "source_type": "official_portal",
+      "packs": [
+        "engineering",
+        "data-software",
+        "academia-research",
+        "students-early-career",
+        "robotics-autonomy",
+        "ocean-marine"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "academia_research",
+        "robotics",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aslo_jobs",
+      "name": "Association for the Sciences of Limnology and Oceanography Jobs",
+      "kind": "watch_page",
+      "url": "https://www.aslo.org/jobs/",
+      "source_type": "official_portal",
+      "packs": [
+        "academia-research",
+        "students-early-career",
+        "earth-geospatial",
+        "ecology-environment",
+        "ocean-marine"
+      ],
+      "domains": [
+        "academia_research",
+        "geoscience",
+        "environmental_science",
+        "ecology",
+        "hydrology",
+        "oceanography",
+        "marine_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "avma_jobs",
+      "name": "AVMA Veterinary Career Center",
+      "kind": "watch_page",
+      "url": "https://jobs.avma.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "biotech-health",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "aavmc_career_center",
+      "name": "AAVMC Career Center",
+      "kind": "watch_page",
+      "url": "https://www.aavmc.org/career-center/",
+      "source_type": "official_portal",
+      "packs": [
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "zoetis_careers",
+      "name": "Zoetis Careers",
+      "kind": "watch_page",
+      "url": "https://careers.zoetis.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "skilled-technical",
+        "agriculture-food",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "skilled_technical",
+        "agriculture",
+        "food_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "idexx_careers",
+      "name": "IDEXX Careers",
+      "kind": "watch_page",
+      "url": "https://careers.idexx.com/us/en",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "skilled-technical",
+        "agriculture-food",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "skilled_technical",
+        "agriculture",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "biomedical_engineering",
+        "medical_devices",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "elanco_careers",
+      "name": "Elanco Careers",
+      "kind": "watch_page",
+      "url": "https://careers.elanco.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "skilled-technical",
+        "agriculture-food",
+        "medicine-clinical",
+        "public-health",
+        "pharma-drug-discovery",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "skilled_technical",
+        "agriculture",
+        "food_science",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "pharmacology",
+        "drug_discovery",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "new_grad",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "vca_careers",
+      "name": "VCA Animal Hospitals Careers",
+      "kind": "watch_page",
+      "url": "https://careers.vca.com/global/en",
+      "source_type": "manual_page",
+      "packs": [
+        "biotech-health",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "skilled-technical",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "skilled_technical",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "banfield_jobs",
+      "name": "Banfield Pet Hospital Jobs",
+      "kind": "watch_page",
+      "url": "https://jobs.banfield.com/",
+      "source_type": "manual_page",
+      "packs": [
+        "biotech-health",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "skilled-technical",
+        "veterinary-animal"
+      ],
+      "domains": [
+        "biotech_health",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "skilled_technical",
+        "veterinary_science"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced",
+        "vocational"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "sfn_neurojobs",
+      "name": "Society for Neuroscience NeuroJobs",
+      "kind": "watch_page",
+      "url": "https://neurojobs.sfn.org/",
+      "source_type": "official_portal",
+      "packs": [
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "allen_institute_careers",
+      "name": "Allen Institute Careers",
+      "kind": "watch_page",
+      "url": "https://alleninstitute.org/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "ai-research",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "ai_ml",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "hhmi_careers",
+      "name": "Howard Hughes Medical Institute Careers",
+      "kind": "watch_page",
+      "url": "https://www.hhmi.org/careers",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "academia-research",
+        "students-early-career",
+        "medicine-clinical",
+        "pharma-drug-discovery",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "academia_research",
+        "medicine",
+        "clinical_research",
+        "pharmacology",
+        "drug_discovery",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship",
+        "fellowship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "chan_zuckerberg_careers",
+      "name": "Chan Zuckerberg Initiative Careers",
+      "kind": "watch_page",
+      "url": "https://chanzuckerberg.com/careers/",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "product-design",
+        "public-interest",
+        "academia-research",
+        "ai-research",
+        "education-social-impact",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "product",
+        "design",
+        "public_interest",
+        "academia_research",
+        "ai_ml",
+        "education",
+        "social_impact",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
+      "enabled": false
+    },
+    {
+      "id": "nih_brain_training",
+      "name": "NIH BRAIN Initiative Training Opportunities",
+      "kind": "watch_page",
+      "url": "https://braininitiative.nih.gov/funding/training",
+      "source_type": "program_calendar",
+      "packs": [
+        "engineering",
+        "data-software",
+        "biotech-health",
+        "public-interest",
+        "academia-research",
+        "fellowships",
+        "students-early-career",
+        "ai-research",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience"
+      ],
+      "domains": [
+        "engineering",
+        "software",
+        "data",
+        "biotech_health",
+        "public_interest",
+        "academia_research",
+        "fellowships",
+        "ai_ml",
+        "medicine",
+        "clinical_research",
+        "public_health",
+        "epidemiology",
+        "statistics",
+        "biomedical_engineering",
+        "medical_devices",
+        "neuroscience"
+      ],
+      "opportunity_types": [
+        "fellowship",
+        "internship",
+        "research_program",
+        "postdoc"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "phd",
+        "postdoc",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "publish_as_opportunity": false,
+      "auto_enable": false,
+      "verified_at": "2026-08-23",
+      "cadence_hours": 168,
       "enabled": false
     }
   ]

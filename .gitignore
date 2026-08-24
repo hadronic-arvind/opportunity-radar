@@ -1,5 +1,6 @@
 # Private configuration and project-local agent memory
 /config/profile.local.json
+/config/profiles.local.json
 /config/sources.local.json
 /.agents/
 /.env*

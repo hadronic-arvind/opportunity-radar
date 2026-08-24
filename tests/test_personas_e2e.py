@@ -219,6 +219,104 @@ SOCIAL_IMPACT_LEADER = profile_payload(
 )
 
 
+CLINICAL_RESEARCHER = profile_payload(
+    timeframes=["Anytime"],
+    packs=[
+        "biotech-health",
+        "medicine-clinical",
+        "public-health",
+        "biomedical-neuroscience",
+    ],
+    candidate={
+        "current_stage": "medical trainee",
+        "expected_graduation": "June 2027",
+        "completed_degrees": ["B.S. Biology", "M.D."],
+        "skills": [
+            "clinical research",
+            "patient recruitment",
+            "epidemiology",
+            "biomarker analysis",
+        ],
+        "max_required_experience_years": 4,
+    },
+    targets={
+        "cycles": [{"label": "Anytime", "season": "anytime"}],
+        "opportunity_types": ["job", "residency", "research_program", "fellowship"],
+        "role_families": [
+            "clinical research",
+            "epidemiology",
+            "laboratory medicine",
+            "residency",
+        ],
+        "domains": [
+            "medicine",
+            "clinical research",
+            "public health",
+            "biomedical science",
+            "neuroscience",
+        ],
+        "supporting_skills": [
+            "clinical protocols",
+            "biostatistics",
+            "patient care",
+        ],
+        "locations": ["Boston", "New York", "Remote"],
+        "exclusions": ["commission only", "unpaid"],
+        "work_arrangements": ["onsite", "hybrid", "remote"],
+        "remote_preference": "hybrid_preferred",
+        "strict_opportunity_types": False,
+        "strict_timeframes": False,
+    },
+    organizations=["Precision for Medicine", "Mayo Clinic", "National Institutes of Health"],
+    rules=[
+        {
+            "id": "clinical_research",
+            "label": "Clinical and translational research",
+            "weight": 29,
+            "fields": ["title", "category", "description"],
+            "terms": [
+                "clinical research",
+                "oncology",
+                "biomarker",
+                "laboratory medicine",
+            ],
+            "match": "any",
+            "per_term": True,
+            "max_hits": 3,
+            "dimension": "interest",
+            "anchor": True,
+            "hard_gate": False,
+        },
+        {
+            "id": "population_health",
+            "label": "Patient and population health",
+            "weight": 20,
+            "fields": ["title", "category", "description"],
+            "terms": ["patient", "public health", "epidemiology", "biomedical"],
+            "match": "any",
+            "per_term": True,
+            "max_hits": 2,
+            "dimension": "target",
+            "anchor": True,
+            "hard_gate": False,
+        },
+    ],
+    default_document="Medical trainee resume",
+    routes=[
+        {
+            "label": "Clinical research CV",
+            "terms": ["clinical research", "oncology", "biomarker", "protocol"],
+            "fields": ["title", "description", "category"],
+        },
+        {
+            "label": "Public health resume",
+            "terms": ["epidemiology", "population health", "surveillance"],
+            "fields": ["title", "description", "category"],
+        },
+    ],
+)
+
+
 SAMPLE_OPPORTUNITIES = (
     Opportunity(
         source_id="field_ai_lever",
@@ -276,6 +374,23 @@ SAMPLE_OPPORTUNITIES = (
         deadline_at="2027-05-01",
         commitment="Fellowship",
     ),
+    Opportunity(
+        source_id="precision_for_medicine_greenhouse",
+        external_id="clinical-research-coordinator",
+        title="Clinical Research Coordinator, Oncology Biomarkers",
+        organization="Precision for Medicine",
+        url="https://example.com/precision-for-medicine/clinical-research-coordinator",
+        location="Boston, MA (Hybrid)",
+        description=(
+            "Coordinate patient-facing clinical research protocols and translational "
+            "oncology biomarker laboratory studies."
+        ),
+        category="Clinical Research and Biomedical Science",
+        opportunity_type="job",
+        posted_at="2026-08-05T12:00:00+00:00",
+        commitment="Full-time",
+        eligibility="M.D., M.P.H., and biomedical science graduates may apply.",
+    ),
 )
 
 
@@ -304,7 +419,14 @@ class PersonaEndToEndTests(unittest.TestCase):
         finally:
             database.close()
 
-    def _run_persona(self, payload, expected_external_id, expected_document, query):
+    def _run_persona(
+        self,
+        payload,
+        expected_source_id,
+        expected_external_id,
+        expected_document,
+        query,
+    ):
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
             self._sandbox(root)
@@ -340,13 +462,24 @@ class PersonaEndToEndTests(unittest.TestCase):
                 database = Database(root / "data" / "opportunities.sqlite3")
                 try:
                     row = database.connection.execute(
-                        "SELECT id, score, tier, recommended_resume FROM opportunities "
+                        "SELECT id, source_id, score, tier, recommended_resume FROM opportunities "
                         "WHERE external_id=?",
                         (expected_external_id,),
+                    ).fetchone()
+                    source_row = database.connection.execute(
+                        "SELECT enabled FROM sources WHERE id=?",
+                        (expected_source_id,),
                     ).fetchone()
                 finally:
                     database.close()
                 self.assertIsNotNone(row)
+                self.assertEqual(row["source_id"], expected_source_id)
+                self.assertIsNotNone(source_row)
+                self.assertEqual(source_row["enabled"], 1)
+                active_sources = {
+                    source["id"]: source["enabled"] for source in config.load_sources()
+                }
+                self.assertTrue(active_sources[expected_source_id])
                 self.assertGreaterEqual(row["score"], 60)
                 self.assertIn(row["tier"], {"strong", "priority"})
                 self.assertEqual(row["recommended_resume"], expected_document)
@@ -375,16 +508,18 @@ class PersonaEndToEndTests(unittest.TestCase):
                     stderr.getvalue(),
                 )
 
-            local_profile = json.loads(
-                (root / "config" / "profile.local.json").read_text(encoding="utf-8")
+            store_path = root / "config" / "profiles.local.json"
+            store = json.loads(store_path.read_text(encoding="utf-8"))
+            active = next(
+                entry
+                for entry in store["profiles"]
+                if entry["id"] == store["active_profile_id"]
             )
-            local_sources = json.loads(
-                (root / "config" / "sources.local.json").read_text(encoding="utf-8")
-            )
+            local_profile = active["profile"]
+            local_sources = active["sources"]
             self.assertEqual(local_profile["candidate"]["current_stage"], payload["candidate"]["current_stage"])
             self.assertEqual(local_sources["selected_packs"], payload["selected_packs"])
-            self.assertEqual(os.stat(root / "config" / "profile.local.json").st_mode & 0o777, 0o600)
-            self.assertEqual(os.stat(root / "config" / "sources.local.json").st_mode & 0o777, 0o600)
+            self.assertEqual(os.stat(store_path).st_mode & 0o777, 0o600)
 
             rendered = (root / "dashboard" / "index.html").read_text(encoding="utf-8")
             match = re.search(
@@ -406,6 +541,7 @@ class PersonaEndToEndTests(unittest.TestCase):
     def test_undergraduate_robotics_and_aerospace_profile(self):
         self._run_persona(
             ROBOTICS_STUDENT,
+            expected_source_id="field_ai_lever",
             expected_external_id="robotics-intern",
             expected_document="Robotics portfolio",
             query="robotics controls",
@@ -414,9 +550,19 @@ class PersonaEndToEndTests(unittest.TestCase):
     def test_experienced_social_impact_career_changer_profile(self):
         self._run_persona(
             SOCIAL_IMPACT_LEADER,
+            expected_source_id="vera_institute_greenhouse",
             expected_external_id="community-director",
             expected_document="Policy and evaluation CV",
             query="community evaluation",
+        )
+
+    def test_medical_trainee_clinical_research_profile(self):
+        self._run_persona(
+            CLINICAL_RESEARCHER,
+            expected_source_id="precision_for_medicine_greenhouse",
+            expected_external_id="clinical-research-coordinator",
+            expected_document="Clinical research CV",
+            query="oncology clinical research",
         )
 
 

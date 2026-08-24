@@ -21,9 +21,11 @@ from monitor.config import resolve_private_state_path
 
 
 MAX_PRIVATE_PROFILE_BYTES = 2 * 1024 * 1024
+MAX_PRIVATE_PROFILE_STORE_BYTES = 16 * 1024 * 1024
 DISALLOWED_PATHS = {
     ".agents/project-memory.md",
     "config/profile.local.json",
+    "config/profiles.local.json",
     "config/sources.local.json",
     "dashboard/index.html",
     "public/dashboard/index.html",
@@ -172,7 +174,12 @@ def fallback_ignored(path: Path) -> bool:
     name = path.name
     if path.is_dir():
         return True
-    if relative in {"config/profile.local.json", "config/sources.local.json", "dashboard/index.html"}:
+    if relative in {
+        "config/profile.local.json",
+        "config/profiles.local.json",
+        "config/sources.local.json",
+        "dashboard/index.html",
+    }:
         return True
     if relative.startswith(
         (
@@ -193,8 +200,8 @@ def fallback_ignored(path: Path) -> bool:
     return name.startswith(".env") or name == ".DS_Store" or name.endswith((".pyc", ".pem", ".key", ".p12", ".pfx"))
 
 
-def _runtime_profile_path() -> Optional[Path]:
-    """Return a private runtime profile only through the managed database link."""
+def _runtime_config_path(name: str, maximum_bytes: int) -> Optional[Path]:
+    """Return one private runtime config only through the managed database link."""
     database = PROJECT_ROOT / "data" / "opportunities.sqlite3"
     if not database.is_symlink():
         return None
@@ -203,25 +210,36 @@ def _runtime_profile_path() -> Optional[Path]:
             database,
             "data",
             "opportunities.sqlite3",
+            require_compatible=False,
         )
-        profile = database_target.parent.parent / "config" / "profile.local.json"
-        details = profile.lstat()
+        candidate = database_target.parent.parent / "config" / name
+        details = candidate.lstat()
     except (OSError, ValueError):
         return None
     if (
         not stat.S_ISREG(details.st_mode)
         or details.st_uid != os.getuid()
         or details.st_mode & (stat.S_IRWXG | stat.S_IRWXO)
-        or details.st_size > MAX_PRIVATE_PROFILE_BYTES
+        or details.st_size > maximum_bytes
     ):
         return None
-    return profile
+    return candidate
 
 
-def _private_profile() -> Dict[str, object]:
-    path = _runtime_profile_path() or PROJECT_ROOT / "config" / "profile.local.json"
+def _runtime_profile_path() -> Optional[Path]:
+    return _runtime_config_path("profile.local.json", MAX_PRIVATE_PROFILE_BYTES)
+
+
+def _runtime_profile_store_path() -> Optional[Path]:
+    return _runtime_config_path(
+        "profiles.local.json",
+        MAX_PRIVATE_PROFILE_STORE_BYTES,
+    )
+
+
+def _read_private_json(path: Path, maximum_bytes: int) -> Dict[str, object]:
     try:
-        if not path.is_file() or path.stat().st_size > MAX_PRIVATE_PROFILE_BYTES:
+        if not path.is_file() or path.stat().st_size > maximum_bytes:
             return {}
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError):
@@ -229,24 +247,59 @@ def _private_profile() -> Dict[str, object]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _private_profile_store() -> Dict[str, object]:
+    store_path = (
+        _runtime_profile_store_path()
+        or PROJECT_ROOT / "config" / "profiles.local.json"
+    )
+    return _read_private_json(store_path, MAX_PRIVATE_PROFILE_STORE_BYTES)
+
+
+def _private_profiles() -> List[Dict[str, object]]:
+    store = _private_profile_store()
+    profiles = store.get("profiles", [])
+    if isinstance(profiles, list):
+        stored_profiles = [
+            entry.get("profile")
+            for entry in profiles
+            if isinstance(entry, dict) and isinstance(entry.get("profile"), dict)
+        ]
+        if stored_profiles:
+            return stored_profiles
+    legacy_path = _runtime_profile_path() or PROJECT_ROOT / "config" / "profile.local.json"
+    legacy = _read_private_json(legacy_path, MAX_PRIVATE_PROFILE_BYTES)
+    return [legacy] if legacy else []
+
+
 def private_values() -> List[str]:
-    payload = _private_profile()
-    candidate = payload.get("candidate", {})
-    candidate = candidate if isinstance(candidate, dict) else {}
+    store = _private_profile_store()
+    entries = store.get("profiles", [])
+    if not isinstance(entries, list):
+        entries = []
     values = [
-        candidate.get("name"),
-        candidate.get("program"),
-        candidate.get("expected_graduation"),
-        candidate.get("target_season"),
+        entry.get("name")
+        for entry in entries
+        if isinstance(entry, dict)
     ]
-    dashboard = payload.get("dashboard", {})
-    if isinstance(dashboard, dict):
-        values.append(dashboard.get("target_season"))
-    curated = str(payload.get("curated_pipeline_path", ""))
-    if curated:
-        parts = Path(curated).parts
-        if len(parts) > 2 and parts[1] == "Users":
-            values.append(parts[2])
+    for payload in _private_profiles():
+        candidate = payload.get("candidate", {})
+        candidate = candidate if isinstance(candidate, dict) else {}
+        values.extend(
+            [
+                candidate.get("name"),
+                candidate.get("program"),
+                candidate.get("expected_graduation"),
+                candidate.get("target_season"),
+            ]
+        )
+        dashboard = payload.get("dashboard", {})
+        if isinstance(dashboard, dict):
+            values.append(dashboard.get("target_season"))
+        curated = str(payload.get("curated_pipeline_path", ""))
+        if curated:
+            parts = Path(curated).parts
+            if len(parts) > 2 and parts[1] == "Users":
+                values.append(parts[2])
     return [str(value) for value in values if value and len(str(value)) >= 5]
 
 
@@ -278,8 +331,8 @@ def _public_config_strings() -> set[str]:
 def private_labels() -> List[str]:
     """Return custom local labels that should never appear verbatim in public text."""
     public_path = PROJECT_ROOT / "config" / "profile.json"
-    local = _private_profile()
-    if not local:
+    private_profiles = _private_profiles()
+    if not private_profiles:
         return []
     try:
         public = (
@@ -291,25 +344,26 @@ def private_labels() -> List[str]:
         return []
 
     values = []
-    documents = local.get("documents", {})
-    if isinstance(documents, dict):
-        values.append(documents.get("default"))
-        routes = documents.get("routes", [])
-        for route in routes if isinstance(routes, list) else []:
-            if isinstance(route, dict):
-                values.append(route.get("label"))
-    matching = local.get("matching", {})
-    if isinstance(matching, dict):
-        rules = matching.get("rules", [])
-        for rule in rules if isinstance(rules, list) else []:
-            if isinstance(rule, dict):
-                values.append(rule.get("label"))
-    dashboard = local.get("dashboard", {})
-    if isinstance(dashboard, dict):
-        values.extend(
-            dashboard.get(key)
-            for key in ("title", "subtitle", "document_label", "default_reason")
-        )
+    for local in private_profiles:
+        documents = local.get("documents", {})
+        if isinstance(documents, dict):
+            values.append(documents.get("default"))
+            routes = documents.get("routes", [])
+            for route in routes if isinstance(routes, list) else []:
+                if isinstance(route, dict):
+                    values.append(route.get("label"))
+        matching = local.get("matching", {})
+        if isinstance(matching, dict):
+            rules = matching.get("rules", [])
+            for rule in rules if isinstance(rules, list) else []:
+                if isinstance(rule, dict):
+                    values.append(rule.get("label"))
+        dashboard = local.get("dashboard", {})
+        if isinstance(dashboard, dict):
+            values.extend(
+                dashboard.get(key)
+                for key in ("title", "subtitle", "document_label", "default_reason")
+            )
 
     public_values = _public_config_strings()
     output = []
@@ -327,11 +381,8 @@ def private_labels() -> List[str]:
 
 def private_preference_groups() -> List[List[str]]:
     """Return multi-term local rules whose verbatim copy is tailored configuration."""
-    payload = _private_profile()
-    if not payload:
-        return []
-    matching = payload.get("matching", {}) if isinstance(payload, dict) else {}
-    if not isinstance(matching, dict):
+    private_profiles = _private_profiles()
+    if not private_profiles:
         return []
     public_values = _public_config_strings()
     groups = []
@@ -351,17 +402,18 @@ def private_preference_groups() -> List[List[str]]:
         elif terms and len(terms[0]) >= 24:
             groups.append(terms)
 
-    add_group(payload.get("priority_organizations", []), minimum_length=5)
-    rules = matching.get("rules", [])
-    for rule in rules if isinstance(rules, list) else []:
-        if not isinstance(rule, dict):
-            continue
-        add_group(rule.get("terms", []))
-    documents = payload.get("documents", {})
-    routes = documents.get("routes", []) if isinstance(documents, dict) else []
-    for route in routes if isinstance(routes, list) else []:
-        if isinstance(route, dict):
-            add_group(route.get("terms", []))
+    for payload in private_profiles:
+        add_group(payload.get("priority_organizations", []), minimum_length=5)
+        matching = payload.get("matching", {})
+        rules = matching.get("rules", []) if isinstance(matching, dict) else []
+        for rule in rules if isinstance(rules, list) else []:
+            if isinstance(rule, dict):
+                add_group(rule.get("terms", []))
+        documents = payload.get("documents", {})
+        routes = documents.get("routes", []) if isinstance(documents, dict) else []
+        for route in routes if isinstance(routes, list) else []:
+            if isinstance(route, dict):
+                add_group(route.get("terms", []))
     return groups
 
 

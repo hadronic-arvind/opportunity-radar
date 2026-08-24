@@ -28,9 +28,12 @@ from .profile import (
     MAX_EDITOR_BYTES,
     ProfileValidationError,
     apply_editor_payload,
+    apply_profile_management_payload,
+    profile_catalog_payload,
     profile_editor_payload,
     read_editor_file,
     read_editor_json,
+    resolve_profile_selector,
     validate_editor_payload,
 )
 from .scoring import MATCH_FIELDS
@@ -181,6 +184,23 @@ def build_parser() -> argparse.ArgumentParser:
     profile_commands = profile_parser.add_subparsers(dest="profile_command")
     profile_show = profile_commands.add_parser("show", help="Show the editable profile")
     profile_show.add_argument("--json", action="store_true", help="Print the app-facing JSON object")
+    profile_list = profile_commands.add_parser("list", help="List saved search profiles")
+    profile_list.add_argument("--json", action="store_true", help="Print the app-facing catalog")
+
+    for action, help_text in (
+        ("create", "Create and activate a blank named profile"),
+        ("duplicate", "Duplicate and activate a saved profile"),
+        ("rename", "Rename a saved profile"),
+        ("activate", "Use a saved profile for searches and scans"),
+        ("delete", "Delete an inactive saved profile"),
+    ):
+        command = profile_commands.add_parser(action, help=help_text)
+        if action in {"duplicate", "rename", "activate", "delete"}:
+            command.add_argument("profile", help="Saved profile id or exact name")
+        if action in {"create", "duplicate", "rename"}:
+            command.add_argument("name", help="Saved profile name")
+        command.add_argument("--dry-run", action="store_true", help="Validate without writing")
+        command.add_argument("--quiet", action="store_true", help="Suppress confirmation output")
 
     profile_validate = profile_commands.add_parser(
         "validate", help="Validate the current profile or an editor JSON file"
@@ -310,6 +330,14 @@ def command_doctor() -> int:
         ),
     }
     try:
+        resolve_private_state_path(
+            project_path("data", "opportunities.sqlite3"),
+            "data",
+            "opportunities.sqlite3",
+        )
+    except (OSError, ValueError, RuntimeError) as error:
+        failures.append(str(error))
+    try:
         profile_editor_payload(profile)
     except (OSError, ValueError) as error:
         failures.append("profile is invalid: {}".format(error))
@@ -348,6 +376,8 @@ def command_doctor() -> int:
                 failures.append("{} has an invalid {}".format(source_id, adapter_key))
         if "enabled" in source and not isinstance(source["enabled"], bool):
             failures.append("{} has a non-boolean enabled value".format(source_id))
+        if "auto_enable" in source and not isinstance(source["auto_enable"], bool):
+            failures.append("{} has a non-boolean auto_enable value".format(source_id))
         if source.get("support_level", "supported") not in {"supported", "experimental", "manual"}:
             failures.append("{} has an invalid support_level".format(source_id))
         required_urls = ["url"] + (["api_url"] if kind == "jibe" else [])
@@ -725,6 +755,21 @@ def command_profile_show(as_json: bool = False) -> int:
     return 0
 
 
+def command_profile_list(as_json: bool = False) -> int:
+    try:
+        catalog = profile_catalog_payload()
+    except (OSError, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    if as_json:
+        print(json.dumps(catalog, indent=2, ensure_ascii=False))
+        return 0
+    for entry in catalog["profiles"]:
+        marker = "*" if entry["id"] == catalog["active_profile_id"] else " "
+        print("{} {:<36} {}".format(marker, entry["id"], entry["name"]))
+    return 0
+
+
 def command_profile_validate(args: argparse.Namespace) -> int:
     try:
         payload = validate_editor_payload(_profile_input(args))
@@ -746,8 +791,40 @@ def command_profile_validate(args: argparse.Namespace) -> int:
 
 def command_profile_apply(args: argparse.Namespace) -> int:
     try:
-        result = apply_editor_payload(
-            _profile_input(args),
+        payload = _profile_input(args)
+        if "operation" in payload:
+            result = apply_profile_management_payload(
+                payload,
+                dry_run=bool(args.dry_run),
+            )
+        else:
+            result = apply_editor_payload(
+                payload,
+                dry_run=bool(args.dry_run),
+            )
+    except (OSError, ValueError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    if not args.quiet:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0
+
+
+def command_profile_management(args: argparse.Namespace) -> int:
+    try:
+        catalog = profile_catalog_payload()
+        operation = str(args.profile_command)
+        payload: Dict[str, Any] = {
+            "version": catalog["version"],
+            "operation": operation,
+            "expected_revision": catalog["expected_revision"],
+        }
+        if hasattr(args, "profile"):
+            payload["profile_id"] = resolve_profile_selector(args.profile)
+        if hasattr(args, "name"):
+            payload["name"] = args.name
+        result = apply_profile_management_payload(
+            payload,
             dry_run=bool(args.dry_run),
         )
     except (OSError, ValueError, RuntimeError) as error:
@@ -931,12 +1008,16 @@ def command_profile(args: argparse.Namespace) -> int:
     action = args.profile_command or "show"
     if action == "show":
         return command_profile_show(getattr(args, "json", False))
+    if action == "list":
+        return command_profile_list(getattr(args, "json", False))
     if action == "validate":
         return command_profile_validate(args)
     if action == "apply":
         return command_profile_apply(args)
     if action == "set":
         return command_profile_set(args)
+    if action in {"create", "duplicate", "rename", "activate", "delete"}:
+        return command_profile_management(args)
     return 2
 
 
@@ -1006,40 +1087,48 @@ def _opportunity_rows(args: argparse.Namespace) -> List[Dict[str, Any]]:
             )
             values.extend(["%{}%".format(escaped)] * 4)
     values.append(limit)
-    database = Database(path)
-    try:
-        database.initialize()
-        selected = ", ".join("opportunities.{}".format(field) for field in (
-            "id",
-            "score",
-            "tier",
-            "status",
-            "title",
-            "organization",
-            "location",
-            "opportunity_type",
-            "posted_at",
-            "deadline_at",
-            "first_seen_at",
-            "source_id",
-            "active",
-            "bookmarked",
-            "url",
-        ))
-        rows = database.connection.execute(
-            "SELECT {}, sources.name AS source_name FROM opportunities "
-            "JOIN sources ON sources.id=opportunities.source_id WHERE {} "
-            "ORDER BY opportunities.score DESC, "
-            "COALESCE(opportunities.deadline_at, '9999') ASC, "
-            "opportunities.first_seen_at DESC LIMIT ?".format(
-                selected,
-                " AND ".join(clauses),
-            ),
-            values,
-        ).fetchall()
-        return [dict(row) for row in rows]
-    finally:
-        database.close()
+    ensure_profile_lifecycle_idle()
+    with exclusive_lock(path.with_name("scan.lock")):
+        ensure_profile_lifecycle_idle()
+        profile = load_profile()
+        database = Database(path)
+        try:
+            database.initialize()
+            # Switching profiles refreshes scores eagerly. Rechecking the
+            # fingerprint here also makes direct CLI searches correct after a
+            # safe manual store restore without doing work on normal queries.
+            database.rescore_for_profile(profile)
+            selected = ", ".join("opportunities.{}".format(field) for field in (
+                "id",
+                "score",
+                "tier",
+                "status",
+                "title",
+                "organization",
+                "location",
+                "opportunity_type",
+                "posted_at",
+                "deadline_at",
+                "first_seen_at",
+                "source_id",
+                "active",
+                "bookmarked",
+                "url",
+            ))
+            rows = database.connection.execute(
+                "SELECT {}, sources.name AS source_name FROM opportunities "
+                "JOIN sources ON sources.id=opportunities.source_id WHERE {} "
+                "ORDER BY opportunities.score DESC, "
+                "COALESCE(opportunities.deadline_at, '9999') ASC, "
+                "opportunities.first_seen_at DESC LIMIT ?".format(
+                    selected,
+                    " AND ".join(clauses),
+                ),
+                values,
+            ).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            database.close()
 
 
 def _print_opportunity_rows(

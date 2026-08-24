@@ -39,7 +39,8 @@ Normalized text, URLs, metadata values, macOS notification arguments, and in-mem
 The public catalog groups sources into overlapping packs.
 A source selected by several packs is still registered and fetched once.
 Only a small structured starter pack is enabled before onboarding.
-Private source additions and state changes are schema-validated, serialized with profile and scan activity, written with mode `0600`, and reconciled with SQLite in one rollback-safe refresh.
+Private source additions and state changes are scoped to the active named profile, schema-validated, serialized with profile and scan activity, written with mode `0600`, and reconciled with SQLite in one rollback-safe refresh.
+Manual directories can remain visible in the bounded resource library with `auto_enable: false`, so selecting a broad pack does not schedule a large set of non-listing page checks.
 
 ## Matching
 
@@ -84,6 +85,8 @@ Run history retains the most recent 200 records, and source-change history retai
 
 All scan, profile, status, bookmark, and dashboard writes share one file lock.
 Profile writes, onboarding replacements, scans, and installer upgrades share a consistent lifecycle-then-scan lock order, so a runtime upgrade cannot replace a concurrent edit or lose a scan that is still writing.
+Named-profile create, duplicate, rename, activation, deletion, editor saves, and source mutations replace one owner-only JSON store atomically.
+Activation refreshes the database under the same lock, so dashboard and CLI search never observe a profile id with another profile's scores or source state.
 SQLite uses parameter binding and a bounded busy timeout.
 Database and dashboard files use owner-only permissions.
 

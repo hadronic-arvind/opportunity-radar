@@ -8,8 +8,8 @@ Run the interactive setup from the repository root:
 python3 -m monitor init
 ```
 
-The command writes only `config/profile.local.json` and `config/sources.local.json`.
-Both files are ignored by Git and written with mode `0600`.
+The command writes `config/profiles.local.json` as an owner-only named-profile store.
+The file is ignored by Git and written with mode `0600`.
 Existing local configuration is never replaced unless you explicitly pass `--force`.
 
 For scripts or reproducible setup, use non-interactive flags:
@@ -49,12 +49,39 @@ python3 -m monitor profile validate
 `profile apply --file PATH` and `profile apply --stdin` validate and atomically apply that object for advanced or scripted changes.
 Every successful change rescores stored opportunities and rebuilds the dashboard without fetching the network.
 
+## Named profiles
+
+Each saved profile has its own name, matching preferences, source packs, source overrides, and private additions.
+Only one profile is active at a time.
+The active profile controls dashboard scores, discovery visibility, enabled source packs, scheduled scans, CLI searches, and notifications.
+
+```bash
+python3 -m monitor profile list --json
+python3 -m monitor profile create "Clinical research"
+python3 -m monitor profile duplicate "Clinical research" "Public health"
+python3 -m monitor profile activate "Public health"
+python3 -m monitor profile rename "Public health" "Epidemiology"
+python3 -m monitor profile delete "Clinical research"
+```
+
+Profile arguments accept an immutable profile id or a unique case-insensitive name.
+Creating a profile starts from neutral matching defaults and the starter pack.
+Duplicating copies the selected profile, including private source definitions.
+An active profile cannot be deleted until another profile is activated, and the final profile cannot be deleted.
+Every mutating command supports `--dry-run`; output-producing mutations also support `--quiet`.
+
+The optional app provides the same create, duplicate, rename, activate, delete, and edit workflows with labeled controls and confirmation for deletion.
+Activating a profile takes the existing lifecycle lock and scan lock, changes the active id atomically, refreshes source registration, rescores stored opportunities, and rebuilds the dashboard.
+Bookmarks and application workflow status remain shared across profiles.
+
 ## Configuration layers
 
 Tracked defaults live in `config/profile.json` and `config/sources.json`.
 They are anonymous and neutral.
 
-Ignored local files override the tracked defaults.
+The ignored `config/profiles.local.json` store overrides the tracked defaults through its active entry.
+Older `config/profile.local.json` and `config/sources.local.json` files remain supported as a single legacy profile.
+The first named-profile mutation imports that canonical legacy pair without deleting or rewriting it, so it remains a recovery backup.
 An explicit `OPPORTUNITY_RADAR_PROFILE` or `OPPORTUNITY_RADAR_SOURCES` path has the highest precedence.
 The older `OPPORTUNITY_MONITOR_*` names remain accepted for compatibility.
 
@@ -94,6 +121,20 @@ The public catalog includes these packs:
 - `space-aerospace`
 - `robotics-autonomy`
 - `education-social-impact`
+- `mathematical-sciences`
+- `physics-quantum-astronomy`
+- `chemistry-materials`
+- `earth-geospatial`
+- `ecology-environment`
+- `agriculture-food`
+- `medicine-clinical`
+- `public-health`
+- `pharma-drug-discovery`
+- `biomedical-neuroscience`
+- `civil-infrastructure`
+- `electronics-semiconductors`
+- `ocean-marine`
+- `veterinary-animal`
 
 A source may belong to multiple packs but is fetched only once per scan.
 The starter pack enables five structured, no-secret employer feeds.
@@ -226,7 +267,8 @@ Every complete source object uses these common fields:
 Collection URLs must use HTTPS on the standard port, contain no credentials, and resolve only to public addresses.
 Use `career_levels: ["any"]` or `regions: ["global"]` when a narrower value would be misleading.
 
-Select packs in `config/sources.local.json`:
+Source-pack choices are stored inside each entry in `config/profiles.local.json`.
+The source object within an entry uses the same registry shape as the older `config/sources.local.json` file:
 
 ```json
 {
@@ -244,6 +286,8 @@ An individual `enabled` entry in the same local registry overrides pack membersh
 Saving a pack change through the profile editor removes positive built-in overrides that no longer belong to any selected pack, so turning off a pack also hides those sources and their prior listings.
 Explicit disables and complete private source definitions are preserved.
 `python3 -m monitor sources packs` shows both total resources and currently supported listing feeds in each pack.
+Manual directories use `auto_enable: false`, remain browseable in the dashboard resource library, and are not fetched merely because a pack is selected.
+An explicit private `enabled: true` override can opt one of those resources into change monitoring.
 
 ### Add and manage private sources
 
@@ -461,7 +505,7 @@ Do not list a status merely to hide an unexpected outage.
 
 ### Custom packs
 
-Add private pack definitions and complete private source objects to `config/sources.local.json`.
+Add private pack definitions and complete private source objects through the CLI or to the active entry's `sources` object in `config/profiles.local.json`.
 `selected_packs` replaces the lower-precedence selection, so include every pack you want enabled.
 A directly managed source-level `enabled` value overrides pack membership until a later profile-editor pack removal retires an out-of-pack positive override.
 

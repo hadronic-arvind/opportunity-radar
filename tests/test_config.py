@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -38,6 +39,52 @@ class ConfigTests(unittest.TestCase):
             os.environ, environment or {}, clear=True
         ):
             return config.load_profile()
+
+    def saved_local_configuration(self):
+        store_path = self.root / "config" / "profiles.local.json"
+        store = json.loads(store_path.read_text(encoding="utf-8"))
+        active = next(
+            entry
+            for entry in store["profiles"]
+            if entry["id"] == store["active_profile_id"]
+        )
+        return active["profile"], active["sources"], store_path
+
+    def recognized_runtime(self, version=None, schema=None):
+        runtime = self.root / "private-runtime"
+        for directory in (
+            runtime,
+            runtime / "monitor",
+            runtime / "config",
+            runtime / "dashboard",
+            runtime / "data",
+        ):
+            directory.mkdir(exist_ok=True)
+            directory.chmod(0o700)
+        markers = {
+            runtime / "monitor" / "__init__.py": '__version__ = "{}"\n'.format(
+                version or config.__version__
+            ),
+            runtime / "monitor" / "__main__.py": "marker",
+            runtime / "monitor" / "database.py": "SCHEMA_VERSION = {}\n".format(
+                config.SCHEMA_VERSION if schema is None else schema
+            ),
+            runtime / "config" / "profile.json": "{}",
+            runtime / "dashboard" / "template.html": "marker",
+            runtime / "dashboard" / "styles.css": "marker",
+            runtime / "dashboard" / "app.js": "marker",
+        }
+        for marker, content in markers.items():
+            marker.write_text(content, encoding="utf-8")
+            marker.chmod(0o600)
+        database = runtime / "data" / "opportunities.sqlite3"
+        connection = sqlite3.connect(database)
+        connection.execute("PRAGMA user_version = 5")
+        connection.close()
+        database.chmod(0o600)
+        (self.root / "data").mkdir(exist_ok=True)
+        (self.root / "data" / "opportunities.sqlite3").symlink_to(database)
+        return runtime, database
 
     def test_public_profile_is_default(self):
         self.assertEqual(self.load_profile()["value"], "public")
@@ -110,6 +157,110 @@ class ConfigTests(unittest.TestCase):
                 ["base", "local"],
             )
 
+    def test_named_profile_store_selects_one_active_private_layer(self):
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [{"id": "starter", "default": True}],
+                    "sources": [
+                        {
+                            "id": "base",
+                            "name": "Base",
+                            "kind": "watch_page",
+                            "url": "https://example.org/base",
+                            "packs": ["starter"],
+                            "enabled": True,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        store_path = self.root / "config" / "profiles.local.json"
+        store_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "active_profile_id": "p_" + "2" * 32,
+                    "profiles": [
+                        {
+                            "id": "p_" + "1" * 32,
+                            "name": "Physics",
+                            "profile": {"value": "physics"},
+                            "sources": {
+                                "selected_packs": ["starter"],
+                                "sources": [{"id": "base", "enabled": False}],
+                            },
+                        },
+                        {
+                            "id": "p_" + "2" * 32,
+                            "name": "Medicine",
+                            "profile": {"value": "medicine"},
+                            "sources": {
+                                "selected_packs": ["starter"],
+                                "sources": [],
+                            },
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        store_path.chmod(0o600)
+        with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(
+            os.environ, {}, clear=True
+        ):
+            self.assertEqual(config.load_profile()["value"], "medicine")
+            self.assertEqual(config.active_profile_id(), "p_" + "2" * 32)
+            self.assertTrue(config.load_sources()[0]["enabled"])
+
+        oversized = "x" * (config.MAX_PROFILE_ENTRY_CONFIG_BYTES + 1)
+        invalid = json.loads(store_path.read_text(encoding="utf-8"))
+        invalid["profiles"][0]["profile"] = {"value": oversized}
+        with self.assertRaisesRegex(ValueError, "too large"):
+            config.validate_profile_store(invalid)
+
+    def test_pack_selection_respects_auto_enable_but_explicit_override_wins(self):
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [{"id": "manual", "default": True}],
+                    "sources": [
+                        {
+                            "id": "manual_resource",
+                            "name": "Manual resource directory",
+                            "kind": "watch_page",
+                            "url": "https://example.org/resources",
+                            "packs": ["manual"],
+                            "enabled": False,
+                            "auto_enable": False,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        local = self.root / "config" / "sources.local.json"
+        local.write_text(
+            json.dumps({"selected_packs": ["manual"], "sources": []}),
+            encoding="utf-8",
+        )
+        with patch.object(config, "PROJECT_ROOT", self.root):
+            self.assertEqual(config.load_sources(), [])
+            local.write_text(
+                json.dumps(
+                    {
+                        "selected_packs": ["manual"],
+                        "sources": [{"id": "manual_resource", "enabled": True}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [source["id"] for source in config.load_sources()],
+                ["manual_resource"],
+            )
+
     def test_onboarding_writes_only_private_local_files(self):
         sources = [
             {
@@ -148,8 +299,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(result["enabled_sources"], 1)
             self.assertEqual(result["listing_feeds"], 1)
             self.assertEqual(result["manual_pages"], 0)
-            profile = json.loads((self.root / "config" / "profile.local.json").read_text())
-            registry = json.loads((self.root / "config" / "sources.local.json").read_text())
+            profile, registry, store_path = self.saved_local_configuration()
             self.assertNotIn("selected_source_packs", profile)
             self.assertEqual(profile["documents"]["default"], "Software")
             self.assertEqual(profile["matching"]["engine"], "structured_v2")
@@ -161,8 +311,7 @@ class ConfigTests(unittest.TestCase):
             )
             self.assertEqual(registry["selected_packs"], ["engineering"])
             self.assertEqual(registry["sources"], [])
-            for name in ("profile.local.json", "sources.local.json"):
-                self.assertEqual((self.root / "config" / name).stat().st_mode & 0o777, 0o600)
+            self.assertEqual(store_path.stat().st_mode & 0o777, 0o600)
             with self.assertRaises(FileExistsError):
                 onboarding.initialize(["starter-diverse"])
 
@@ -207,29 +356,7 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse((self.root / "config" / "sources.local.json").exists())
 
     def test_recognized_runtime_is_canonical_for_local_configuration(self):
-        runtime = self.root / "private-runtime"
-        for directory in (
-            runtime,
-            runtime / "monitor",
-            runtime / "config",
-            runtime / "dashboard",
-            runtime / "data",
-        ):
-            directory.mkdir(exist_ok=True)
-            directory.chmod(0o700)
-        markers = (
-            runtime / "monitor" / "__main__.py",
-            runtime / "config" / "profile.json",
-            runtime / "dashboard" / "template.html",
-            runtime / "dashboard" / "styles.css",
-            runtime / "dashboard" / "app.js",
-        )
-        for marker in markers:
-            marker.write_text("{}" if marker.suffix == ".json" else "marker", encoding="utf-8")
-            marker.chmod(0o600)
-        database = runtime / "data" / "opportunities.sqlite3"
-        database.write_text("private state", encoding="utf-8")
-        database.chmod(0o600)
+        runtime, _database = self.recognized_runtime()
         (runtime / "config" / "profile.local.json").write_text(
             json.dumps({"value": "runtime"}), encoding="utf-8"
         )
@@ -237,9 +364,6 @@ class ConfigTests(unittest.TestCase):
         (self.root / "config" / "profile.local.json").write_text(
             json.dumps({"value": "stale-clone"}), encoding="utf-8"
         )
-        (self.root / "data").mkdir()
-        (self.root / "data" / "opportunities.sqlite3").symlink_to(database)
-
         with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(
             os.environ, {}, clear=True
         ):
@@ -249,6 +373,53 @@ class ConfigTests(unittest.TestCase):
                 runtime.resolve() / "config" / "profile.local.json",
             )
             self.assertEqual(config.load_profile()["value"], "runtime")
+
+    def test_mismatched_checkout_cannot_open_private_runtime_state(self):
+        for version, schema in (
+            ("0.1.0", config.SCHEMA_VERSION),
+            (config.__version__, config.SCHEMA_VERSION - 1),
+        ):
+            with self.subTest(version=version, schema=schema):
+                runtime, database = self.recognized_runtime(version=version, schema=schema)
+                with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(
+                    os.environ, {}, clear=True
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "does not match this checkout"):
+                        config.resolve_private_state_path(
+                            self.root / "data" / "opportunities.sqlite3",
+                            "data",
+                            "opportunities.sqlite3",
+                        )
+                    self.assertEqual(config.local_configuration_root(), runtime.resolve())
+                connection = sqlite3.connect(database)
+                try:
+                    self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 5)
+                finally:
+                    connection.close()
+                for path in sorted(runtime.rglob("*"), reverse=True):
+                    if path.is_file():
+                        path.unlink()
+                    elif path.is_dir():
+                        path.rmdir()
+                runtime.rmdir()
+                (self.root / "data" / "opportunities.sqlite3").unlink()
+
+    def test_runtime_installer_can_bridge_an_intentional_upgrade(self):
+        runtime, database = self.recognized_runtime(version="0.1.0", schema=5)
+        with patch.object(config, "PROJECT_ROOT", self.root), patch.dict(
+            os.environ,
+            {config.RUNTIME_LIFECYCLE_OWNER_ENV: config.RUNTIME_INSTALL_OWNER},
+            clear=True,
+        ):
+            self.assertEqual(
+                config.resolve_private_state_path(
+                    self.root / "data" / "opportunities.sqlite3",
+                    "data",
+                    "opportunities.sqlite3",
+                ),
+                database.resolve(),
+            )
+            self.assertEqual(config.local_configuration_root(), runtime.resolve())
 
     def test_profile_apply_preserves_unexposed_fields_and_source_overrides(self):
         (self.root / "config" / "profile.json").write_text(
@@ -327,12 +498,7 @@ class ConfigTests(unittest.TestCase):
             ):
                 profile_service.apply_editor_payload(payload, rebuild=False)
 
-        saved_profile = json.loads(
-            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
-        )
-        saved_sources = json.loads(
-            (self.root / "config" / "sources.local.json").read_text(encoding="utf-8")
-        )
+        saved_profile, saved_sources, store_path = self.saved_local_configuration()
         self.assertEqual(saved_profile["candidate"]["name"], "Private name")
         self.assertEqual(saved_profile["candidate"]["program"], "Private program")
         self.assertEqual(saved_profile["curated_pipeline_path"], "/private/curated.md")
@@ -340,8 +506,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(saved_sources["sources"], source_override["sources"])
         self.assertEqual(saved_sources["private_note"], "preserve")
         self.assertEqual(saved_sources["selected_packs"], ["technical", "research"])
-        self.assertEqual((self.root / "config" / "profile.local.json").stat().st_mode & 0o777, 0o600)
-        self.assertEqual((self.root / "config" / "sources.local.json").stat().st_mode & 0o777, 0o600)
+        self.assertEqual(store_path.stat().st_mode & 0o777, 0o600)
 
     def test_profile_pack_removal_retires_positive_public_source_overrides(self):
         (self.root / "config" / "profile.json").write_text(
@@ -422,9 +587,7 @@ class ConfigTests(unittest.TestCase):
             payload["selected_packs"] = ["technical"]
             profile_service.apply_editor_payload(payload, rebuild=False)
 
-        saved = json.loads(
-            (self.root / "config" / "sources.local.json").read_text(encoding="utf-8")
-        )
+        _saved_profile, saved, _store_path = self.saved_local_configuration()
         self.assertEqual(saved["selected_packs"], ["technical"])
         self.assertEqual(
             saved["sources"],
@@ -501,9 +664,7 @@ class ConfigTests(unittest.TestCase):
             payload["targets"]["work_arrangements"] = []
             payload["targets"]["exclusions"] = []
             profile_service.apply_editor_payload(payload, rebuild=False)
-            saved = json.loads(
-                (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
-            )
+            saved, _saved_sources, _store_path = self.saved_local_configuration()
             reopened = profile_service.profile_editor_payload()
 
         self.assertNotIn("career_stage", saved["candidate"])
@@ -666,7 +827,7 @@ class ConfigTests(unittest.TestCase):
         ):
             profile_service.validate_editor_payload(payload)
 
-    def test_two_file_writer_rolls_back_chmod_and_second_replace_failures(self):
+    def test_profile_store_writer_preserves_legacy_files_after_write_failures(self):
         profile_path = self.root / "config" / "profile.local.json"
         source_path = self.root / "config" / "sources.local.json"
         profile_path.write_text(json.dumps({"revision": "old-profile"}), encoding="utf-8")
@@ -686,25 +847,343 @@ class ConfigTests(unittest.TestCase):
             profile_service.write_local_configuration(*replacement, force=True)
         self.assertEqual(profile_path.read_bytes(), before[0])
         self.assertEqual(source_path.read_bytes(), before[1])
-
-        real_replace = os.replace
-        replace_calls = 0
-
-        def fail_second_replace(source, destination):
-            nonlocal replace_calls
-            replace_calls += 1
-            if replace_calls == 2:
-                raise OSError("second replace failed")
-            return real_replace(source, destination)
+        store_path = self.root / "config" / "profiles.local.json"
+        self.assertFalse(store_path.exists())
 
         with (
             patch.object(config, "PROJECT_ROOT", self.root),
-            patch.object(profile_service.os, "replace", side_effect=fail_second_replace),
-            self.assertRaisesRegex(OSError, "second replace failed"),
+            patch.object(
+                profile_service.os,
+                "replace",
+                side_effect=OSError("store replace failed"),
+            ),
+            self.assertRaisesRegex(OSError, "store replace failed"),
         ):
             profile_service.write_local_configuration(*replacement, force=True)
         self.assertEqual(profile_path.read_bytes(), before[0])
         self.assertEqual(source_path.read_bytes(), before[1])
+        self.assertFalse(store_path.exists())
+
+    def test_named_profile_crud_migrates_legacy_and_guards_revisions(self):
+        (self.root / "config" / "profile.json").write_text(
+            json.dumps(
+                {
+                    "priority_organizations": [],
+                    "matching": {
+                        "base_score": 50,
+                        "tier_thresholds": {
+                            "priority": 80,
+                            "strong": 65,
+                            "watch": 25,
+                        },
+                        "rules": [],
+                    },
+                    "documents": {"default": "General", "routes": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [{"id": "starter", "default": True}],
+                    "sources": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        profile_path = self.root / "config" / "profile.local.json"
+        source_path = self.root / "config" / "sources.local.json"
+        profile_path.write_text(json.dumps({"private_marker": "physics"}))
+        source_path.write_text(
+            json.dumps({"selected_packs": ["starter"], "sources": []})
+        )
+        legacy_bytes = (profile_path.read_bytes(), source_path.read_bytes())
+        store_path = self.root / "config" / "profiles.local.json"
+        lifecycle = self.root / "Application Support" / ".OpportunityRadar.lifecycle-lock"
+        with (
+            patch.object(config, "PROJECT_ROOT", self.root),
+            patch.object(profile_service, "_lifecycle_lock_path", return_value=lifecycle),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            original_catalog = profile_service.profile_catalog_payload()
+            original_editor = profile_service.profile_editor_payload()
+            renamed = profile_service.apply_profile_management_payload(
+                {
+                    "version": 1,
+                    "operation": "rename",
+                    "expected_revision": original_catalog["expected_revision"],
+                    "profile_id": "legacy",
+                    "name": "Physics and ML",
+                },
+                rebuild=False,
+            )
+            self.assertEqual(
+                renamed["profile_catalog"]["profiles"][0]["name"],
+                "Physics and ML",
+            )
+            with self.assertRaisesRegex(
+                profile_service.ProfileValidationError,
+                "changed after it was opened",
+            ):
+                profile_service.apply_profile_management_payload(
+                    {
+                        "version": 1,
+                        "operation": "create",
+                        "expected_revision": original_catalog["expected_revision"],
+                        "name": "Stale",
+                    },
+                    rebuild=False,
+                )
+
+            catalog = profile_service.profile_catalog_payload()
+            duplicated = profile_service.apply_profile_management_payload(
+                {
+                    "version": 1,
+                    "operation": "duplicate",
+                    "expected_revision": catalog["expected_revision"],
+                    "profile_id": "legacy",
+                    "name": "Physics copy",
+                },
+                rebuild=False,
+            )
+            duplicate_id = duplicated["profile_id"]
+            self.assertEqual(config.load_profile()["private_marker"], "physics")
+            original_editor["candidate"]["current_stage"] = "must not overwrite active"
+            active_before_rejected_edits = store_path.read_bytes()
+            with self.assertRaisesRegex(
+                profile_service.ProfileValidationError,
+                "changed after it was opened",
+            ):
+                profile_service.apply_editor_payload(original_editor, rebuild=False)
+            empty_revision_editor = json.loads(json.dumps(original_editor))
+            empty_revision_editor["expected_revision"] = ""
+            with self.assertRaisesRegex(
+                profile_service.ProfileValidationError,
+                "needs a current revision",
+            ):
+                profile_service.apply_editor_payload(
+                    empty_revision_editor,
+                    rebuild=False,
+                )
+            self.assertEqual(store_path.read_bytes(), active_before_rejected_edits)
+            self.assertEqual(config.active_profile_id(), duplicate_id)
+            self.assertNotIn("candidate", config.active_local_payloads()[0])
+
+            catalog = profile_service.profile_catalog_payload()
+            profile_service.apply_profile_management_payload(
+                {
+                    "version": 1,
+                    "operation": "delete",
+                    "expected_revision": catalog["expected_revision"],
+                    "profile_id": "legacy",
+                },
+                rebuild=False,
+            )
+            catalog = profile_service.profile_catalog_payload()
+            with self.assertRaisesRegex(
+                profile_service.ProfileValidationError,
+                "Activate another",
+            ):
+                profile_service.apply_profile_management_payload(
+                    {
+                        "version": 1,
+                        "operation": "delete",
+                        "expected_revision": catalog["expected_revision"],
+                        "profile_id": duplicate_id,
+                    },
+                    rebuild=False,
+                )
+
+        self.assertEqual(profile_path.read_bytes(), legacy_bytes[0])
+        self.assertEqual(source_path.read_bytes(), legacy_bytes[1])
+        self.assertEqual(store_path.stat().st_mode & 0o777, 0o600)
+
+    def test_profile_activation_rolls_back_render_failure_then_refreshes_without_losing_workflow_state(self):
+        (self.root / "config" / "profile.json").write_text(
+            json.dumps(
+                {
+                    "priority_organizations": [],
+                    "matching": {
+                        "base_score": 50,
+                        "tier_thresholds": {
+                            "priority": 75,
+                            "strong": 55,
+                            "watch": 25,
+                        },
+                        "rules": [],
+                    },
+                    "documents": {"default": "General", "routes": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        physics_source = {
+            "id": "physics_lab",
+            "name": "Physics Lab",
+            "kind": "watch_page",
+            "url": "https://example.org/physics",
+            "packs": ["physics"],
+            "enabled": False,
+        }
+        medicine_source = {
+            "id": "medicine_lab",
+            "name": "Medicine Lab",
+            "kind": "watch_page",
+            "url": "https://example.org/medicine",
+            "packs": ["medicine"],
+            "enabled": False,
+        }
+        (self.root / "config" / "sources.json").write_text(
+            json.dumps(
+                {
+                    "packs": [
+                        {"id": "physics", "default": True},
+                        {"id": "medicine"},
+                    ],
+                    "sources": [physics_source, medicine_source],
+                }
+            ),
+            encoding="utf-8",
+        )
+        physics_id = "p_" + "1" * 32
+        medicine_id = "p_" + "2" * 32
+        store_path = self.root / "config" / "profiles.local.json"
+        store_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "active_profile_id": physics_id,
+                    "profiles": [
+                        {
+                            "id": physics_id,
+                            "name": "Physics",
+                            "profile": {"matching": {"base_score": 82}},
+                            "sources": {
+                                "selected_packs": ["physics"],
+                                "sources": [],
+                            },
+                        },
+                        {
+                            "id": medicine_id,
+                            "name": "Medicine",
+                            "profile": {"matching": {"base_score": 28}},
+                            "sources": {
+                                "selected_packs": ["medicine"],
+                                "sources": [],
+                            },
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        store_path.chmod(0o600)
+        database_path = self.root / "data" / "opportunities.sqlite3"
+        database = Database(database_path)
+        database.initialize()
+        database.sync_source(physics_source)
+        database.sync_source(medicine_source)
+        database.upsert_opportunity(
+            Opportunity(
+                "physics_lab",
+                "shared-opportunity",
+                "Research Opportunity",
+                "Example Institute",
+                "https://example.org/opportunity",
+            )
+        )
+        opportunity_id = database.connection.execute(
+            "SELECT id FROM opportunities"
+        ).fetchone()["id"]
+        database.set_status(opportunity_id, "apply")
+        database.set_bookmarked(opportunity_id, True)
+        database.close()
+        lifecycle = self.root / "Application Support" / ".OpportunityRadar.lifecycle-lock"
+        with (
+            patch.object(config, "PROJECT_ROOT", self.root),
+            patch.object(profile_service, "_lifecycle_lock_path", return_value=lifecycle),
+            patch("monitor.dashboard.render_dashboard") as render_dashboard,
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            profile_service.refresh_profile_state()
+            database = Database(database_path)
+            database.initialize()
+            before = database.connection.execute(
+                "SELECT score, first_seen_at, status, bookmarked FROM opportunities WHERE id=?",
+                (opportunity_id,),
+            ).fetchone()
+            enabled_before = {
+                row["id"]: bool(row["enabled"])
+                for row in database.connection.execute(
+                    "SELECT id, enabled FROM sources"
+                ).fetchall()
+            }
+            database.close()
+            store_before = store_path.read_bytes()
+            catalog = profile_service.profile_catalog_payload()
+            render_dashboard.side_effect = RuntimeError("dashboard render failed")
+            with self.assertRaisesRegex(RuntimeError, "dashboard render failed"):
+                profile_service.apply_profile_management_payload(
+                    {
+                        "version": 1,
+                        "operation": "activate",
+                        "expected_revision": catalog["expected_revision"],
+                        "profile_id": medicine_id,
+                    }
+                )
+            render_dashboard.side_effect = None
+            self.assertEqual(store_path.read_bytes(), store_before)
+            self.assertEqual(config.active_profile_id(), physics_id)
+            database = Database(database_path)
+            database.initialize()
+            after_failed_activation = database.connection.execute(
+                "SELECT score FROM opportunities WHERE id=?",
+                (opportunity_id,),
+            ).fetchone()
+            enabled_after_failed_activation = {
+                row["id"]: bool(row["enabled"])
+                for row in database.connection.execute(
+                    "SELECT id, enabled FROM sources"
+                ).fetchall()
+            }
+            database.close()
+            self.assertEqual(after_failed_activation["score"], before["score"])
+            self.assertEqual(enabled_after_failed_activation, enabled_before)
+
+            catalog = profile_service.profile_catalog_payload()
+            profile_service.apply_profile_management_payload(
+                {
+                    "version": 1,
+                    "operation": "activate",
+                    "expected_revision": catalog["expected_revision"],
+                    "profile_id": medicine_id,
+                }
+            )
+            self.assertEqual(config.load_profile()["matching"]["base_score"], 28)
+            self.assertEqual(
+                [source["id"] for source in config.load_sources()],
+                ["medicine_lab"],
+            )
+            database = Database(database_path)
+            database.initialize()
+            after = database.connection.execute(
+                "SELECT score, first_seen_at, status, bookmarked FROM opportunities WHERE id=?",
+                (opportunity_id,),
+            ).fetchone()
+            enabled = {
+                row["id"]: bool(row["enabled"])
+                for row in database.connection.execute(
+                    "SELECT id, enabled FROM sources"
+                ).fetchall()
+            }
+            database.close()
+
+        self.assertNotEqual(before["score"], after["score"])
+        self.assertEqual(after["first_seen_at"], before["first_seen_at"])
+        self.assertEqual(after["status"], "apply")
+        self.assertEqual(after["bookmarked"], 1)
+        self.assertEqual(enabled, {"medicine_lab": True, "physics_lab": False})
 
     def test_profile_write_respects_installer_lifecycle_lock(self):
         lock = self.root / "Application Support" / ".OpportunityRadar.lifecycle-lock"
@@ -989,6 +1468,16 @@ class ProfileSemanticReconciliationTests(unittest.TestCase):
     def tearDown(self):
         self.tempdir.cleanup()
 
+    def saved_local_configuration(self):
+        store_path = self.root / "config" / "profiles.local.json"
+        store = json.loads(store_path.read_text(encoding="utf-8"))
+        active = next(
+            entry
+            for entry in store["profiles"]
+            if entry["id"] == store["active_profile_id"]
+        )
+        return active["profile"], active["sources"], store_path
+
     def _context(self):
         return (
             patch.object(config, "PROJECT_ROOT", self.root),
@@ -1137,9 +1626,7 @@ class ProfileSemanticReconciliationTests(unittest.TestCase):
             [entry["id"] for entry in result["profile_adjustments"]["retired_matching_rules"]],
             ["retail_merchandising"],
         )
-        saved = json.loads(
-            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
-        )
+        saved, _saved_sources, _store_path = self.saved_local_configuration()
         self.assertEqual(saved["schema_version"], 3)
         self.assertEqual(
             [rule["id"] for rule in saved["matching"]["rules"]],
@@ -1209,9 +1696,7 @@ class ProfileSemanticReconciliationTests(unittest.TestCase):
             [entry["id"] for entry in result["profile_adjustments"]["retired_matching_rules"]],
             ["retail_focus"],
         )
-        saved = json.loads(
-            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
-        )
+        saved, _saved_sources, _store_path = self.saved_local_configuration()
         self.assertEqual(
             [rule["id"] for rule in saved["matching"]["rules"]],
             ["retail_geospatial_crossover"],
@@ -1262,9 +1747,7 @@ class ProfileSemanticReconciliationTests(unittest.TestCase):
             ],
             ["quant_finance"],
         )
-        saved = json.loads(
-            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
-        )
+        saved, _saved_sources, _store_path = self.saved_local_configuration()
         self.assertEqual(
             [rule["id"] for rule in saved["matching"]["rules"]],
             ["independent_marine"],
@@ -1315,9 +1798,7 @@ class ProfileSemanticReconciliationTests(unittest.TestCase):
             [entry["id"] for entry in result["profile_adjustments"]["retired_matching_rules"]],
             ["store_role"],
         )
-        saved = json.loads(
-            (self.root / "config" / "profile.local.json").read_text(encoding="utf-8")
-        )
+        saved, _saved_sources, _store_path = self.saved_local_configuration()
         self.assertEqual(
             [rule["id"] for rule in saved["matching"]["rules"]],
             ["planning_crossover"],

@@ -5,8 +5,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from monitor.dashboard import APP_MARKER, DATA_MARKER, STYLE_MARKER, render_dashboard, safe_external_url
+from monitor import __version__
+from monitor.dashboard import (
+    APP_MARKER,
+    DATA_MARKER,
+    MAX_SOURCE_RESOURCES,
+    STYLE_MARKER,
+    _source_resource_directory,
+    render_dashboard,
+    safe_external_url,
+)
 from monitor.config import PRIVATE_RUNTIME_MARKERS
+from monitor.database import SCHEMA_VERSION
 
 
 class DashboardTests(unittest.TestCase):
@@ -22,6 +32,44 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(safe_external_url("HTTP://example.com/job"), "HTTP://example.com/job")
         for value in ("javascript:alert(1)", "data:text/html,x", "file:///tmp/x", "//example.com", ""):
             self.assertEqual(safe_external_url(value), "")
+
+    def test_source_resource_directory_is_bounded_minimal_and_link_safe(self):
+        sources = [
+            {
+                "id": "resource_{}".format(index),
+                "name": "STEM Resource {}".format(index),
+                "url": "javascript:alert(1)" if index == 0 else "https://example.org/{}".format(index),
+                "packs": ["engineering"] * 30,
+                "domains": ["biology", "chemistry"],
+                "source_type": "manual_page",
+                "support_level": "manual",
+                "enabled": index == 1,
+                "auto_enable": index != 2,
+                "private_field": "must not be exposed",
+            }
+            for index in range(MAX_SOURCE_RESOURCES + 10)
+        ]
+        with patch("monitor.dashboard.load_sources", return_value=sources):
+            resources = _source_resource_directory()
+        self.assertEqual(len(resources), MAX_SOURCE_RESOURCES)
+        self.assertEqual(resources[0]["url"], "")
+        self.assertEqual(resources[1]["url"], "https://example.org/1")
+        self.assertEqual(len(resources[0]["packs"]), 24)
+        self.assertFalse(resources[2]["auto_enable"])
+        self.assertEqual(
+            set(resources[0]),
+            {
+                "id",
+                "name",
+                "url",
+                "packs",
+                "domains",
+                "source_type",
+                "support_level",
+                "enabled",
+                "auto_enable",
+            },
+        )
 
     def test_render_is_atomic_private_and_script_safe(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -99,6 +147,17 @@ class DashboardTests(unittest.TestCase):
                 marker_path.parent.mkdir(parents=True, exist_ok=True)
                 marker_path.write_text("runtime marker", encoding="utf-8")
                 marker_path.chmod(0o600)
+            contract = {
+                runtime.parent / "monitor" / "__init__.py": '__version__ = "{}"\n'.format(
+                    __version__
+                ),
+                runtime.parent / "monitor" / "database.py": "SCHEMA_VERSION = {}\n".format(
+                    SCHEMA_VERSION
+                ),
+            }
+            for marker_path, content in contract.items():
+                marker_path.write_text(content, encoding="utf-8")
+                marker_path.chmod(0o600)
             self.copy_dashboard_assets(project)
             target = runtime / "index.html"
             target.write_text("old", encoding="utf-8")
@@ -155,6 +214,11 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("function setProfilePage(page, focusTab)", script)
         self.assertIn('button.textContent = isEmpty ? "Set up profile" : "Edit profile"', script)
         self.assertIn("const profilePackOptions = Array.isArray(settings.source_packs)", script)
+        self.assertIn("const profileCatalog = parseProfileCatalog(settings.profile_catalog)", script)
+        self.assertIn("function profileManagementRequest(operation, options)", script)
+        self.assertIn('"activate", "create", "duplicate", "rename", "delete"', script)
+        self.assertIn('startNativeAction({action: "profile", profile: payload}, label)', script)
+        self.assertIn("state.pendingProfileManagement", script)
         self.assertIn("String(pack && pack.description || \"\").trim().slice(0, 240)", script)
         self.assertIn('["students-early-career", "Students and early career"]', script)
         self.assertIn('["space-aerospace", "Space and aerospace"]', script)
@@ -189,6 +253,11 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('id="source-add-status" role="status" aria-live="polite"', template)
         self.assertIn("macOS app only", template)
         self.assertIn('id="profile-card" hidden', template)
+        self.assertIn('for="profile-select">Active profile</label>', template)
+        self.assertIn('id="profile-management-actions"', template)
+        self.assertIn('id="profile-name-dialog" aria-labelledby="profile-name-dialog-title"', template)
+        self.assertIn('id="profile-delete-dialog" aria-labelledby="profile-delete-dialog-title"', template)
+        self.assertIn('id="profile-delete-select" aria-describedby=', template)
         self.assertIn('id="edit-profile-button"', template)
         self.assertIn('id="profile-dialog" aria-labelledby="profile-dialog-title"', template)
         self.assertIn('id="profile-form"', template)
@@ -228,8 +297,17 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(".tag.limited-details {", styles)
         self.assertIn('settings.timeframes', script)
         self.assertNotIn('settings.target_season + " search"', script)
-        self.assertIn('@media (min-width: 981px) and (min-height: 1000px)', styles)
+        self.assertIn('@media (min-width: 1101px) and (min-height: 1000px)', styles)
         self.assertIn('.side-column { position: sticky; top: 92px;', styles)
+        self.assertIn('font-size: 17px;', styles)
+        font_sizes = [
+            int(value)
+            for value in re.findall(r"font-size:\s*(\d+)px", styles)
+        ]
+        self.assertTrue(font_sizes)
+        self.assertGreaterEqual(min(font_sizes), 14)
+        self.assertIn('grid-template-columns: minmax(0, 1fr) minmax(330px, 360px)', styles)
+        self.assertIn('@media (max-width: 860px)', styles)
         self.assertIn('.date-meta { gap: .35em; }', styles)
         self.assertIn('clip-path: inset(50%);', styles)
         self.assertIn('color: var(--primary-action-text)', styles)
@@ -288,6 +366,9 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('profileChoiceField("Remote preference"', script)
         self.assertIn('profileTagField("Priority organizations"', script)
         self.assertIn('profileRangeField("Minimum score to display"', script)
+        self.assertIn('["residency", "Residencies"]', script)
+        self.assertIn('["training", "Training programs"]', script)
+        self.assertIn('["program", "Other programs"]', script)
         self.assertIn('profileRangeField("Minimum anchor strength"', script)
         self.assertIn('advanced.appendChild(scoring.section)', script)
         self.assertIn('basics.appendChild(defaultDocument.section)', script)
@@ -314,6 +395,11 @@ class DashboardTests(unittest.TestCase):
         styles = (root / "styles.css").read_text(encoding="utf-8")
 
         self.assertIn("const SOURCE_PREVIEW_LIMIT = 12", script)
+        self.assertIn("const MAX_SOURCE_RESOURCES = 500", script)
+        self.assertIn("function parseSourceResources(value)", script)
+        self.assertIn("function matchingSourceResources()", script)
+        self.assertIn("function renderSourceResources()", script)
+        self.assertIn('sourceResourceSearchText(resource)', script)
         self.assertIn("function renderSourceList()", script)
         self.assertIn("statusOrder[sourceStatus(left)]", script)
         self.assertIn('sourceView.status !== "all"', script)
@@ -323,6 +409,11 @@ class DashboardTests(unittest.TestCase):
         self.assertIn(".source-show-more {", styles)
         self.assertIn(".source-add {", styles)
         self.assertIn(".native-only-badge {", styles)
+        self.assertIn('id="source-resource-button" type="button" aria-haspopup="dialog"', template)
+        self.assertIn('id="source-resource-dialog" aria-labelledby="source-resource-dialog-title"', template)
+        self.assertIn('id="source-resource-search" type="search"', template)
+        self.assertIn('id="source-resource-count" role="status" aria-live="polite"', template)
+        self.assertIn(".source-resource-list {", styles)
 
         self.assertIn("const MAX_SOURCE_NAME_LENGTH = 120", script)
         self.assertIn("const MAX_SOURCE_URL_LENGTH = 2000", script)
@@ -353,6 +444,11 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('if (action === "scan" && state.queuedProfile)', script)
         self.assertIn('setBusy(true, "Applying saved profile...", state.queuedProfile.request)', script)
         self.assertIn('state.profileRetryDraft = cloneProfile(state.queuedProfile.profile)', script)
+        self.assertIn('if (state.busy) {\n      showToast("Wait for the current action to finish.");', script)
+        self.assertIn('state.pendingProfileManagement = {operation, statusId:', script)
+        self.assertIn('if (action === "profile" && state.pendingProfileManagement)', script)
+        self.assertIn('profile.id !== profileCatalog.active_profile_id', script)
+        self.assertNotIn("copy_current", script)
 
 
 if __name__ == "__main__":

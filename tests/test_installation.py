@@ -132,6 +132,7 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(rendered.count(module.END), 1)
         self.assertIn("30 7 * * *", rendered)
         self.assertIn("30 16 * * *", rendered)
+        self.assertEqual(rendered.count("umask 077;"), 2)
         self.assertIn("'" + str(runtime / "scripts" / "run_monitor.sh") + "'", rendered)
         updated = module.build_crontab(rendered, runtime, [(8, 0), (17, 0)])
         self.assertEqual(updated.count(module.BEGIN), 1)
@@ -239,12 +240,17 @@ class InstallationTests(unittest.TestCase):
         self.assertIn("/tmp/old-runtime", restored)
         self.assertNotIn("/tmp/new-runtime", restored)
 
-    def test_cron_verify_accepts_only_the_exact_managed_schedule(self):
+    def test_cron_verify_accepts_current_and_repairable_legacy_schedules(self):
         _project, module = load_script("manage_cron_verify", "manage_cron.py")
         runtime = Path("/tmp/Opportunity Radar")
         expected = module.build_crontab("", runtime, [(7, 30), (16, 30)])
         arguments = ["manage_cron.py", "verify", "--runtime", str(runtime)]
         with patch.object(module, "current_crontab", return_value=expected), patch.object(
+            sys, "argv", arguments
+        ):
+            self.assertEqual(module.main(), 0)
+        legacy = expected.replace(" umask 077; ", " ")
+        with patch.object(module, "current_crontab", return_value=legacy), patch.object(
             sys, "argv", arguments
         ):
             self.assertEqual(module.main(), 0)
@@ -598,6 +604,42 @@ class InstallationTests(unittest.TestCase):
             )
             self.assertEqual(validated_runtime, runtime.resolve())
 
+    def test_install_path_validation_accepts_legacy_readable_logs_for_repair(self):
+        project, module = load_script("render_launch_agent_log_repair", "render_launch_agent.py")
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            runtime = root / "OpportunityRadar"
+            target = root / "LaunchAgents"
+            target.mkdir(mode=0o700)
+            python = private_executable(root / "python")
+            for marker in module.LEGACY_RUNTIME_MARKERS:
+                path = runtime / marker
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("test", encoding="utf-8")
+            log = runtime / "logs" / "cron.err.log"
+            private_file(log, b"legacy error\n")
+            log.chmod(0o644)
+            runtime.chmod(0o700)
+
+            validated_runtime, _target, _python = module.validate_install_paths(
+                project,
+                runtime,
+                target,
+                "io.github.opportunity-radar.monitor",
+                python,
+            )
+
+            self.assertEqual(validated_runtime, runtime.resolve())
+            log.chmod(0o666)
+            with self.assertRaisesRegex(ValueError, "private mode 0600"):
+                module.validate_install_paths(
+                    project,
+                    runtime,
+                    target,
+                    "io.github.opportunity-radar.monitor",
+                    python,
+                )
+
     def test_install_path_validation_rejects_repo_runtime_and_symlink_plist(self):
         project, module = load_script("render_launch_agent_boundaries", "render_launch_agent.py")
         with self.assertRaisesRegex(ValueError, "separate from the repository"):
@@ -677,16 +719,36 @@ class InstallationTests(unittest.TestCase):
         )
         runtime_profile = '"$RUNTIME_DIR/config/profile.local.json"'
         repository_profile = '"$PROJECT_DIR/config/profile.local.json"'
+        runtime_profiles = '"$RUNTIME_DIR/config/profiles.local.json"'
+        repository_profiles = '"$PROJECT_DIR/config/profiles.local.json"'
         runtime_sources = '"$RUNTIME_DIR/config/sources.local.json"'
         repository_sources = '"$PROJECT_DIR/config/sources.local.json"'
         selection = source.index("PROFILE_LOCAL_SOURCE=")
         promotion = source.index('/bin/mv "$STAGE" "$RUNTIME_DIR"')
         self.assertLess(selection, promotion)
         self.assertLess(source.index(runtime_profile, selection), source.index(repository_profile, selection))
+        self.assertLess(source.index(runtime_profiles, selection), source.index(repository_profiles, selection))
         self.assertLess(source.index(runtime_sources, selection), source.index(repository_sources, selection))
         self.assertIn('/bin/cp "$PROFILE_LOCAL_SOURCE"', source[selection:promotion])
+        self.assertIn('/bin/cp "$PROFILES_LOCAL_SOURCE"', source[selection:promotion])
         self.assertIn('/bin/cp "$SOURCES_LOCAL_SOURCE"', source[selection:promotion])
         self.assertIn("8#$mode & 8#77", source)
+
+    def test_installer_explicitly_bridges_runtime_compatibility_upgrade(self):
+        project = Path(__file__).resolve().parents[1]
+        source = (project / "scripts" / "install_launch_agent.sh").read_text(
+            encoding="utf-8"
+        )
+        doctor = source.index('"$PYTHON_BIN" -m monitor doctor')
+        curated = source.index("from monitor.config import load_profile")
+        self.assertIn(
+            "OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer",
+            source[doctor - 160:doctor],
+        )
+        self.assertIn(
+            "OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer",
+            source[curated - 160:curated],
+        )
 
     def test_shell_installer_snapshots_and_restores_scheduler_transitions(self):
         project = Path(__file__).resolve().parents[1]
@@ -702,6 +764,10 @@ class InstallationTests(unittest.TestCase):
         self.assertIn("cannot switch safely to the cron fallback", source.lower())
         self.assertIn('manage_cron.py" verify', source)
         self.assertIn('SCHEDULER_KIND="existing cron fallback"', source)
+        self.assertIn("managed_cron_log_links", source)
+        self.assertIn("preserving the existing cron fallback", source)
+        self.assertIn('if [[ "$USE_EXISTING_CRON" -eq 0 ]]', source)
+        self.assertIn('/usr/bin/touch "$staged_log"', source)
 
     def test_scan_idle_helper_imports_from_outside_the_project(self):
         project = Path(__file__).resolve().parents[1]
@@ -754,6 +820,10 @@ class InstallationTests(unittest.TestCase):
         self.assertIn(idle_check, installer)
         self.assertIn(recovery, installer)
         self.assertIn(recovery, uninstaller)
+        idle_source = (project / "scripts" / "check_scan_idle.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("require_compatible=False", idle_source)
         self.assertLess(installer.index(recovery), installer.index('mkdir "$LOCK_DIR"'))
         self.assertLess(uninstaller.index(recovery), uninstaller.index('mkdir "$LOCK_DIR"'))
         for source in (installer, uninstaller):
@@ -761,7 +831,8 @@ class InstallationTests(unittest.TestCase):
             self.assertIn("/bin/rm -f \"$LOCK_OWNER\"", source)
         self.assertLess(installer.index('mkdir "$LOCK_DIR"'), installer.index(idle_check))
         self.assertLess(installer.index(idle_check), installer.index('DATABASE_SOURCE=""'))
-        self.assertEqual(installer.count("OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer"), 2)
+        self.assertEqual(installer.count("OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer"), 4)
+        self.assertIn('/bin/chmod 600 "$runtime_log"', installer)
 
         self.assertLess(
             installer.rindex("ARCHIVED_PREVIOUS_RUNTIME=1"),

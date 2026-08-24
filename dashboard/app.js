@@ -3,8 +3,12 @@
 
   const PAGE_SIZE = 24;
   const SOURCE_PREVIEW_LIMIT = 12;
+  const SOURCE_RESOURCE_PAGE_SIZE = 100;
+  const MAX_SOURCE_RESOURCES = 500;
   const MAX_SOURCE_NAME_LENGTH = 120;
   const MAX_SOURCE_URL_LENGTH = 2000;
+  const MAX_PROFILE_NAME_LENGTH = 80;
+  const MAX_PROFILE_CATALOG_SIZE = 50;
   const SEARCH_DEBOUNCE_MS = 90;
   const MAX_LOCAL_RECORDS = 500;
   const TRANSIENT_VIEW_KEY = "opportunity-radar-transient-view-v1";
@@ -14,6 +18,10 @@
   const VIEW_VALUES = new Set(["discover", "applications"]);
   const SORT_VALUES = new Set(["fit", "newest", "deadline", "organization"]);
   const PROFILE_PAGE_VALUES = new Set(["basics", "advanced"]);
+  const PROFILE_MANAGEMENT_OPERATIONS = new Set([
+    "activate", "create", "duplicate", "rename", "delete",
+  ]);
+  const PROFILE_REVISION_PATTERN = /^[a-f0-9]{64}$/;
   const TYPE_LABELS = {
     apprenticeship: "Apprenticeship",
     co_op: "Co-op",
@@ -50,6 +58,9 @@
     ["postdoc", "Postdocs"],
     ["research_program", "Research programs"],
     ["scholarship", "Scholarships"],
+    ["residency", "Residencies"],
+    ["training", "Training programs"],
+    ["program", "Other programs"],
     ["apprenticeship", "Apprenticeships"],
     ["co_op", "Co-ops"],
   ];
@@ -124,6 +135,8 @@
   }
 
   const settings = data.settings || {};
+  const profileCatalog = parseProfileCatalog(settings.profile_catalog);
+  const sourceResources = parseSourceResources(settings.source_resources);
   const profilePackOptions = Array.isArray(settings.source_packs) && settings.source_packs.length
     ? settings.source_packs.map((pack) => [
       String(pack && pack.id || "").trim(),
@@ -148,6 +161,7 @@
     pendingRequest: null,
     pendingAction: null,
     pendingMutation: null,
+    pendingProfileManagement: null,
     queuedProfile: null,
     profileRetryDraft: null,
     workflow: loadWorkflow(),
@@ -159,7 +173,69 @@
   let requestSequence = 0;
   let profileFieldSequence = 0;
   let profileActivePage = "basics";
+  let profileNameOperation = "create";
   const sourceView = {query: "", status: "all", expanded: false};
+  const sourceResourceView = {query: "", limit: SOURCE_RESOURCE_PAGE_SIZE};
+
+  function boundedInlineText(value, maximum) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!text || /[\u0000-\u001f\u007f]/.test(text)) return "";
+    return text.slice(0, maximum);
+  }
+
+  function parseProfileCatalog(value) {
+    const fallback = {
+      version: 1,
+      expected_revision: "",
+      active_profile_id: "",
+      profiles: [],
+    };
+    if (!value || typeof value !== "object" || Array.isArray(value)) return fallback;
+    const seen = new Set();
+    const profiles = (Array.isArray(value.profiles) ? value.profiles : [])
+      .slice(0, MAX_PROFILE_CATALOG_SIZE)
+      .map((entry) => ({
+        id: boundedInlineText(entry && entry.id, MAX_PROFILE_NAME_LENGTH),
+        name: boundedInlineText(entry && entry.name, MAX_PROFILE_NAME_LENGTH),
+      }))
+      .filter((entry) => {
+        if (!entry.id || !entry.name || seen.has(entry.id)) return false;
+        seen.add(entry.id);
+        return true;
+      });
+    const active = boundedInlineText(value.active_profile_id, MAX_PROFILE_NAME_LENGTH);
+    const revision = boundedInlineText(value.expected_revision, 64);
+    return {
+      version: value.version === 1 ? 1 : 0,
+      expected_revision: PROFILE_REVISION_PATTERN.test(revision) ? revision : "",
+      active_profile_id: seen.has(active) ? active : profiles.length ? profiles[0].id : "",
+      profiles,
+    };
+  }
+
+  function boundedTextList(value, maximumItems) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, maximumItems).map((entry) => boundedInlineText(entry, 80)).filter(Boolean);
+  }
+
+  function parseSourceResources(value) {
+    const seen = new Set();
+    return (Array.isArray(value) ? value : []).slice(0, MAX_SOURCE_RESOURCES).map((entry) => ({
+      id: boundedInlineText(entry && entry.id, 100),
+      name: boundedInlineText(entry && entry.name, 160),
+      url: safeUrl(entry && entry.url),
+      packs: boundedTextList(entry && entry.packs, 24),
+      domains: boundedTextList(entry && entry.domains, 24),
+      source_type: boundedInlineText(entry && entry.source_type, 80),
+      support_level: boundedInlineText(entry && entry.support_level, 40),
+      enabled: Boolean(entry && entry.enabled),
+      auto_enable: entry && entry.auto_enable !== false,
+    })).filter((entry) => {
+      if (!entry.id || !entry.name || seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    });
+  }
 
   function loadTransientView() {
     const fallback = {view: "discover", filter: "all", query: "", sort: "fit", page: 1};
@@ -289,6 +365,258 @@
       ].some((key) => profileStrings(targets[key]).length)
       || String(targets.remote_preference || "").trim()
       || profileStrings(profile.priority_organizations).length
+    );
+  }
+
+  function activeProfileEntry() {
+    return profileCatalog.profiles.find((entry) => entry.id === profileCatalog.active_profile_id) || null;
+  }
+
+  function activeProfileName() {
+    const active = activeProfileEntry();
+    return active ? active.name : "Current profile";
+  }
+
+  function profileCatalogWritable() {
+    return Boolean(
+      hasNativeBridge()
+      && profileCatalog.version === 1
+      && profileCatalog.expected_revision
+      && profileCatalog.active_profile_id
+    );
+  }
+
+  function profileNameError(name, operation) {
+    const clean = boundedInlineText(name, MAX_PROFILE_NAME_LENGTH);
+    if (!clean || clean !== name) return "Enter a profile name using 80 characters or fewer.";
+    const normalized = normalizeSearchText(clean);
+    const duplicate = profileCatalog.profiles.find((entry) => (
+      normalizeSearchText(entry.name) === normalized
+      && !(operation === "rename" && entry.id === profileCatalog.active_profile_id)
+    ));
+    if (duplicate) return "Choose a different name. Profile names must be unique.";
+    if (operation === "rename" && clean === activeProfileName()) {
+      return "Enter a different name for this profile.";
+    }
+    return "";
+  }
+
+  function profileManagementRequest(operation, options) {
+    const values = options || {};
+    if (
+      !PROFILE_MANAGEMENT_OPERATIONS.has(operation)
+      || profileCatalog.version !== 1
+      || !PROFILE_REVISION_PATTERN.test(profileCatalog.expected_revision)
+    ) return null;
+    const request = {
+      version: 1,
+      operation,
+      expected_revision: profileCatalog.expected_revision,
+    };
+    if (["activate", "duplicate", "rename", "delete"].includes(operation)) {
+      const profileId = boundedInlineText(values.profile_id, MAX_PROFILE_NAME_LENGTH);
+      if (!profileCatalog.profiles.some((entry) => entry.id === profileId)) return null;
+      request.profile_id = profileId;
+    }
+    if (["create", "duplicate", "rename"].includes(operation)) {
+      const name = boundedInlineText(values.name, MAX_PROFILE_NAME_LENGTH);
+      if (profileNameError(name, operation)) return null;
+      request.name = name;
+    }
+    return request;
+  }
+
+  function renderProfileCatalog() {
+    const catalog = document.getElementById("profile-catalog");
+    const actions = document.getElementById("profile-management-actions");
+    const select = document.getElementById("profile-select");
+    const available = profileCatalog.version === 1 && profileCatalog.profiles.length > 0;
+    catalog.hidden = !available;
+    actions.hidden = !available;
+    select.replaceChildren();
+    if (!available) return;
+    profileCatalog.profiles.forEach((profile) => {
+      const option = element("option", "", profile.name);
+      option.value = profile.id;
+      option.selected = profile.id === profileCatalog.active_profile_id;
+      select.appendChild(option);
+    });
+    const status = document.getElementById("profile-catalog-status");
+    if (!hasNativeBridge()) {
+      status.textContent = "Open the macOS app to switch or manage profiles.";
+    } else if (!profileCatalog.expected_revision) {
+      status.textContent = "Profile management is temporarily unavailable. Reload the dashboard.";
+    } else {
+      status.textContent = "Searches and scans use this profile.";
+    }
+    updateProfileManagementAvailability();
+  }
+
+  function updateProfileManagementAvailability() {
+    const select = document.getElementById("profile-select");
+    const writable = profileCatalogWritable();
+    const managementBusy = Boolean(state.pendingProfileManagement);
+    if (select) select.disabled = !writable || state.busy || profileCatalog.profiles.length < 2;
+    document.querySelectorAll("[data-profile-management]").forEach((button) => {
+      button.disabled = !writable || state.busy;
+    });
+    const deleteButton = document.getElementById("profile-delete-button");
+    if (deleteButton) {
+      deleteButton.disabled = !writable || state.busy || profileCatalog.profiles.length < 2;
+      deleteButton.title = profileCatalog.profiles.length < 2
+        ? "Keep at least one search profile."
+        : "Delete an inactive profile";
+    }
+    document.querySelectorAll("#profile-name-dialog input, #profile-name-dialog button, #profile-delete-dialog select, #profile-delete-dialog button").forEach((control) => {
+      control.disabled = managementBusy;
+    });
+  }
+
+  function showDashboardDialog(dialog, focusTarget) {
+    if (!dialog) return;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    if (focusTarget) focusTarget.focus();
+  }
+
+  function closeDashboardDialog(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.close === "function" && dialog.open) dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  function openProfileNameDialog(operation) {
+    if (!["create", "duplicate", "rename"].includes(operation) || state.busy) return;
+    if (!profileCatalogWritable()) {
+      showToast("Profile management is available in the macOS app.");
+      return;
+    }
+    profileNameOperation = operation;
+    const activeName = activeProfileName();
+    const title = document.getElementById("profile-name-dialog-title");
+    const description = document.getElementById("profile-name-dialog-description");
+    const submit = document.getElementById("profile-name-submit");
+    const input = document.getElementById("profile-name-input");
+    document.getElementById("profile-name-status").textContent = "";
+    input.setAttribute("aria-invalid", "false");
+    if (operation === "create") {
+      title.textContent = "Create a new profile";
+      description.textContent = "Start with neutral STEM preferences, then tailor the new profile after it opens.";
+      submit.textContent = "Create profile";
+      input.value = "";
+    } else if (operation === "duplicate") {
+      title.textContent = "Duplicate " + activeName;
+      description.textContent = "Copy every matching preference and source-pack selection into a new profile.";
+      submit.textContent = "Duplicate profile";
+      input.value = (activeName + " copy").slice(0, MAX_PROFILE_NAME_LENGTH);
+    } else {
+      title.textContent = "Rename " + activeName;
+      description.textContent = "Choose a distinct name that makes this search easy to recognize.";
+      submit.textContent = "Save name";
+      input.value = activeName;
+    }
+    const dialog = document.getElementById("profile-name-dialog");
+    showDashboardDialog(dialog, input);
+    input.select();
+  }
+
+  function openProfileDeleteDialog() {
+    if (state.busy || !profileCatalogWritable()) return;
+    if (profileCatalog.profiles.length < 2) {
+      showToast("Keep at least one search profile.");
+      return;
+    }
+    const select = document.getElementById("profile-delete-select");
+    select.replaceChildren();
+    profileCatalog.profiles.filter((profile) => (
+      profile.id !== profileCatalog.active_profile_id
+    )).forEach((profile) => {
+      const option = element("option", "", profile.name);
+      option.value = profile.id;
+      select.appendChild(option);
+    });
+    document.getElementById("profile-delete-dialog-title").textContent = "Delete a saved profile?";
+    document.getElementById("profile-delete-description").textContent = (
+      "Choose an inactive profile to remove. Saved opportunities and application tracking are kept."
+    );
+    document.getElementById("profile-delete-status").textContent = "";
+    showDashboardDialog(
+      document.getElementById("profile-delete-dialog"),
+      select
+    );
+  }
+
+  function startProfileManagement(operation, values, statusId, label) {
+    if (state.busy) {
+      showToast("Wait for the current action to finish.");
+      return "";
+    }
+    const payload = profileManagementRequest(operation, values);
+    const status = document.getElementById(statusId || "profile-catalog-status");
+    if (!payload || !hasNativeBridge()) {
+      if (status) status.textContent = "The profile request could not be prepared.";
+      return "";
+    }
+    state.pendingProfileManagement = {operation, statusId: statusId || "profile-catalog-status"};
+    const request = startNativeAction({action: "profile", profile: payload}, label);
+    if (!request) {
+      state.pendingProfileManagement = null;
+      updateProfileManagementAvailability();
+      if (status) status.textContent = "The profile request could not be sent to the app.";
+      return "";
+    }
+    if (status) status.textContent = label;
+    updateProfileManagementAvailability();
+    return request;
+  }
+
+  function activateProfile(event) {
+    const select = event.currentTarget;
+    const profileId = String(select.value || "");
+    if (profileId === profileCatalog.active_profile_id) return;
+    const selected = profileCatalog.profiles.find((profile) => profile.id === profileId);
+    if (!selected || !startProfileManagement(
+      "activate",
+      {profile_id: profileId},
+      "profile-catalog-status",
+      "Switching to " + (selected ? selected.name : "profile") + "..."
+    )) {
+      select.value = profileCatalog.active_profile_id;
+    }
+  }
+
+  function submitProfileName(event) {
+    event.preventDefault();
+    const input = document.getElementById("profile-name-input");
+    const name = String(input.value || "").replace(/\s+/g, " ").trim();
+    const status = document.getElementById("profile-name-status");
+    const error = profileNameError(name, profileNameOperation);
+    input.setAttribute("aria-invalid", String(Boolean(error)));
+    if (error) {
+      status.textContent = error;
+      input.focus();
+      return;
+    }
+    const values = {name};
+    if (["duplicate", "rename"].includes(profileNameOperation)) {
+      values.profile_id = profileCatalog.active_profile_id;
+    }
+    const labels = {
+      create: "Creating profile...",
+      duplicate: "Duplicating profile...",
+      rename: "Renaming profile...",
+    };
+    startProfileManagement(profileNameOperation, values, "profile-name-status", labels[profileNameOperation]);
+  }
+
+  function submitProfileDelete(event) {
+    event.preventDefault();
+    const profileId = String(document.getElementById("profile-delete-select").value || "");
+    startProfileManagement(
+      "delete",
+      {profile_id: profileId},
+      "profile-delete-status",
+      "Deleting profile..."
     );
   }
 
@@ -783,12 +1111,13 @@
     const card = document.getElementById("profile-card");
     card.hidden = !profileDraft;
     if (!profileDraft) return;
+    renderProfileCatalog();
     const isEmpty = !profileHasContent(profileDraft);
     const button = document.getElementById("edit-profile-button");
     button.textContent = isEmpty ? "Set up profile" : "Edit profile";
     document.getElementById("profile-summary-title").textContent = isEmpty
       ? "Make matches personal"
-      : "Your matching preferences";
+      : activeProfileName();
     const timeframes = profileStrings(profileDraft.timeframes);
     const organizations = profileStrings(profileDraft.priority_organizations);
     const targets = profileDraft.targets && typeof profileDraft.targets === "object" ? profileDraft.targets : {};
@@ -820,7 +1149,11 @@
     document.getElementById("profile-readonly-note").hidden = !readonly;
     document.getElementById("profile-save-button").hidden = readonly;
     document.getElementById("profile-cancel-button").textContent = readonly ? "Close" : "Cancel";
-    document.getElementById("profile-dialog-title").textContent = isEmpty ? "Set up your profile" : readonly ? "Your search profile" : "Edit your profile";
+    document.getElementById("profile-dialog-title").textContent = isEmpty
+      ? "Set up " + activeProfileName()
+      : readonly
+        ? activeProfileName()
+        : "Edit " + activeProfileName();
     document.getElementById("profile-dialog-kicker").textContent = isEmpty ? "First-time setup" : "Search profile";
     renderProfileForm();
   }
@@ -1116,7 +1449,9 @@
       state.pendingRequest = null;
       state.busyLabel = "";
     }
-    const profileActionBusy = state.busy && state.pendingAction === "profile";
+    const profileActionBusy = state.busy
+      && state.pendingAction === "profile"
+      && !state.pendingProfileManagement;
     const profileQueued = Boolean(state.queuedProfile);
     const profileCanQueue = state.busy && state.pendingAction === "scan" && !profileQueued;
     document.getElementById("refresh-button").disabled = state.busy;
@@ -1131,6 +1466,7 @@
     document.querySelectorAll("#opportunity-list button[data-action]").forEach((button) => {
       button.setAttribute("aria-disabled", String(state.busy));
     });
+    updateProfileManagementAvailability();
     updateSourceFormAvailability();
   }
 
@@ -1953,6 +2289,80 @@
     );
   }
 
+  function sourceResourceSearchText(resource) {
+    return normalizeSearchText([
+      resource.name,
+      resource.source_type,
+      resource.support_level,
+      ...resource.packs,
+      ...resource.domains,
+    ].join(" "));
+  }
+
+  function matchingSourceResources() {
+    const terms = normalizeSearchText(sourceResourceView.query).split(" ").filter(Boolean).slice(0, 12);
+    return sourceResources.filter((resource) => {
+      const searchable = sourceResourceSearchText(resource);
+      return terms.every((term) => searchable.includes(term));
+    });
+  }
+
+  function renderSourceResources() {
+    const list = document.getElementById("source-resource-list");
+    const matching = matchingSourceResources();
+    const visible = matching.slice(0, sourceResourceView.limit);
+    list.replaceChildren();
+    visible.forEach((resource) => {
+      const card = element("article", "source-resource");
+      card.setAttribute("role", "listitem");
+      const heading = element(resource.url ? "a" : "h3", "source-resource-name", resource.name);
+      if (resource.url) {
+        heading.href = resource.url;
+        heading.target = "_blank";
+        heading.rel = "noopener noreferrer";
+        heading.title = "Open the official " + resource.name + " page";
+      }
+      const status = resource.enabled
+        ? "Scanned source"
+        : resource.auto_enable
+          ? "Available source"
+          : "Directory resource";
+      const support = humanizeProfileValue(resource.support_level || "manual");
+      card.append(heading, element("p", "source-resource-meta", status + " · " + support));
+      const tags = element("div", "source-resource-tags");
+      profileStrings([...resource.domains, ...resource.packs]).slice(0, 8).forEach((value) => {
+        tags.appendChild(element("span", "tag", humanizeProfileValue(value)));
+      });
+      if (tags.childElementCount) card.appendChild(tags);
+      list.appendChild(card);
+    });
+    if (!matching.length) {
+      const empty = element("div", "source-resource-empty", "No STEM resources match that search.");
+      list.appendChild(empty);
+    }
+    const count = document.getElementById("source-resource-count");
+    count.textContent = matching.length
+      ? "Showing " + visible.length + " of " + matching.length + " resources."
+      : "No matching resources.";
+    const more = document.getElementById("source-resource-more");
+    more.hidden = visible.length >= matching.length;
+    more.textContent = "Show " + Math.min(SOURCE_RESOURCE_PAGE_SIZE, matching.length - visible.length) + " more resources";
+    const browse = document.getElementById("source-resource-button");
+    browse.hidden = sourceResources.length === 0;
+    browse.textContent = sourceResources.length
+      ? "Browse " + sourceResources.length + " STEM resources"
+      : "Browse STEM resources";
+  }
+
+  function openSourceResourceDirectory() {
+    sourceResourceView.query = "";
+    sourceResourceView.limit = SOURCE_RESOURCE_PAGE_SIZE;
+    const search = document.getElementById("source-resource-search");
+    search.value = "";
+    renderSourceResources();
+    showDashboardDialog(document.getElementById("source-resource-dialog"), search);
+  }
+
   function sourceStatus(source) {
     return ["ok", "error", "blocked"].includes(source && source.last_status)
       ? source.last_status
@@ -2138,6 +2548,21 @@
         finishPendingMutation(ok);
       }
       if (["scan", "profile", "source"].includes(action) && ok) saveTransientView();
+      if (action === "profile" && state.pendingProfileManagement) {
+        const management = state.pendingProfileManagement;
+        state.pendingProfileManagement = null;
+        state.pendingAction = null;
+        setBusy(false);
+        const note = document.getElementById(management.statusId);
+        if (note) {
+          note.textContent = String(
+            result.message || (ok ? "Profile updated. Reloading..." : "The profile could not be updated.")
+          ).slice(0, 240);
+        }
+        if (!ok) document.getElementById("profile-select").value = profileCatalog.active_profile_id;
+        if (result && result.message) showToast(result.message);
+        return;
+      }
       if (action === "scan" && state.queuedProfile) {
         state.pendingAction = "profile";
         setBusy(true, "Applying saved profile...", state.queuedProfile.request);
@@ -2228,6 +2653,24 @@
     if (event.target.returnValue === "confirm") scan("all");
   });
   document.getElementById("edit-profile-button").addEventListener("click", openProfileDialog);
+  document.getElementById("profile-select").addEventListener("change", activateProfile);
+  document.getElementById("profile-new-button").addEventListener("click", () => openProfileNameDialog("create"));
+  document.getElementById("profile-duplicate-button").addEventListener("click", () => openProfileNameDialog("duplicate"));
+  document.getElementById("profile-rename-button").addEventListener("click", () => openProfileNameDialog("rename"));
+  document.getElementById("profile-delete-button").addEventListener("click", openProfileDeleteDialog);
+  document.getElementById("profile-name-form").addEventListener("submit", submitProfileName);
+  document.getElementById("profile-name-cancel").addEventListener("click", () => {
+    closeDashboardDialog(document.getElementById("profile-name-dialog"));
+  });
+  document.getElementById("profile-delete-form").addEventListener("submit", submitProfileDelete);
+  document.getElementById("profile-delete-cancel").addEventListener("click", () => {
+    closeDashboardDialog(document.getElementById("profile-delete-dialog"));
+  });
+  ["profile-name-dialog", "profile-delete-dialog"].forEach((id) => {
+    document.getElementById(id).addEventListener("cancel", (event) => {
+      if (state.pendingProfileManagement) event.preventDefault();
+    });
+  });
   document.getElementById("profile-close-button").addEventListener("click", closeProfileDialog);
   document.getElementById("profile-cancel-button").addEventListener("click", closeProfileDialog);
   document.getElementById("profile-form").addEventListener("submit", saveProfile);
@@ -2294,6 +2737,19 @@
     renderSourceList();
   });
   document.getElementById("source-add-form").addEventListener("submit", addSource);
+  document.getElementById("source-resource-button").addEventListener("click", openSourceResourceDirectory);
+  document.getElementById("source-resource-close").addEventListener("click", () => {
+    closeDashboardDialog(document.getElementById("source-resource-dialog"));
+  });
+  document.getElementById("source-resource-search").addEventListener("input", (event) => {
+    sourceResourceView.query = String(event.target.value || "").trim().slice(0, 160);
+    sourceResourceView.limit = SOURCE_RESOURCE_PAGE_SIZE;
+    renderSourceResources();
+  });
+  document.getElementById("source-resource-more").addEventListener("click", () => {
+    sourceResourceView.limit = Math.min(MAX_SOURCE_RESOURCES, sourceResourceView.limit + SOURCE_RESOURCE_PAGE_SIZE);
+    renderSourceResources();
+  });
   document.querySelector(".view-switcher").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-view]");
     if (!button || !["discover", "applications"].includes(button.dataset.view)) return;
@@ -2344,6 +2800,7 @@
   renderProfileEditor();
   updateSourceFormAvailability();
   renderSources();
+  renderSourceResources();
   renderEvents();
   renderAll();
 }());

@@ -106,7 +106,15 @@ def build_crontab(
     stderr = cron_quote(runtime / "logs" / "cron.err.log")
     lines = [base, begin_marker] if base else [begin_marker]
     for hour, minute in times:
-        lines.append("{} {} * * * {} >> {} 2>> {}".format(minute, hour, command, stdout, stderr))
+        lines.append(
+            "{} {} * * * umask 077; {} >> {} 2>> {}".format(
+                minute,
+                hour,
+                command,
+                stdout,
+                stderr,
+            )
+        )
     lines.append(end_marker)
     return "\n".join(lines) + "\n"
 
@@ -207,7 +215,12 @@ def main() -> int:
             build_crontab("", args.runtime, times, args.label),
             args.label,
         )
-        return 0 if managed_block(content, args.label) == expected else 1
+        legacy_expected = [
+            line.replace(" umask 077; ", " ", 1)
+            for line in expected
+        ]
+        actual = managed_block(content, args.label)
+        return 0 if actual in (expected, legacy_expected) else 1
     write_crontab(build_crontab(content, args.runtime, times, args.label))
     return 0
 

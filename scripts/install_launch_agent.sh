@@ -61,6 +61,12 @@ service_uses_target() {
   return 1
 }
 
+managed_cron_log_links() {
+  [[ -L "$SCHEDULER_OUT_PATH" && -L "$SCHEDULER_ERR_PATH" ]] || return 1
+  [[ "$(/usr/bin/readlink "$SCHEDULER_OUT_PATH")" == "$RUNTIME_DIR/logs/cron.out.log" ]] || return 1
+  [[ "$(/usr/bin/readlink "$SCHEDULER_ERR_PATH")" == "$RUNTIME_DIR/logs/cron.err.log" ]]
+}
+
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
 LABEL="${OPPORTUNITY_RADAR_LABEL:-io.github.opportunity-radar.monitor}"
 RUNTIME_DIR="${OPPORTUNITY_RADAR_RUNTIME_DIR:-$HOME/Library/Application Support/OpportunityRadar}"
@@ -306,7 +312,23 @@ cd "$PROJECT_DIR"
 # before the lock is no longer using the live runtime before taking snapshots.
 PYTHONPYCACHEPREFIX="$PROJECT_DIR/data/pycache" \
   "$PYTHON_BIN" "$PROJECT_DIR/scripts/check_scan_idle.py"
-PYTHONPYCACHEPREFIX="$PROJECT_DIR/data/pycache" "$PYTHON_BIN" -m monitor doctor >/dev/null
+for runtime_log in \
+  "$RUNTIME_DIR/logs/cron.out.log" \
+  "$RUNTIME_DIR/logs/cron.err.log" \
+  "$RUNTIME_DIR/logs/launchd.out.log" \
+  "$RUNTIME_DIR/logs/launchd.err.log"; do
+  if [[ -e "$runtime_log" || -L "$runtime_log" ]]; then
+    if [[ -L "$runtime_log" || ! -f "$runtime_log" || ! -O "$runtime_log" ]]; then
+      echo "Refusing to repair an unsafe scheduler log." >&2
+      false
+    fi
+    reject_writable_by_others "$runtime_log" "scheduler log"
+    /bin/chmod 600 "$runtime_log"
+  fi
+done
+OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer \
+  PYTHONPYCACHEPREFIX="$PROJECT_DIR/data/pycache" \
+  "$PYTHON_BIN" -m monitor doctor >/dev/null
 
 mkdir -p \
   "$STAGE/config" \
@@ -325,6 +347,11 @@ PROFILE_LOCAL_SOURCE="$(
     "$RUNTIME_DIR/config/profile.local.json" \
     "$PROJECT_DIR/config/profile.local.json"
 )"
+PROFILES_LOCAL_SOURCE="$(
+  private_local_config \
+    "$RUNTIME_DIR/config/profiles.local.json" \
+    "$PROJECT_DIR/config/profiles.local.json"
+)"
 SOURCES_LOCAL_SOURCE="$(
   private_local_config \
     "$RUNTIME_DIR/config/sources.local.json" \
@@ -332,6 +359,9 @@ SOURCES_LOCAL_SOURCE="$(
 )"
 if [[ -n "$PROFILE_LOCAL_SOURCE" ]]; then
   /bin/cp "$PROFILE_LOCAL_SOURCE" "$STAGE/config/profile.local.json"
+fi
+if [[ -n "$PROFILES_LOCAL_SOURCE" ]]; then
+  /bin/cp "$PROFILES_LOCAL_SOURCE" "$STAGE/config/profiles.local.json"
 fi
 if [[ -n "$SOURCES_LOCAL_SOURCE" ]]; then
   /bin/cp "$SOURCES_LOCAL_SOURCE" "$STAGE/config/sources.local.json"
@@ -344,7 +374,8 @@ fi
 /usr/bin/printf '%s\n' "$PYTHON_BIN" > "$STAGE/config/python-path"
 
 CURATED_PATH="$(
-  "$PYTHON_BIN" -c 'from monitor.config import load_profile, resolve_project_value; value = str(load_profile().get("curated_pipeline_path", "")).strip(); print(resolve_project_value(value) if value else "")'
+  OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer \
+    "$PYTHON_BIN" -c 'from monitor.config import load_profile, resolve_project_value; value = str(load_profile().get("curated_pipeline_path", "")).strip(); print(resolve_project_value(value) if value else "")'
 )"
 if [[ -n "$CURATED_PATH" ]]; then
   if [[ ! -f "$CURATED_PATH" ]]; then
@@ -365,11 +396,6 @@ if [[ -f "$TARGET" ]]; then
   HAD_PLIST=1
   /bin/cp "$TARGET" "$PLIST_BACKUP"
 fi
-"$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot \
-  --label "$LABEL" > "$CRON_BACKUP"
-/bin/chmod 600 "$CRON_BACKUP"
-CRON_SNAPSHOT_READY=1
-
 SERVICE_DESCRIPTION=""
 if SERVICE_DESCRIPTION="$(
   trap - ERR
@@ -380,6 +406,20 @@ if SERVICE_DESCRIPTION="$(
     echo "The loaded launch agent was bootstrapped from a different property list." >&2
     false
   fi
+fi
+if "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" snapshot \
+  --label "$LABEL" > "$CRON_BACKUP" 2>/dev/null; then
+  /bin/chmod 600 "$CRON_BACKUP"
+  CRON_SNAPSHOT_READY=1
+elif [[ "$WAS_LOADED" -eq 0 && "$HAD_PLIST" -eq 0 ]] && managed_cron_log_links; then
+  /bin/rm -f "$CRON_BACKUP"
+  USE_LAUNCHD=0
+  USE_EXISTING_CRON=1
+  echo "The user crontab is not inspectable; preserving the existing cron fallback."
+else
+  /bin/rm -f "$CRON_BACKUP"
+  echo "The user crontab could not be inspected safely." >&2
+  false
 fi
 if [[ "$USE_LAUNCHD" -eq 1 && "$WAS_LOADED" -eq 0 && "$HAD_PLIST" -eq 0 ]] && \
   "$PYTHON_BIN" "$PROJECT_DIR/scripts/manage_cron.py" verify \
@@ -396,7 +436,17 @@ if [[ "$WAS_LOADED" -eq 1 && "$HAD_PLIST" -eq 0 ]]; then
   echo "The loaded launch agent has no restorable property list." >&2
   false
 fi
-SCHEDULER_MUTATION_STARTED=1
+for staged_log in \
+  "$STAGE/logs/cron.out.log" \
+  "$STAGE/logs/cron.err.log" \
+  "$STAGE/logs/launchd.out.log" \
+  "$STAGE/logs/launchd.err.log"; do
+  /usr/bin/touch "$staged_log"
+  /bin/chmod 600 "$staged_log"
+done
+if [[ "$USE_EXISTING_CRON" -eq 0 ]]; then
+  SCHEDULER_MUTATION_STARTED=1
+fi
 if [[ "$WAS_LOADED" -eq 1 ]]; then
   /bin/launchctl bootout "$SERVICE"
 fi

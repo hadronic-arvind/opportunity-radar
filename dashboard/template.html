@@ -88,10 +88,21 @@
         <aside class="side-column" aria-label="Source status and help">
           <section class="side-card profile-card" id="profile-card" hidden>
             <p class="kicker">Search profile</p>
+            <div class="profile-catalog" id="profile-catalog" hidden>
+              <label class="profile-catalog-label" for="profile-select">Active profile</label>
+              <select id="profile-select" aria-describedby="profile-catalog-status"></select>
+              <p class="profile-catalog-status" id="profile-catalog-status" role="status" aria-live="polite"></p>
+            </div>
             <h2 id="profile-summary-title">Your matching preferences</h2>
             <p class="profile-summary" id="profile-summary"></p>
             <div class="profile-summary-tags" id="profile-summary-tags"></div>
             <button class="control subtle profile-edit-button" id="edit-profile-button" type="button">Edit profile</button>
+            <div class="profile-management-actions" id="profile-management-actions" hidden aria-label="Manage search profiles">
+              <button class="control subtle" id="profile-new-button" type="button" data-profile-management>Create new</button>
+              <button class="control subtle" id="profile-duplicate-button" type="button" data-profile-management>Duplicate</button>
+              <button class="text-button" id="profile-rename-button" type="button" data-profile-management>Rename</button>
+              <button class="text-button danger" id="profile-delete-button" type="button" data-profile-management>Delete</button>
+            </div>
           </section>
           <section class="side-card source-health">
             <div class="side-heading">
@@ -102,6 +113,7 @@
               <span class="health-mark" id="health-mark" aria-hidden="true"></span>
             </div>
             <div class="source-overview" id="source-overview"></div>
+            <button class="control subtle source-resource-button" id="source-resource-button" type="button" aria-haspopup="dialog">Browse STEM resources</button>
             <details id="source-details">
               <summary>View source details <span id="source-detail-count"></span></summary>
               <div class="source-tools" id="source-tools">
@@ -192,6 +204,62 @@
         <button class="control accent" id="profile-save-button" type="submit">Save profile</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog class="profile-management-dialog" id="profile-name-dialog" aria-labelledby="profile-name-dialog-title">
+    <form id="profile-name-form" novalidate>
+      <p class="kicker" id="profile-name-dialog-kicker">Search profile</p>
+      <h2 id="profile-name-dialog-title">Create a new profile</h2>
+      <p id="profile-name-dialog-description">Start with neutral STEM preferences that you can edit after the profile is created.</p>
+      <label class="profile-name-field" for="profile-name-input">
+        <span>Profile name</span>
+        <input id="profile-name-input" name="name" type="text" autocomplete="off" maxlength="80" required aria-describedby="profile-name-status">
+      </label>
+      <p class="profile-management-status" id="profile-name-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button class="control subtle" id="profile-name-cancel" type="button">Cancel</button>
+        <button class="control accent" id="profile-name-submit" type="submit">Create profile</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="profile-management-dialog" id="profile-delete-dialog" aria-labelledby="profile-delete-dialog-title">
+    <form id="profile-delete-form">
+      <p class="kicker">Search profile</p>
+      <h2 id="profile-delete-dialog-title">Delete a saved profile?</h2>
+      <p id="profile-delete-description">Choose an inactive profile to remove. Saved opportunities and application tracking are kept.</p>
+      <label class="profile-name-field" for="profile-delete-select">
+        <span>Profile to delete</span>
+        <select id="profile-delete-select" aria-describedby="profile-delete-description profile-delete-status"></select>
+      </label>
+      <p class="profile-management-status" id="profile-delete-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button class="control subtle" id="profile-delete-cancel" type="button">Cancel</button>
+        <button class="control danger" id="profile-delete-confirm" type="submit">Delete profile</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="source-resource-dialog" id="source-resource-dialog" aria-labelledby="source-resource-dialog-title">
+    <div class="source-resource-sheet">
+      <div class="source-resource-header">
+        <div>
+          <p class="kicker">STEM resource directory</p>
+          <h2 id="source-resource-dialog-title">Browse official opportunity resources</h2>
+          <p>Explore scanned sources and additional official career or program pages across STEM fields.</p>
+        </div>
+        <button class="profile-close" id="source-resource-close" type="button" aria-label="Close STEM resource directory">Close</button>
+      </div>
+      <div class="source-resource-tools">
+        <label for="source-resource-search">Search by organization or field</label>
+        <input id="source-resource-search" type="search" placeholder="Biology, civil engineering, NASA..." autocomplete="off" aria-describedby="source-resource-count">
+        <p id="source-resource-count" role="status" aria-live="polite"></p>
+      </div>
+      <div class="source-resource-list" id="source-resource-list" role="list"></div>
+      <div class="source-resource-footer">
+        <button class="control subtle" id="source-resource-more" type="button" aria-controls="source-resource-list" hidden>Show more resources</button>
+      </div>
+    </div>
   </dialog>
 
   <script id="opportunity-data" type="application/json" nonce="__OPPORTUNITY_NONCE__">/*__OPPORTUNITY_DATA__*/</script>

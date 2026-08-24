@@ -98,6 +98,14 @@ class SourceRegistryTests(unittest.TestCase):
         self.addCleanup(environment.stop)
 
     def _local_payload(self):
+        store_path = self.root / "config" / "profiles.local.json"
+        if store_path.exists():
+            store = json.loads(store_path.read_text(encoding="utf-8"))
+            return next(
+                entry["sources"]
+                for entry in store["profiles"]
+                if entry["id"] == store["active_profile_id"]
+            )
         return json.loads(self.local_path.read_text(encoding="utf-8"))
 
     def _database_snapshot(self):
@@ -297,6 +305,9 @@ class SourceRegistryTests(unittest.TestCase):
             ],
             "research_program",
         )
+        with self.assertRaisesRegex(ProfileValidationError, "auto_enable"):
+            validate_source({**valid, "auto_enable": "false"})
+        self.assertFalse(validate_source({**valid, "auto_enable": False})["auto_enable"])
 
     def test_add_enable_disable_and_remove_refresh_config_and_database_together(self):
         invalid_pack = build_custom_source(
@@ -319,7 +330,10 @@ class SourceRegistryTests(unittest.TestCase):
         payload = self._local_payload()
         self.assertIn(CUSTOM_PACK_ID, {pack["id"] for pack in payload["packs"]})
         self.assertEqual(payload["sources"][0]["id"], "acme_research")
-        self.assertEqual(self.local_path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(
+            (self.root / "config" / "profiles.local.json").stat().st_mode & 0o777,
+            0o600,
+        )
         before_duplicate = self.local_path.read_bytes()
         with self.assertRaisesRegex(ProfileValidationError, "Source already exists"):
             add_source(custom)
@@ -385,6 +399,53 @@ class SourceRegistryTests(unittest.TestCase):
             remove_source("acme_research")
         with self.assertRaisesRegex(ProfileValidationError, "Unknown source"):
             set_source_enabled("missing_source", True)
+
+    def test_source_mutation_changes_only_the_active_saved_profile(self):
+        store_path = self.root / "config" / "profiles.local.json"
+        first_id = "p_" + "1" * 32
+        second_id = "p_" + "2" * 32
+        store_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "active_profile_id": second_id,
+                    "profiles": [
+                        {
+                            "id": first_id,
+                            "name": "Physics",
+                            "profile": {},
+                            "sources": {
+                                "schema_version": 2,
+                                "selected_packs": ["starter"],
+                                "packs": [],
+                                "sources": [],
+                            },
+                        },
+                        {
+                            "id": second_id,
+                            "name": "Medicine",
+                            "profile": {},
+                            "sources": {
+                                "schema_version": 2,
+                                "selected_packs": ["starter"],
+                                "packs": [],
+                                "sources": [],
+                            },
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        store_path.chmod(0o600)
+        set_source_enabled("built_in", False)
+        store = json.loads(store_path.read_text(encoding="utf-8"))
+        by_id = {entry["id"]: entry for entry in store["profiles"]}
+        self.assertEqual(by_id[first_id]["sources"]["sources"], [])
+        self.assertEqual(
+            by_id[second_id]["sources"]["sources"],
+            [{"id": "built_in", "enabled": False}],
+        )
 
     def test_dry_run_validates_every_mutation_without_writing_or_refreshing(self):
         custom = build_custom_source(

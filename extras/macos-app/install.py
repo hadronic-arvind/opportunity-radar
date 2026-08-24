@@ -5,6 +5,7 @@ import argparse
 import os
 import platform
 import plistlib
+import re
 import shutil
 import stat
 import struct
@@ -36,6 +37,15 @@ ICON_CHUNKS = (
     ("ic13", 256),
     ("ic14", 512),
 )
+MAX_RUNTIME_CONTRACT_BYTES = 512 * 1024
+RUNTIME_VERSION_PATTERN = re.compile(
+    r'^__version__\s*=\s*["\']([^"\']+)["\']\s*$',
+    re.MULTILINE,
+)
+RUNTIME_SCHEMA_PATTERN = re.compile(
+    r"^SCHEMA_VERSION\s*=\s*(\d+)\s*$",
+    re.MULTILINE,
+)
 
 
 def bundle_info() -> dict:
@@ -64,13 +74,52 @@ def app_config(runtime_root: Path, python_executable: Path) -> dict:
     }
 
 
+def _runtime_contract_value(path: Path, pattern: re.Pattern, label: str) -> str:
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_RUNTIME_CONTRACT_BYTES:
+            raise RuntimeError("{} is unavailable".format(label))
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise RuntimeError("{} is unavailable".format(label)) from error
+    match = pattern.search(content)
+    if match is None:
+        raise RuntimeError("{} is invalid".format(label))
+    return match.group(1)
+
+
+def runtime_contract(root: Path) -> tuple:
+    return (
+        _runtime_contract_value(
+            root / "monitor" / "__init__.py",
+            RUNTIME_VERSION_PATTERN,
+            "Runtime version marker",
+        ),
+        int(
+            _runtime_contract_value(
+                root / "monitor" / "database.py",
+                RUNTIME_SCHEMA_PATTERN,
+                "Runtime database marker",
+            )
+        ),
+    )
+
+
 def select_runtime_root(project_root: Path, installed_runtime: Path) -> Path:
-    """Prefer the scheduler's private runtime when it is installed and valid."""
-    for candidate in (installed_runtime, project_root):
-        resolved = candidate.expanduser().resolve()
-        if (resolved / "monitor" / "__main__.py").is_file():
-            return resolved
-    raise FileNotFoundError("The Opportunity Radar runtime is unavailable")
+    """Use only a private runtime that exactly matches the app checkout."""
+    project = project_root.expanduser().resolve()
+    if not (project / "monitor" / "__main__.py").is_file():
+        raise FileNotFoundError("The Opportunity Radar project is unavailable")
+    project_contract = runtime_contract(project)
+    installed = installed_runtime.expanduser().resolve()
+    if (installed / "monitor" / "__main__.py").is_file():
+        installed_contract = runtime_contract(installed)
+        if installed_contract != project_contract:
+            raise RuntimeError(
+                "The installed private runtime does not match this checkout. "
+                "Run ./scripts/install_launch_agent.sh before reinstalling the app."
+            )
+        return installed
+    return project
 
 
 def write_icns(images: Dict[int, Path], output: Path) -> None:

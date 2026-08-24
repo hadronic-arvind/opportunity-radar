@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import secrets
 import stat
 import sys
 import tempfile
@@ -25,6 +26,7 @@ from .targeting import (
 
 
 EDITOR_VERSION = 1
+PROFILE_CATALOG_VERSION = 1
 MAX_EDITOR_BYTES = 256 * 1024
 MAX_CONFIG_BYTES = 2 * 1024 * 1024
 MAX_LIST_VALUES = 100
@@ -760,7 +762,7 @@ def _targets_projection(profile: Mapping[str, Any], timeframes: Sequence[str]) -
 
 
 def _source_layers() -> List[Dict[str, Any]]:
-    return [_read_json(path) for path in config.source_files()]
+    return config.source_payloads()
 
 
 def _selected_packs() -> List[str]:
@@ -783,6 +785,7 @@ def _selected_packs() -> List[str]:
 def _revision(profile: Mapping[str, Any]) -> str:
     source_layers = _source_layers()
     payload = {
+        "active_profile_id": config.active_profile_id(),
         "profile": profile,
         "source_preferences": [
             {
@@ -887,6 +890,107 @@ def _existing_local_payload(destination: Path, name: str) -> Dict[str, Any]:
     if destination != repository and repository.exists():
         return _read_json(repository)
     return {}
+
+
+def _profile_store_for_update() -> Dict[str, Any]:
+    """Return the stored profiles, migrating the legacy pair in memory."""
+    existing = config.load_profile_store()
+    if existing is not None:
+        return deepcopy(existing)
+    local_profile, local_sources = config.active_local_payloads()
+    return config.validate_profile_store(
+        {
+            "schema_version": config.PROFILE_STORE_SCHEMA_VERSION,
+            "active_profile_id": "legacy",
+            "profiles": [
+                {
+                    "id": "legacy",
+                    "name": "Default",
+                    "profile": deepcopy(local_profile),
+                    "sources": deepcopy(local_sources),
+                }
+            ],
+        }
+    )
+
+
+def _active_store_entry(store: Dict[str, Any]) -> Dict[str, Any]:
+    active_id = str(store["active_profile_id"])
+    return next(entry for entry in store["profiles"] if entry["id"] == active_id)
+
+
+def _catalog_revision(store: Mapping[str, Any]) -> str:
+    payload = {
+        "active_profile_id": store.get("active_profile_id"),
+        "profiles": [
+            {"id": entry.get("id"), "name": entry.get("name")}
+            for entry in store.get("profiles", [])
+            if isinstance(entry, Mapping)
+        ],
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def profile_catalog_payload(
+    store: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Return bounded profile identity metadata safe for the dashboard."""
+    current = _profile_store_for_update() if store is None else config.validate_profile_store(store)
+    return {
+        "version": PROFILE_CATALOG_VERSION,
+        "expected_revision": _catalog_revision(current),
+        "active_profile_id": str(current["active_profile_id"]),
+        "profiles": [
+            {"id": str(entry["id"]), "name": str(entry["name"])}
+            for entry in current["profiles"]
+        ],
+    }
+
+
+def _new_profile_id(store: Mapping[str, Any]) -> str:
+    existing = {
+        str(entry.get("id"))
+        for entry in store.get("profiles", [])
+        if isinstance(entry, Mapping)
+    }
+    for _attempt in range(16):
+        candidate = "p_{}".format(secrets.token_hex(16))
+        if candidate not in existing:
+            return candidate
+    raise ProfileValidationError("A unique saved profile id could not be created")
+
+
+def _saved_profile_name(value: Any) -> str:
+    return _clean_string(value, "Saved profile name", 80)
+
+
+def _require_unique_profile_name(
+    store: Mapping[str, Any],
+    name: str,
+    excluded_id: str = "",
+) -> None:
+    if any(
+        str(entry.get("id")) != excluded_id
+        and str(entry.get("name", "")).casefold() == name.casefold()
+        for entry in store.get("profiles", [])
+        if isinstance(entry, Mapping)
+    ):
+        raise ProfileValidationError("A saved profile already uses that name")
+
+
+def _profile_entry(store: Mapping[str, Any], profile_id: Any) -> Dict[str, Any]:
+    if not isinstance(profile_id, str) or not config.PROFILE_ID_PATTERN.fullmatch(profile_id):
+        raise ProfileValidationError("Saved profile id is invalid")
+    for entry in store.get("profiles", []):
+        if isinstance(entry, dict) and entry.get("id") == profile_id:
+            return entry
+    raise ProfileValidationError("Saved profile was not found")
 
 
 def _reconcile_editor_semantics(
@@ -1114,68 +1218,87 @@ def _stage_json(path: Path, payload: Mapping[str, Any]) -> Path:
     return temporary
 
 
+def _write_profile_store(store: Dict[str, Any]) -> Path:
+    """Atomically replace the canonical owner-only named-profile store."""
+    try:
+        validated = config.validate_profile_store(store)
+        encoded = json.dumps(
+            validated,
+            ensure_ascii=False,
+            sort_keys=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        raise ProfileValidationError("Saved profile store is invalid") from error
+    if len(encoded) > config.MAX_PROFILE_STORE_BYTES:
+        raise ProfileValidationError("Saved profile store is too large")
+    destination = config.local_profile_store_path()
+    _safe_destination(destination)
+    previous = destination.read_bytes() if destination.exists() else None
+    temporary = _stage_json(destination, validated)
+    replaced = False
+    try:
+        os.replace(temporary, destination)
+        replaced = True
+        os.chmod(destination, 0o600)
+        descriptor = os.open(str(destination.parent), os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    except Exception:
+        if replaced:
+            try:
+                _restore_local_configuration({destination: previous})
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    "Saved profile store could not be restored after a write failure"
+                ) from rollback_error
+        raise
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return destination
+
+
+def _configuration_exists() -> bool:
+    return any(
+        path is not None
+        for path in (
+            config._profile_store_read_path(),
+            config._legacy_profile_layer(),
+            config._legacy_source_layer(),
+        )
+    )
+
+
+def _store_with_active_configuration(
+    profile: Dict[str, Any],
+    source_registry: Dict[str, Any],
+    store: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    updated = _profile_store_for_update() if store is None else deepcopy(store)
+    active = _active_store_entry(updated)
+    active["profile"] = deepcopy(profile)
+    active["sources"] = deepcopy(source_registry)
+    return config.validate_profile_store(updated)
+
+
 def write_local_configuration(
     profile: Dict[str, Any],
     source_registry: Dict[str, Any],
     force: bool = False,
 ) -> Tuple[Path, Path]:
-    """Atomically replace the two canonical private local configuration files."""
-    destinations = (config.local_profile_path(), config.local_sources_path())
-    existing = [path.name for path in destinations if path.exists() or path.is_symlink()]
-    if existing and not force:
+    """Atomically replace the active entry in the canonical profile store."""
+    if _configuration_exists() and not force:
         raise FileExistsError(
-            "Local configuration already exists ({}); use profile edit to change it".format(
-                ", ".join(existing)
-            )
+            "Local configuration already exists; use profile edit to change it"
         )
-    staged: List[Tuple[Path, Path]] = []
-    previous: Dict[Path, Optional[bytes]] = {}
-    replaced: List[Path] = []
-    try:
-        for destination, payload in zip(destinations, (profile, source_registry)):
-            staged.append((_stage_json(destination, payload), destination))
-            previous[destination] = destination.read_bytes() if destination.exists() else None
-        for temporary, destination in staged:
-            os.replace(temporary, destination)
-            replaced.append(destination)
-            os.chmod(destination, 0o600)
-        for directory in {path.parent for path in destinations}:
-            descriptor = os.open(str(directory), os.O_RDONLY)
-            try:
-                os.fsync(descriptor)
-            finally:
-                os.close(descriptor)
-    except Exception:
-        for destination in reversed(replaced):
-            content = previous.get(destination)
-            if content is None:
-                try:
-                    destination.unlink()
-                except FileNotFoundError:
-                    pass
-            else:
-                descriptor, rollback_name = tempfile.mkstemp(
-                    dir=str(destination.parent),
-                    prefix=".{}-rollback-".format(destination.name),
-                    suffix=".tmp",
-                )
-                rollback = Path(rollback_name)
-                try:
-                    os.fchmod(descriptor, 0o600)
-                    with os.fdopen(descriptor, "wb") as handle:
-                        handle.write(content)
-                        handle.flush()
-                        os.fsync(handle.fileno())
-                    os.replace(rollback, destination)
-                finally:
-                    if rollback.exists():
-                        rollback.unlink()
-        raise
-    finally:
-        for temporary, _destination in staged:
-            if temporary.exists():
-                temporary.unlink()
-    return destinations
+    destination = _write_profile_store(
+        _store_with_active_configuration(profile, source_registry)
+    )
+    # Preserve the historical pair-shaped return type for onboarding callers.
+    return destination, destination
 
 
 def _restore_local_configuration(
@@ -1422,20 +1545,18 @@ def refresh_profile_state() -> Dict[str, Any]:
     }
 
 
-def _persist_and_refresh(
-    profile: Dict[str, Any],
-    source_registry: Dict[str, Any],
-    force: bool,
-    rebuild: bool,
+def _persist_profile_store(
+    store: Dict[str, Any],
+    rebuild: bool = True,
 ) -> Tuple[Tuple[Path, Path], Dict[str, Any]]:
-    """Persist a profile pair under caller-held locks and roll back on refresh failure."""
-    profile_path = config.local_profile_path()
-    sources_path = config.local_sources_path()
+    """Persist a complete store and roll it back after a refresh failure."""
+    updated_store = config.validate_profile_store(store)
+    destination = config.local_profile_store_path()
+    _safe_destination(destination)
     previous = {
-        profile_path: profile_path.read_bytes() if profile_path.exists() else None,
-        sources_path: sources_path.read_bytes() if sources_path.exists() else None,
+        destination: destination.read_bytes() if destination.exists() else None,
     }
-    destinations = write_local_configuration(profile, source_registry, force=force)
+    _write_profile_store(updated_store)
     try:
         refresh = refresh_profile_state() if rebuild else {
             "rescored": 0,
@@ -1455,7 +1576,27 @@ def _persist_and_refresh(
         except Exception:
             pass
         raise
-    return destinations, refresh
+    return (destination, destination), refresh
+
+
+def _persist_and_refresh(
+    profile: Dict[str, Any],
+    source_registry: Dict[str, Any],
+    force: bool,
+    rebuild: bool,
+    store: Optional[Dict[str, Any]] = None,
+) -> Tuple[Tuple[Path, Path], Dict[str, Any]]:
+    """Persist the active store entry and roll back after a refresh failure."""
+    if _configuration_exists() and not force:
+        raise FileExistsError(
+            "Local configuration already exists; use profile edit to change it"
+        )
+    updated_store = _store_with_active_configuration(
+        profile,
+        source_registry,
+        store=store,
+    )
+    return _persist_profile_store(updated_store, rebuild=rebuild)
 
 
 def initialize_local_configuration(
@@ -1510,14 +1651,18 @@ def apply_editor_payload(
             effective = config.load_profile()
             current_revision = _revision(effective)
             expected = editor["expected_revision"]
+            if not expected and _configuration_exists():
+                raise ProfileValidationError(
+                    "The saved profile needs a current revision; reload it before saving"
+                )
             if expected and not hmac.compare_digest(expected, current_revision):
                 raise ProfileValidationError(
                     "The profile changed after it was opened; reload it before saving"
                 )
-            profile_path = config.local_profile_path()
-            sources_path = config.local_sources_path()
-            local_profile = _existing_local_payload(profile_path, "profile.local.json")
-            local_sources = _existing_local_payload(sources_path, "sources.local.json")
+            store = _profile_store_for_update()
+            active_entry = _active_store_entry(store)
+            local_profile = deepcopy(active_entry["profile"])
+            local_sources = deepcopy(active_entry["sources"])
             raw_schema_version = local_profile.get(
                 "schema_version",
                 effective.get("schema_version", 2),
@@ -1542,8 +1687,8 @@ def apply_editor_payload(
                     "status": "valid",
                     "saved": False,
                     "revision": current_revision,
-                    "profile_path": str(profile_path),
-                    "sources_path": str(sources_path),
+                    "profile_path": str(config.local_profile_store_path()),
+                    "sources_path": str(config.local_profile_store_path()),
                     "profile_adjustments": adjustments,
                 }
             _destinations, refresh = _persist_and_refresh(
@@ -1551,6 +1696,7 @@ def apply_editor_payload(
                 updated_sources,
                 force=True,
                 rebuild=rebuild,
+                store=store,
             )
             new_revision = _revision(config.load_profile())
     return {
@@ -1560,5 +1706,191 @@ def apply_editor_payload(
         "selected_packs": list(editor["selected_packs"]),
         "timeframes": list(editor["timeframes"]),
         "profile_adjustments": adjustments,
+        **refresh,
+    }
+
+
+PROFILE_MANAGEMENT_KEYS = {
+    "activate": {"version", "operation", "expected_revision", "profile_id"},
+    "create": {"version", "operation", "expected_revision", "name"},
+    "duplicate": {
+        "version",
+        "operation",
+        "expected_revision",
+        "profile_id",
+        "name",
+    },
+    "rename": {
+        "version",
+        "operation",
+        "expected_revision",
+        "profile_id",
+        "name",
+    },
+    "delete": {"version", "operation", "expected_revision", "profile_id"},
+}
+
+
+def validate_profile_management_payload(payload: Any) -> Dict[str, Any]:
+    """Validate an exact dashboard/CLI saved-profile management request."""
+    if not isinstance(payload, dict):
+        raise ProfileValidationError("Saved profile request must be an object")
+    operation = payload.get("operation")
+    if not isinstance(operation, str) or operation not in PROFILE_MANAGEMENT_KEYS:
+        raise ProfileValidationError("Saved profile operation is unsupported")
+    if set(payload) != PROFILE_MANAGEMENT_KEYS[operation]:
+        raise ProfileValidationError("Saved profile request has unsupported fields")
+    version = payload.get("version")
+    if (
+        isinstance(version, bool)
+        or not isinstance(version, int)
+        or version != PROFILE_CATALOG_VERSION
+    ):
+        raise ProfileValidationError("Saved profile request version is unsupported")
+    expected_revision = payload.get("expected_revision")
+    if not isinstance(expected_revision, str) or not REVISION_RE.fullmatch(
+        expected_revision
+    ):
+        raise ProfileValidationError("Saved profile request needs a catalog revision")
+    normalized: Dict[str, Any] = {
+        "version": PROFILE_CATALOG_VERSION,
+        "operation": operation,
+        "expected_revision": expected_revision,
+    }
+    if "profile_id" in payload:
+        profile_id = payload["profile_id"]
+        if not isinstance(profile_id, str) or not config.PROFILE_ID_PATTERN.fullmatch(
+            profile_id
+        ):
+            raise ProfileValidationError("Saved profile id is invalid")
+        normalized["profile_id"] = profile_id
+    if "name" in payload:
+        normalized["name"] = _saved_profile_name(payload["name"])
+    return normalized
+
+
+def resolve_profile_selector(value: str) -> str:
+    """Resolve a CLI profile id or unique case-insensitive saved name."""
+    selector = str(value or "").strip()
+    store = _profile_store_for_update()
+    for entry in store["profiles"]:
+        if entry["id"] == selector:
+            return str(entry["id"])
+    matches = [
+        str(entry["id"])
+        for entry in store["profiles"]
+        if str(entry["name"]).casefold() == selector.casefold()
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    raise ProfileValidationError("Saved profile was not found")
+
+
+def apply_profile_management_payload(
+    payload: Dict[str, Any],
+    rebuild: bool = True,
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    """Apply one optimistic-concurrency saved-profile management request."""
+    _ensure_local_writes_are_effective()
+    request = validate_profile_management_payload(payload)
+    from .pipeline import exclusive_lock
+
+    database_path = config.resolve_private_state_path(
+        config.project_path("data", "opportunities.sqlite3"),
+        "data",
+        "opportunities.sqlite3",
+    )
+    with profile_lifecycle_lock():
+        with exclusive_lock(database_path.with_name("scan.lock")):
+            store = _profile_store_for_update()
+            current_revision = _catalog_revision(store)
+            if not hmac.compare_digest(
+                request["expected_revision"], current_revision
+            ):
+                raise ProfileValidationError(
+                    "The saved profile list changed after it was opened; reload it before continuing"
+                )
+            operation = str(request["operation"])
+            affected_id = str(request.get("profile_id", ""))
+            if operation == "activate":
+                _profile_entry(store, affected_id)
+                store["active_profile_id"] = affected_id
+            elif operation == "create":
+                if len(store["profiles"]) >= config.MAX_SAVED_PROFILES:
+                    raise ProfileValidationError("Too many saved profiles")
+                name = str(request["name"])
+                _require_unique_profile_name(store, name)
+                affected_id = _new_profile_id(store)
+                default_packs = [
+                    str(pack["id"])
+                    for pack in config.load_source_packs()
+                    if pack.get("default") and str(pack.get("id", "")).strip()
+                ]
+                if not default_packs:
+                    raise ProfileValidationError(
+                        "At least one default source pack is required to create a profile"
+                    )
+                store["profiles"].append(
+                    {
+                        "id": affected_id,
+                        "name": name,
+                        "profile": {},
+                        "sources": {
+                            "schema_version": 2,
+                            "selected_packs": default_packs,
+                            "sources": [],
+                        },
+                    }
+                )
+                store["active_profile_id"] = affected_id
+            elif operation == "duplicate":
+                if len(store["profiles"]) >= config.MAX_SAVED_PROFILES:
+                    raise ProfileValidationError("Too many saved profiles")
+                source = _profile_entry(store, affected_id)
+                name = str(request["name"])
+                _require_unique_profile_name(store, name)
+                affected_id = _new_profile_id(store)
+                store["profiles"].append(
+                    {
+                        "id": affected_id,
+                        "name": name,
+                        "profile": deepcopy(source["profile"]),
+                        "sources": deepcopy(source["sources"]),
+                    }
+                )
+                store["active_profile_id"] = affected_id
+            elif operation == "rename":
+                entry = _profile_entry(store, affected_id)
+                name = str(request["name"])
+                _require_unique_profile_name(store, name, excluded_id=affected_id)
+                entry["name"] = name
+            elif operation == "delete":
+                _profile_entry(store, affected_id)
+                if affected_id == store["active_profile_id"]:
+                    raise ProfileValidationError(
+                        "Activate another saved profile before deleting this one"
+                    )
+                if len(store["profiles"]) <= 1:
+                    raise ProfileValidationError("The only saved profile cannot be deleted")
+                store["profiles"] = [
+                    entry
+                    for entry in store["profiles"]
+                    if entry["id"] != affected_id
+                ]
+            store = config.validate_profile_store(store)
+            if dry_run:
+                refresh = {"rescored": 0, "dashboard_rebuilt": False}
+            else:
+                _destinations, refresh = _persist_profile_store(
+                    store,
+                    rebuild=rebuild,
+                )
+    return {
+        "status": "valid" if dry_run else "saved",
+        "saved": not dry_run,
+        "operation": operation,
+        "profile_id": affected_id,
+        "profile_catalog": profile_catalog_payload(store),
         **refresh,
     }

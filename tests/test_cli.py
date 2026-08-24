@@ -15,6 +15,17 @@ from monitor.database import Database
 from monitor.models import FetchResult, Opportunity
 
 
+def saved_profile(root: Path):
+    store_path = root / "config" / "profiles.local.json"
+    store = json.loads(store_path.read_text(encoding="utf-8"))
+    active = next(
+        entry
+        for entry in store["profiles"]
+        if entry["id"] == store["active_profile_id"]
+    )
+    return active["profile"], active["sources"], store_path
+
+
 class CliTests(unittest.TestCase):
     def test_help_uses_public_product_identity_without_changing_commands(self):
         parser = cli.build_parser()
@@ -393,6 +404,13 @@ class CliTests(unittest.TestCase):
             database.close()
 
             project_path = lambda *parts: root.joinpath(*parts)
+            rescore = patch.object(
+                Database,
+                "rescore_for_profile",
+                return_value={"changed": False, "rescored": 0},
+            )
+            rescore.start()
+            self.addCleanup(rescore.stop)
             output = io.StringIO()
             with (
                 patch("monitor.cli.project_path", side_effect=project_path),
@@ -612,9 +630,7 @@ class CliTests(unittest.TestCase):
                         0,
                     )
 
-            saved = json.loads(
-                (root / "config" / "profile.local.json").read_text(encoding="utf-8")
-            )
+            saved, _saved_sources, store_path = saved_profile(root)
             rule = saved["matching"]["rules"][0]
             self.assertEqual(saved["timeframes"], ["Summer 2028"])
             self.assertEqual(saved["candidate"]["max_required_experience_years"], 3)
@@ -629,7 +645,92 @@ class CliTests(unittest.TestCase):
             self.assertEqual(rule["dimension"], "interest")
             self.assertTrue(rule["anchor"])
             self.assertFalse(rule["hard_gate"])
-            self.assertEqual((root / "config" / "profile.local.json").stat().st_mode & 0o777, 0o600)
+            self.assertEqual(store_path.stat().st_mode & 0o777, 0o600)
+
+    def test_named_profile_cli_and_management_stdin_share_the_exact_contract(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            (root / "config").mkdir()
+            (root / "config" / "profile.json").write_text(
+                json.dumps(
+                    {
+                        "priority_organizations": [],
+                        "matching": {
+                            "base_score": 50,
+                            "tier_thresholds": {
+                                "priority": 80,
+                                "strong": 65,
+                                "watch": 25,
+                            },
+                            "rules": [],
+                        },
+                        "documents": {"default": "General", "routes": []},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "config" / "sources.json").write_text(
+                json.dumps(
+                    {
+                        "packs": [{"id": "starter", "default": True}],
+                        "sources": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            lifecycle = root / "Application Support" / ".OpportunityRadar.lifecycle-lock"
+            with (
+                patch.object(config, "PROJECT_ROOT", root),
+                patch.object(profile_service, "_lifecycle_lock_path", return_value=lifecycle),
+                patch.dict(os.environ, {}, clear=True),
+            ):
+                catalog = profile_service.profile_catalog_payload()
+                create_request = {
+                    "version": 1,
+                    "operation": "create",
+                    "expected_revision": catalog["expected_revision"],
+                    "name": "Medicine",
+                }
+                with patch.object(sys, "stdin", io.StringIO(json.dumps(create_request))):
+                    self.assertEqual(
+                        cli.main(["profile", "apply", "--stdin", "--quiet"]),
+                        0,
+                    )
+                self.assertEqual(
+                    cli.main(
+                        ["profile", "rename", "Medicine", "Clinical", "--quiet"]
+                    ),
+                    0,
+                )
+                self.assertEqual(
+                    cli.main(
+                        [
+                            "profile",
+                            "duplicate",
+                            "Clinical",
+                            "Clinical copy",
+                            "--quiet",
+                        ]
+                    ),
+                    0,
+                )
+                self.assertEqual(
+                    cli.main(["profile", "activate", "legacy", "--quiet"]),
+                    0,
+                )
+                self.assertEqual(
+                    cli.main(["profile", "delete", "Clinical", "--quiet"]),
+                    0,
+                )
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(cli.main(["profile", "list", "--json"]), 0)
+                listed = json.loads(output.getvalue())
+                self.assertEqual(listed["active_profile_id"], "legacy")
+                self.assertEqual(
+                    [entry["name"] for entry in listed["profiles"]],
+                    ["Default", "Clinical copy"],
+                )
 
     def test_profile_editor_rejects_an_unknown_matching_engine(self):
         with patch(
@@ -748,9 +849,7 @@ class CliTests(unittest.TestCase):
                     )
                 self.assertIn("Unknown source pack", errors.getvalue())
 
-            saved = json.loads(
-                (root / "config" / "profile.local.json").read_text(encoding="utf-8")
-            )
+            saved, _saved_sources, _store_path = saved_profile(root)
             self.assertEqual(saved["timeframes"], ["Summer 2028", "Fall 2028"])
             self.assertEqual(saved["targets"]["locations"], ["remote", "Baltimore"])
             self.assertEqual(saved["targets"]["remote_preference"], "remote_preferred")
@@ -791,6 +890,7 @@ class CliTests(unittest.TestCase):
                 "kind": "greenhouse",
                 "url": "https://example.com/jobs",
                 "enabled": 1,
+                "auto_enable": "no",
                 "support_level": "unknown",
                 "packs": ["starter"],
                 "expected_http_statuses": [99],
@@ -811,6 +911,7 @@ class CliTests(unittest.TestCase):
         for expected in (
             "requires a non-empty board",
             "non-boolean enabled",
+            "non-boolean auto_enable",
             "invalid support_level",
             "invalid expected_http_statuses",
             "base_score",
