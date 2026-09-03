@@ -858,6 +858,25 @@ class ScoringTests(unittest.TestCase):
             "not_contradicted",
         )
 
+    def test_structured_locations_match_hierarchy_and_can_gate(self):
+        profile = self.structured_profile()
+        profile["targets"].update({"locations": ["United States"], "strict_locations": True})
+        inside = Opportunity(
+            "source", "inside", "Spring 2031 Machine Learning Intern", "Example",
+            "https://example.com/inside", location="Baltimore, MD", opportunity_type="internship",
+        )
+        outside = Opportunity(
+            "source", "outside", "Spring 2031 Machine Learning Intern", "Example",
+            "https://example.com/outside", location="Toronto, Ontario", opportunity_type="internship",
+        )
+        score_opportunity(inside, profile)
+        score_opportunity(outside, profile)
+        inside_gate = next(gate for gate in inside.metadata["match"]["gates"] if gate["id"] == "preferred_location")
+        outside_gate = next(gate for gate in outside.metadata["match"]["gates"] if gate["id"] == "preferred_location")
+        self.assertEqual(inside_gate["state"], "pass")
+        self.assertEqual(outside_gate["state"], "fail")
+        self.assertIn("preferred_location", outside.metadata["match"]["visibility"]["reasons"])
+
     def test_remote_required_gates_explicit_nonremote_evidence(self):
         profile = self.structured_profile()
         profile["targets"]["remote_preference"] = "remote required"

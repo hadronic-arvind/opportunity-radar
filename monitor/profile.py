@@ -27,6 +27,7 @@ from .targeting import (
     effective_matching_rules,
     reconcile_matching_rules,
 )
+from .taxonomy import normalize_locations
 
 
 EDITOR_VERSION = 1
@@ -73,7 +74,7 @@ TARGET_LIST_KEYS = {
     "exclusions",
     "work_arrangements",
 }
-TARGET_BOOLEAN_KEYS = {"strict_opportunity_types", "strict_timeframes"}
+TARGET_BOOLEAN_KEYS = {"strict_opportunity_types", "strict_timeframes", "strict_locations"}
 TARGET_SCALAR_KEYS = {"remote_preference"}
 MATCHING_KEYS = {
     "engine",
@@ -110,6 +111,24 @@ LEGACY_TARGET_KEYS = {
     "workplace_types",
     "timeframes",
     "target_cycles",
+}
+PORTABLE_PROFILE_VERSION = 1
+PORTABLE_PROFILE_KEYS = {"version", "name", "candidate", "search", "sources", "documents"}
+PORTABLE_CANDIDATE_KEYS = {"stage", "graduation", "degrees", "skills", "max_experience_years"}
+PORTABLE_SEARCH_KEYS = {
+    "timeframes", "opportunity_types", "roles", "domains", "skills", "locations",
+    "strict_locations", "work_arrangements", "remote_preference", "exclude", "organizations",
+}
+PORTABLE_SOURCE_KEYS = {"mode", "packs"}
+DEGREE_TYPE_LABELS = {
+    "associate": "Associate degree",
+    "bachelors": "Bachelor's degree",
+    "masters": "Master's degree",
+    "doctorate": "Doctoral degree",
+    "professional": "Professional degree",
+    "certificate": "Certificate",
+    "diploma": "Diploma",
+    "other": "Degree",
 }
 
 
@@ -649,6 +668,7 @@ def _normalize_targets(value: Any, timeframes: Sequence[str]) -> Dict[str, Any]:
     output: Dict[str, Any] = {}
     for key in TARGET_LIST_KEYS:
         output[key] = _string_list(value.get(key, []), "targets.{}".format(key))
+    output["locations"] = normalize_locations(output["locations"])
     cycles = _normalize_cycles(value.get("cycles", []))
     cycle_by_label = {cycle["label"].casefold(): cycle for cycle in cycles}
     output["cycles"] = [
@@ -1769,7 +1789,105 @@ PROFILE_MANAGEMENT_KEYS = {
         "name",
     },
     "delete": {"version", "operation", "expected_revision", "profile_id"},
+    "import": {"version", "operation", "expected_revision", "profile"},
 }
+
+
+def _portable_object(value: Any, label: str, allowed: set) -> Dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ProfileValidationError("{} must be an object".format(label))
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        raise ProfileValidationError("{} has unsupported keys: {}".format(label, ", ".join(unknown)))
+    return value
+
+
+def _portable_degrees(value: Any) -> List[str]:
+    if not isinstance(value, list) or len(value) > MAX_LIST_VALUES:
+        raise ProfileValidationError("candidate.degrees must be a bounded list")
+    output: List[str] = []
+    for index, degree in enumerate(value):
+        if isinstance(degree, str):
+            output.append(_clean_string(degree, "candidate degree", 160))
+            continue
+        degree = _portable_object(degree, "candidate degree {}".format(index + 1), {"type", "field"})
+        degree_type = re.sub(r"[^a-z]+", "", str(degree.get("type", "")).casefold())
+        aliases = {
+            "associate": "associate", "associates": "associate", "aa": "associate", "as": "associate",
+            "bachelor": "bachelors", "bachelors": "bachelors", "ba": "bachelors", "bs": "bachelors",
+            "master": "masters", "masters": "masters", "ma": "masters", "ms": "masters", "mba": "masters",
+            "doctorate": "doctorate", "doctoral": "doctorate", "phd": "doctorate", "edd": "doctorate",
+            "professional": "professional", "jd": "professional", "md": "professional",
+            "certificate": "certificate", "diploma": "diploma", "other": "other",
+        }
+        canonical_type = aliases.get(degree_type)
+        if canonical_type is None:
+            raise ProfileValidationError("candidate degree {} has an unsupported type".format(index + 1))
+        field = _clean_string(degree.get("field", ""), "candidate degree field", 120)
+        output.append("{} in {}".format(DEGREE_TYPE_LABELS[canonical_type], field))
+    return _string_list(output, "candidate.degrees", MAX_LIST_VALUES, 160)
+
+
+def portable_profile_editor(payload: Any) -> Tuple[str, Dict[str, Any]]:
+    """Translate the stable one-shot profile format into the full editor model."""
+    portable = _portable_object(payload, "Imported profile", PORTABLE_PROFILE_KEYS)
+    version = portable.get("version")
+    if isinstance(version, bool) or version != PORTABLE_PROFILE_VERSION:
+        raise ProfileValidationError("Imported profile version must be 1")
+    name = _saved_profile_name(portable.get("name", ""))
+    candidate_input = _portable_object(
+        portable.get("candidate", {}), "candidate", PORTABLE_CANDIDATE_KEYS
+    )
+    search = _portable_object(portable.get("search", {}), "search", PORTABLE_SEARCH_KEYS)
+    sources = _portable_object(portable.get("sources", {}), "sources", PORTABLE_SOURCE_KEYS)
+    documents = _portable_object(
+        portable.get("documents", {}), "documents", DOCUMENT_KEYS
+    )
+
+    public_profile = _read_json(config.PROJECT_ROOT / "config" / "profile.json")
+    timeframes = _string_list(search.get("timeframes", []), "search.timeframes", MAX_TIMEFRAMES, 120)
+    candidate: Dict[str, Any] = {
+        "completed_degrees": _portable_degrees(candidate_input.get("degrees", [])),
+        "skills": _string_list(candidate_input.get("skills", []), "candidate.skills"),
+    }
+    if str(candidate_input.get("stage", "")).strip():
+        candidate["current_stage"] = candidate_input["stage"]
+    if str(candidate_input.get("graduation", "")).strip():
+        candidate["expected_graduation"] = candidate_input["graduation"]
+    if candidate_input.get("max_experience_years") not in (None, ""):
+        candidate["max_required_experience_years"] = candidate_input["max_experience_years"]
+
+    locations = _string_list(search.get("locations", []), "search.locations")
+    targets = {
+        "cycles": [_cycle_from_label(label) for label in timeframes],
+        "opportunity_types": search.get("opportunity_types", []),
+        "role_families": search.get("roles", []),
+        "domains": search.get("domains", []),
+        "supporting_skills": search.get("skills", []),
+        "locations": normalize_locations(locations),
+        "exclusions": search.get("exclude", []),
+        "work_arrangements": search.get("work_arrangements", []),
+        "strict_locations": search.get("strict_locations", False),
+    }
+    if str(search.get("remote_preference", "")).strip():
+        targets["remote_preference"] = search["remote_preference"]
+    default_packs = [
+        str(pack["id"]) for pack in config.load_source_packs()
+        if pack.get("default") and str(pack.get("id", "")).strip()
+    ]
+    editor = {
+        "version": EDITOR_VERSION,
+        "expected_revision": "",
+        "timeframes": timeframes,
+        "coverage_preset": sources.get("mode", AUTOMATIC_PRESET),
+        "selected_packs": sources.get("packs", default_packs),
+        "candidate": candidate,
+        "targets": targets,
+        "priority_organizations": search.get("organizations", []),
+        "matching": _matching_projection(public_profile),
+        "documents": documents or _document_projection(public_profile),
+    }
+    return name, validate_editor_payload(editor)
 
 
 def validate_profile_management_payload(payload: Any) -> Dict[str, Any]:
@@ -1807,6 +1925,11 @@ def validate_profile_management_payload(payload: Any) -> Dict[str, Any]:
         normalized["profile_id"] = profile_id
     if "name" in payload:
         normalized["name"] = _saved_profile_name(payload["name"])
+    if "profile" in payload:
+        name, editor = portable_profile_editor(payload["profile"])
+        normalized["profile"] = payload["profile"]
+        normalized["import_name"] = name
+        normalized["import_editor"] = editor
     return normalized
 
 
@@ -1920,6 +2043,24 @@ def apply_profile_management_payload(
                     for entry in store["profiles"]
                     if entry["id"] != affected_id
                 ]
+            elif operation == "import":
+                if len(store["profiles"]) >= config.MAX_SAVED_PROFILES:
+                    raise ProfileValidationError("Too many saved profiles")
+                name = str(request["import_name"])
+                _require_unique_profile_name(store, name)
+                editor = request["import_editor"]
+                affected_id = _new_profile_id(store)
+                store["profiles"].append(
+                    {
+                        "id": affected_id,
+                        "name": name,
+                        "profile": _updated_local_profile({}, editor),
+                        "sources": _updated_local_sources(
+                            {}, editor["selected_packs"], editor["coverage_preset"]
+                        ),
+                    }
+                )
+                store["active_profile_id"] = affected_id
             store = config.validate_profile_store(store)
             if dry_run:
                 refresh = {"rescored": 0, "dashboard_rebuilt": False}

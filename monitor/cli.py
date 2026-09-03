@@ -193,6 +193,18 @@ def build_parser() -> argparse.ArgumentParser:
     profile_show.add_argument("--json", action="store_true", help="Print the app-facing JSON object")
     profile_list = profile_commands.add_parser("list", help="List saved search profiles")
     profile_list.add_argument("--json", action="store_true", help="Print the app-facing catalog")
+    profile_commands.add_parser(
+        "template", help="Print the one-shot JSON profile format for people or AI models"
+    )
+
+    profile_import = profile_commands.add_parser(
+        "import", help="Create and activate a saved profile from one-shot JSON"
+    )
+    import_input = profile_import.add_mutually_exclusive_group(required=True)
+    import_input.add_argument("--stdin", action="store_true", help="Read one-shot JSON from stdin")
+    import_input.add_argument("--file", type=Path, help="Read one-shot JSON from a file")
+    profile_import.add_argument("--dry-run", action="store_true", help="Validate without writing")
+    profile_import.add_argument("--quiet", action="store_true", help="Suppress confirmation output")
 
     for action, help_text in (
         ("create", "Create and activate a blank named profile"),
@@ -231,6 +243,10 @@ def build_parser() -> argparse.ArgumentParser:
     profile_set.add_argument("--include", help="Comma-separated desired roles, skills, or domains")
     profile_set.add_argument("--exclude", help="Comma-separated explicit exclusions")
     profile_set.add_argument("--locations", help="Comma-separated preferred locations")
+    location_gate = profile_set.add_mutually_exclusive_group()
+    location_gate.add_argument("--strict-locations", dest="strict_locations", action="store_true", help="Hide confidently resolved listings outside preferred locations")
+    location_gate.add_argument("--no-strict-locations", dest="strict_locations", action="store_false", help="Use preferred locations for scoring only")
+    profile_set.set_defaults(strict_locations=None)
     profile_set.add_argument("--organizations", help="Comma-separated preferred organizations")
     profile_set.add_argument(
         "--timeframe", action="append", default=None,
@@ -784,6 +800,54 @@ def command_profile_list(as_json: bool = False) -> int:
     return 0
 
 
+def command_profile_template() -> int:
+    print(json.dumps({
+        "version": 1,
+        "name": "Research and ML",
+        "candidate": {
+            "stage": "early_career",
+            "graduation": "May 2027",
+            "degrees": [{"type": "bachelors", "field": "Computer Science"}],
+            "skills": ["Python", "PyTorch"],
+            "max_experience_years": 3,
+        },
+        "search": {
+            "timeframes": ["Fall 2026"],
+            "opportunity_types": ["job", "internship"],
+            "roles": ["Machine Learning Engineer"],
+            "domains": ["Artificial Intelligence"],
+            "skills": ["PyTorch"],
+            "locations": ["United States"],
+            "strict_locations": False,
+            "work_arrangements": ["remote", "hybrid"],
+            "remote_preference": "remote_preferred",
+            "exclude": ["unpaid"],
+            "organizations": [],
+        },
+        "sources": {"mode": "automatic", "packs": ["starter-diverse"]},
+        "documents": {"default": "General", "routes": []},
+    }, indent=2, ensure_ascii=False))
+    return 0
+
+
+def command_profile_import(args: argparse.Namespace) -> int:
+    try:
+        portable = _profile_input(args)
+        catalog = profile_catalog_payload()
+        result = apply_profile_management_payload({
+            "version": catalog["version"],
+            "operation": "import",
+            "expected_revision": catalog["expected_revision"],
+            "profile": portable,
+        }, dry_run=bool(args.dry_run))
+    except (OSError, ValueError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    if not args.quiet:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0
+
+
 def command_profile_validate(args: argparse.Namespace) -> int:
     try:
         payload = validate_editor_payload(_profile_input(args))
@@ -937,6 +1001,9 @@ def command_profile_set(args: argparse.Namespace) -> int:
                     "preference",
                 )
             changed = True
+        if args.strict_locations is not None:
+            targets["strict_locations"] = bool(args.strict_locations)
+            changed = True
         if args.organizations is not None:
             payload["priority_organizations"] = comma_values(args.organizations)
             changed = True
@@ -1035,6 +1102,10 @@ def command_profile(args: argparse.Namespace) -> int:
         return command_profile_show(getattr(args, "json", False))
     if action == "list":
         return command_profile_list(getattr(args, "json", False))
+    if action == "template":
+        return command_profile_template()
+    if action == "import":
+        return command_profile_import(args)
     if action == "validate":
         return command_profile_validate(args)
     if action == "apply":

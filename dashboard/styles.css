@@ -604,6 +604,21 @@ dialog p:not(.kicker) { color: var(--muted); font-size: 13px; }
 .profile-tag-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-top: 7px; }
 .profile-tag-entry .profile-input { height: 34px; }
 .profile-tag-add { min-height: 34px; padding: 5px 9px; }
+.profile-degrees { display: grid; gap: 7px; }
+.profile-degree-list { display: grid; gap: 7px; }
+.profile-degree-row { display: grid; grid-template-columns: minmax(120px, .45fr) minmax(180px, 1fr) auto; gap: 7px; align-items: center; }
+.profile-degree-row .profile-remove { margin: 0; }
+.profile-inline-add { justify-self: start; }
+.profile-source-picker { display: grid; gap: 8px; }
+.profile-source-picker-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.profile-source-count { color: var(--muted); font-size: 10px; }
+.profile-source-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 310px; overflow: auto; padding: 2px; }
+.profile-source-choice { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 8px; min-width: 0; padding: 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-muted); cursor: pointer; }
+.profile-source-choice:has(input:checked) { border-color: color-mix(in srgb, var(--pine) 35%, var(--line)); background: var(--mint); }
+.profile-source-copy { display: grid; gap: 2px; min-width: 0; }
+.profile-source-title { font-size: 11px; font-weight: 700; }
+.profile-import-dialog { width: min(720px, calc(100% - 32px)); max-width: 720px; }
+.profile-import-input { width: 100%; min-height: 300px; resize: vertical; padding: 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profile-rule-list, .profile-route-list { display: grid; gap: 10px; }
 .profile-rule, .profile-route { padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--canvas-raised); }
 .profile-rule > .profile-grid { margin-top: 12px; }
@@ -684,6 +699,8 @@ dialog p:not(.kicker) { color: var(--muted); font-size: 13px; }
   .profile-page-tabs { padding-inline: 16px; }
   .profile-fields { padding: 16px; }
   .profile-grid { grid-template-columns: 1fr; }
+  .profile-source-list { grid-template-columns: 1fr; }
+  .profile-degree-row { grid-template-columns: 1fr; }
   .profile-field.wide { grid-column: auto; }
   .profile-input, .profile-textarea { font-size: 16px; }
   .profile-catalog select, .profile-name-field input, .profile-name-field select { min-height: 44px; font-size: 16px; }

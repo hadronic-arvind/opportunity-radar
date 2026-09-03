@@ -6,6 +6,7 @@ import re
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from .models import Opportunity
+from .taxonomy import location_match_details
 from .targeting import effective_matching_rules
 
 
@@ -30,7 +31,7 @@ DEFAULT_FIELDS = (
 CURATED_DOCUMENT_PROVENANCE = "curated_explicit"
 LEGACY_CURATED_DOCUMENT_PROVENANCE = "curated_legacy"
 PROFILE_DOCUMENT_PROVENANCE = "profile"
-SCORING_SCHEMA_VERSION = 5
+SCORING_SCHEMA_VERSION = 6
 STRUCTURED_ENGINE = "structured_v2"
 STRUCTURED_DIMENSIONS = ("interest", "target", "qualification", "preference")
 DEFAULT_FIELD_WEIGHTS = {
@@ -376,6 +377,16 @@ def _structured_rule_evidence(
     terms = rule.get("terms", [])
     if not isinstance(terms, list) or not terms:
         return []
+    if str(rule.get("id", "")) == "profile_locations":
+        details = location_match_details(terms, item.location)
+        return [
+            {
+                "term": term,
+                "field": "location",
+                "strength": round(field_weights.get("location", 0.0), 3),
+            }
+            for term in details["evidence"][:5]
+        ]
     raw_fields = rule.get("fields", DEFAULT_FIELDS)
     fields = raw_fields if isinstance(raw_fields, list) else DEFAULT_FIELDS
     texts = (
@@ -1055,6 +1066,9 @@ def _structured_gates(
     remote_preference = _normalized_remote_preference(
         targets.get("remote_preference")
     )
+    location_preferences = _profile_terms(targets.get("locations"))
+    location_effect = location_match_details(location_preferences, item.location)
+    location_effect["preferences"] = location_preferences
     listing_arrangement, arrangement_field = _listing_work_arrangement(item)
     remote_effect = _remote_preference_effect(
         remote_preference,
@@ -1111,6 +1125,23 @@ def _structured_gates(
             )
     else:
         remote_effect["requirement_state"] = "not_applicable"
+    if targets.get("strict_locations") and location_preferences:
+        if location_effect["state"] == "mismatch":
+            gates.append(
+                {
+                    "id": "preferred_location",
+                    "state": "fail",
+                    "evidence": [item.location or "listed location"],
+                }
+            )
+        elif location_effect["state"] == "match":
+            gates.append(
+                {
+                    "id": "preferred_location",
+                    "state": "pass",
+                    "evidence": location_effect["evidence"][:5],
+                }
+            )
     target_types = {
         _normalized_token(value)
         for value in _values(targets.get("opportunity_types"))
@@ -1314,6 +1345,7 @@ def _structured_gates(
             "completed_degrees": degree_effect,
             "expected_graduation": graduation_effect,
             "remote_preference": remote_effect,
+            "locations": location_effect,
         },
     }
     return gates, features
@@ -1718,6 +1750,7 @@ def profile_fingerprint(profile: Dict[str, Any]) -> str:
                     targets.get("strict_opportunity_types", True)
                 ),
                 "strict_timeframes": bool(targets.get("strict_timeframes", True)),
+                "strict_locations": bool(targets.get("strict_locations", False)),
                 "remote_preference": _normalized_remote_preference(
                     targets.get("remote_preference")
                 ),

@@ -99,6 +99,7 @@
             <button class="control subtle profile-edit-button" id="edit-profile-button" type="button">Edit profile</button>
             <div class="profile-management-actions" id="profile-management-actions" hidden aria-label="Manage search profiles">
               <button class="control subtle" id="profile-new-button" type="button" data-profile-management>Create new</button>
+              <button class="control subtle" id="profile-import-button" type="button" data-profile-management>Import JSON</button>
               <button class="control subtle" id="profile-duplicate-button" type="button" data-profile-management>Duplicate</button>
               <button class="text-button" id="profile-rename-button" type="button" data-profile-management>Rename</button>
               <button class="text-button danger" id="profile-delete-button" type="button" data-profile-management>Delete</button>
@@ -195,6 +196,7 @@
       </div>
       <div class="profile-page-tabs" role="tablist" aria-label="Profile settings">
         <button class="profile-page-tab active" id="profile-basics-tab" type="button" role="tab" aria-selected="true" aria-controls="profile-basics-page" data-profile-page-tab="basics">Basics</button>
+        <button class="profile-page-tab" id="profile-sources-tab" type="button" role="tab" aria-selected="false" aria-controls="profile-sources-page" data-profile-page-tab="sources">Sources</button>
         <button class="profile-page-tab" id="profile-advanced-tab" type="button" role="tab" aria-selected="false" aria-controls="profile-advanced-page" data-profile-page-tab="advanced">Advanced</button>
       </div>
       <div class="profile-fields" id="profile-fields"></div>
@@ -219,6 +221,24 @@
       <div class="dialog-actions">
         <button class="control subtle" id="profile-name-cancel" type="button">Cancel</button>
         <button class="control accent" id="profile-name-submit" type="submit">Create profile</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="profile-management-dialog profile-import-dialog" id="profile-import-dialog" aria-labelledby="profile-import-dialog-title">
+    <form id="profile-import-form" novalidate>
+      <p class="kicker">One-shot setup</p>
+      <h2 id="profile-import-dialog-title">Import a profile</h2>
+      <p>Paste version 1 profile JSON created by you or an AI model. Import creates and activates a new saved profile.</p>
+      <label class="profile-name-field" for="profile-import-input">
+        <span>Profile JSON</span>
+        <textarea id="profile-import-input" class="profile-import-input" spellcheck="false" required aria-describedby="profile-import-status"></textarea>
+      </label>
+      <p class="profile-management-status" id="profile-import-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button class="control subtle" id="profile-import-template" type="button">Use template</button>
+        <button class="control subtle" id="profile-import-cancel" type="button">Cancel</button>
+        <button class="control accent" id="profile-import-submit" type="submit">Import profile</button>
       </div>
     </form>
   </dialog>
