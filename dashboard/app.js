@@ -17,9 +17,9 @@
   const THEME_VALUES = new Set(["system", "light", "dark"]);
   const VIEW_VALUES = new Set(["discover", "applications"]);
   const SORT_VALUES = new Set(["fit", "newest", "deadline", "organization"]);
-  const PROFILE_PAGE_VALUES = new Set(["basics", "advanced"]);
+  const PROFILE_PAGE_VALUES = new Set(["basics", "sources", "advanced"]);
   const PROFILE_MANAGEMENT_OPERATIONS = new Set([
-    "activate", "create", "duplicate", "rename", "delete",
+    "activate", "create", "duplicate", "rename", "delete", "import",
   ]);
   const PROFILE_REVISION_PATTERN = /^[a-f0-9]{64}$/;
   const TYPE_LABELS = {
@@ -76,6 +76,18 @@
     ["hybrid_preferred", "Prefer hybrid"],
     ["onsite_preferred", "Prefer on-site"],
   ];
+  const DEGREE_TYPE_OPTIONS = [
+    ["associate", "Associate"], ["bachelors", "Bachelor's"],
+    ["masters", "Master's"], ["doctorate", "Doctoral"],
+    ["professional", "Professional"], ["certificate", "Certificate"],
+    ["diploma", "Diploma"], ["other", "Other"],
+  ];
+  const DEGREE_TYPE_LABELS = new Map([
+    ["associate", "Associate degree"], ["bachelors", "Bachelor's degree"],
+    ["masters", "Master's degree"], ["doctorate", "Doctoral degree"],
+    ["professional", "Professional degree"], ["certificate", "Certificate"],
+    ["diploma", "Diploma"], ["other", "Degree"],
+  ]);
   const MATCH_FIELD_OPTIONS = [
     ["title", "Title"],
     ["organization", "Organization"],
@@ -135,6 +147,7 @@
   }
 
   const settings = data.settings || {};
+  const taxonomy = settings.taxonomy && typeof settings.taxonomy === "object" ? settings.taxonomy : {};
   const profileCatalog = parseProfileCatalog(settings.profile_catalog);
   const sourceResources = parseSourceResources(settings.source_resources);
   const profilePackOptions = Array.isArray(settings.source_packs) && settings.source_packs.length
@@ -142,6 +155,7 @@
       String(pack && pack.id || "").trim(),
       String(pack && (pack.name || pack.id) || "").trim(),
       String(pack && pack.description || "").trim().slice(0, 240),
+      Number(pack && pack.source_count || 0),
     ]).filter(([id, label]) => id && label).slice(0, 64)
     : PACK_OPTIONS;
   const coveragePresetOptions = [
@@ -159,6 +173,36 @@
       preset && typeof preset.target_defaults === "object" ? preset.target_defaults : {},
     ]).filter(([id]) => id)
   );
+  let cachedLocationOptions = null;
+  function locationOptions() {
+    if (cachedLocationOptions) return cachedLocationOptions;
+    const countries = new Map((Array.isArray(taxonomy.countries) ? taxonomy.countries : [])
+      .map((entry) => [String(entry[0] || ""), String(entry[1] || "")]).filter((entry) => entry[0] && entry[1]));
+    const regions = new Map((Array.isArray(taxonomy.regions) ? taxonomy.regions : [])
+      .map((entry) => [String(entry[0] || "") + "." + String(entry[1] || ""), String(entry[2] || "")])
+      .filter((entry) => entry[0] && entry[1]));
+    const values = [];
+    countries.forEach((name) => values.push(name));
+    (Array.isArray(taxonomy.regions) ? taxonomy.regions : []).forEach((entry) => {
+      const country = countries.get(String(entry[0] || ""));
+      const region = String(entry[2] || "");
+      if (region && country) values.push(region + ", " + country);
+    });
+    (Array.isArray(taxonomy.cities) ? taxonomy.cities : []).forEach((entry) => {
+      const countryCode = String(entry[1] || "");
+      const city = String(entry[0] || "");
+      const region = regions.get(countryCode + "." + String(entry[2] || ""));
+      const country = countries.get(countryCode);
+      if (city && country) values.push([city, region, country].filter(Boolean).join(", "));
+    });
+    cachedLocationOptions = Array.from(new Set(values)).map((label) => ({
+      label, search: normalizeSearchText(label),
+    }));
+    return cachedLocationOptions;
+  }
+
+  const educationOptions = (Array.isArray(taxonomy.education_fields) ? taxonomy.education_fields : [])
+    .map((entry) => String(entry[1] || "").trim()).filter(Boolean);
   const restoredView = loadTransientView();
   const byId = new Map((data.opportunities || []).map((item) => [String(item.id), item]));
   const searchIndex = new Map(
@@ -438,6 +482,10 @@
       if (profileNameError(name, operation)) return null;
       request.name = name;
     }
+    if (operation === "import") {
+      if (!values.profile || typeof values.profile !== "object" || Array.isArray(values.profile)) return null;
+      request.profile = values.profile;
+    }
     return request;
   }
 
@@ -482,7 +530,7 @@
         ? "Keep at least one search profile."
         : "Delete an inactive profile";
     }
-    document.querySelectorAll("#profile-name-dialog input, #profile-name-dialog button, #profile-delete-dialog select, #profile-delete-dialog button").forEach((control) => {
+    document.querySelectorAll("#profile-name-dialog input, #profile-name-dialog button, #profile-delete-dialog select, #profile-delete-dialog button, #profile-import-dialog textarea, #profile-import-dialog button").forEach((control) => {
       control.disabled = managementBusy;
     });
   }
@@ -633,6 +681,48 @@
       "profile-delete-status",
       "Deleting profile..."
     );
+  }
+
+  function profileImportTemplate() {
+    return {
+      version: 1,
+      name: "Research and ML",
+      candidate: {stage: "early_career", graduation: "May 2027", degrees: [{type: "bachelors", field: "Computer Science"}], skills: ["Python"], max_experience_years: 3},
+      search: {timeframes: ["Fall 2026"], opportunity_types: ["job", "internship"], roles: ["Machine Learning Engineer"], domains: ["Artificial Intelligence"], skills: ["PyTorch"], locations: ["United States"], strict_locations: false, work_arrangements: ["remote", "hybrid"], remote_preference: "remote_preferred", exclude: [], organizations: []},
+      sources: {mode: "automatic", packs: ["starter-diverse"]},
+      documents: {default: "General", routes: []},
+    };
+  }
+
+  function openProfileImportDialog() {
+    if (state.busy || !profileCatalogWritable()) return;
+    const input = document.getElementById("profile-import-input");
+    document.getElementById("profile-import-status").textContent = "";
+    input.value = "";
+    input.setAttribute("aria-invalid", "false");
+    showDashboardDialog(document.getElementById("profile-import-dialog"), input);
+  }
+
+  function submitProfileImport(event) {
+    event.preventDefault();
+    const input = document.getElementById("profile-import-input");
+    const status = document.getElementById("profile-import-status");
+    let profile;
+    try {
+      profile = JSON.parse(String(input.value || ""));
+    } catch (_error) {
+      input.setAttribute("aria-invalid", "true");
+      status.textContent = "Enter valid JSON.";
+      input.focus();
+      return;
+    }
+    if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
+      input.setAttribute("aria-invalid", "true");
+      status.textContent = "The imported profile must be a JSON object.";
+      return;
+    }
+    input.setAttribute("aria-invalid", "false");
+    startProfileManagement("import", {profile}, "profile-import-status", "Importing profile...");
   }
 
   function nextProfileFieldId(path) {
@@ -827,6 +917,38 @@
       input.maxLength = 120;
       input.placeholder = config.placeholder || "Type a value";
       input.setAttribute("aria-label", "Add " + label.toLowerCase());
+      input.dataset.profilePendingInput = "true";
+      const datalist = config.suggestions ? element("datalist") : null;
+      const suggestionValues = () => {
+        const query = normalizeSearchText(input.value);
+        const candidates = typeof config.suggestions === "function"
+          ? config.suggestions()
+          : config.suggestions || [];
+        if (!query) return [];
+        const matches = [];
+        for (const candidate of candidates) {
+          const label = String(candidate && candidate.label || candidate || "").trim();
+          const search = String(candidate && candidate.search || normalizeSearchText(label));
+          if (label && search.includes(query)) matches.push({label, priority: search.startsWith(query) ? 0 : 1});
+        }
+        return matches.sort((left, right) => left.priority - right.priority || left.label.localeCompare(right.label))
+          .slice(0, 10).map((entry) => entry.label);
+      };
+      const updateSuggestions = () => {
+        if (!datalist) return;
+        const suggestions = suggestionValues();
+        input.dataset.profileSuggestionValues = JSON.stringify(suggestions.map(normalizeSearchText));
+        datalist.replaceChildren(...suggestions.map((value) => {
+          const option = element("option");
+          option.value = value;
+          return option;
+        }));
+      };
+      if (datalist) {
+        datalist.id = shellIdForDatalist(path);
+        input.setAttribute("list", datalist.id);
+        input.addEventListener("input", updateSuggestions);
+      }
       const add = element("button", "control subtle profile-tag-add", "Add");
       add.type = "button";
       const addValue = () => {
@@ -834,9 +956,17 @@
         const existing = Array.from(field.querySelectorAll("[data-profile-tag-value]"))
           .map((tag) => normalizeSearchText(tag.dataset.profileTagValue));
         const limit = Number.isInteger(config.limit) ? config.limit : 100;
+        if (config.requireSuggestion) {
+          const allowed = JSON.parse(input.dataset.profileSuggestionValues || "[]");
+          if (!allowed.includes(normalizeSearchText(value))) {
+            input.setAttribute("aria-invalid", "true");
+            return;
+          }
+        }
         if (!value || existing.includes(normalizeSearchText(value)) || existing.length >= limit) return;
         appendProfileTag(field, value, false);
         input.value = "";
+        input.setAttribute("aria-invalid", "false");
         input.focus();
       };
       add.addEventListener("click", addValue);
@@ -847,9 +977,132 @@
         }
       });
       entry.append(input, add);
+      if (datalist) entry.appendChild(datalist);
       field.appendChild(entry);
     }
     if (config.help) field.appendChild(element("span", "profile-help", config.help));
+    return field;
+  }
+
+  function shellIdForDatalist(path) {
+    return nextProfileFieldId(path + "-suggestions");
+  }
+
+  function parseDegree(value) {
+    const original = String(value || "").trim();
+    const lower = original.toLowerCase();
+    const checks = [
+      ["associate", /associate|\ba\.?a\.?\b|\ba\.?s\.?\b/],
+      ["bachelors", /bachelor|\bb\.?a\.?\b|\bb\.?s\.?\b/],
+      ["masters", /master|\bm\.?a\.?\b|\bm\.?s\.?\b|\bmba\b/],
+      ["doctorate", /doctor|\bph\.?d\.?\b|\bedd\b/],
+      ["professional", /professional|\bjd\b|\bmd\b/],
+      ["certificate", /certificate/], ["diploma", /diploma/],
+    ];
+    const type = (checks.find((entry) => entry[1].test(lower)) || ["other"])[0];
+    const field = original.replace(/^(associate(?:'s)?|bachelor(?:'s)?|master(?:'s)?|doctoral|doctorate|professional)?\s*(?:degree)?\s*(?:in|of)?\s*/i, "") || original;
+    return {type, field};
+  }
+
+  function profileDegreesField(path, values, disabled) {
+    const field = element("div", "profile-field wide profile-degrees");
+    field.dataset.profilePath = path;
+    field.dataset.profileKind = "degrees";
+    field.appendChild(element("span", "profile-label", "Completed degrees"));
+    const list = element("div", "profile-degree-list");
+    const addRow = (degree) => {
+      const row = element("div", "profile-degree-row");
+      row.dataset.profileDegree = "true";
+      const type = element("select", "profile-input profile-select");
+      type.setAttribute("aria-label", "Degree type");
+      DEGREE_TYPE_OPTIONS.forEach(([value, label]) => {
+        const option = element("option", "", label);
+        option.value = value;
+        option.selected = value === degree.type;
+        type.appendChild(option);
+      });
+      const specialization = element("input", "profile-input");
+      specialization.type = "text";
+      specialization.value = degree.field;
+      specialization.placeholder = "Specialization, such as Computer Science";
+      specialization.setAttribute("aria-label", "Degree specialization");
+      specialization.maxLength = 120;
+      const suggestions = element("datalist");
+      suggestions.id = shellIdForDatalist(path + "-degree");
+      specialization.setAttribute("list", suggestions.id);
+      specialization.addEventListener("input", () => {
+        const query = normalizeSearchText(specialization.value);
+        suggestions.replaceChildren(...educationOptions.filter((value) => normalizeSearchText(value).includes(query))
+          .slice(0, 10).map((value) => { const option = element("option"); option.value = value; return option; }));
+      });
+      const remove = element("button", "profile-remove", "Remove");
+      remove.type = "button";
+      remove.disabled = Boolean(disabled);
+      remove.addEventListener("click", () => row.remove());
+      type.disabled = Boolean(disabled);
+      specialization.disabled = Boolean(disabled);
+      row.append(type, specialization, remove, suggestions);
+      list.appendChild(row);
+    };
+    profileStrings(values).map(parseDegree).forEach(addRow);
+    field.appendChild(list);
+    if (!disabled) {
+      const add = element("button", "control subtle profile-inline-add", "Add degree");
+      add.type = "button";
+      add.addEventListener("click", () => {
+        addRow({type: "bachelors", field: ""});
+        const input = list.lastElementChild && list.lastElementChild.querySelector("input");
+        if (input) input.focus();
+      });
+      field.appendChild(add);
+    }
+    field.appendChild(element("span", "profile-help", "Choose a degree level first, then a standardized field of study. Custom international fields are also accepted."));
+    return field;
+  }
+
+  function profileSourceField(selectedValues, disabled) {
+    const field = element("div", "profile-field wide profile-source-picker");
+    field.dataset.profilePath = "selected_packs";
+    field.dataset.profileKind = "choices";
+    const heading = element("div", "profile-source-picker-heading");
+    heading.appendChild(element("span", "profile-label", "Source packs"));
+    const count = element("span", "profile-source-count");
+    heading.appendChild(count);
+    const search = element("input", "profile-input");
+    search.type = "search";
+    search.placeholder = "Search source packs...";
+    search.setAttribute("aria-label", "Search source packs");
+    search.disabled = Boolean(disabled);
+    const choices = element("div", "profile-source-list");
+    const selected = new Set(profileStrings(selectedValues));
+    profilePackOptions.forEach(([value, label, description, sourceCount]) => {
+      const choice = element("label", "profile-source-choice");
+      choice.dataset.sourceSearch = normalizeSearchText(label + " " + description);
+      const input = element("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.checked = selected.has(value);
+      input.disabled = Boolean(disabled);
+      const copy = element("span", "profile-source-copy");
+      const title = element("span", "profile-source-title", label);
+      const metadata = sourceCount ? " · " + sourceCount + (sourceCount === 1 ? " source" : " sources") : "";
+      copy.append(title, element("span", "profile-choice-description", String(description || "") + metadata));
+      choice.append(input, copy);
+      choices.appendChild(choice);
+    });
+    const update = () => {
+      const query = normalizeSearchText(search.value);
+      choices.querySelectorAll(".profile-source-choice").forEach((choice) => {
+        choice.hidden = Boolean(query) && !choice.dataset.sourceSearch.includes(query);
+      });
+      const selectedCount = choices.querySelectorAll("input:checked").length;
+      count.textContent = selectedCount + " selected";
+    };
+    search.addEventListener("input", update);
+    choices.addEventListener("change", update);
+    update();
+    field.append(heading, search, choices);
+    field.appendChild(element("span", "profile-help", "Automatic and named coverage add packs inferred from your goals. Your checks extend that coverage. Manual mode uses only these checks."));
     return field;
   }
 
@@ -879,6 +1132,7 @@
   }
 
   function profileErrorPage(message) {
+    if (/source pack|coverage preset/i.test(String(message || ""))) return "sources";
     return /matching[- ]rule|fit threshold|document route/i.test(String(message || ""))
       ? "advanced"
       : "basics";
@@ -894,6 +1148,20 @@
       if (kind === "tags") {
         const values = Array.from(control.querySelectorAll("[data-profile-tag-value]"))
           .map((tag) => tag.dataset.profileTagValue);
+        const pending = control.querySelector("[data-profile-pending-input]");
+        if (pending && String(pending.value || "").trim()) {
+          const allowed = JSON.parse(pending.dataset.profileSuggestionValues || "null");
+          const value = String(pending.value || "").trim();
+          if (!Array.isArray(allowed) || allowed.includes(normalizeSearchText(value))) values.push(value);
+        }
+        setProfilePath(draft, path, profileStrings(values));
+      } else if (kind === "degrees") {
+        const values = Array.from(control.querySelectorAll("[data-profile-degree]")).map((row) => {
+          const type = row.querySelector("select");
+          const field = row.querySelector("input");
+          const specialization = String(field && field.value || "").trim();
+          return specialization ? (DEGREE_TYPE_LABELS.get(String(type && type.value || "other")) || "Degree") + " in " + specialization : "";
+        });
         setProfilePath(draft, path, profileStrings(values));
       } else if (kind === "choices") {
         const values = Array.from(control.querySelectorAll("input:checked")).map((input) => input.value);
@@ -1074,15 +1342,25 @@
     basics.dataset.profilePage = "basics";
     basics.setAttribute("role", "tabpanel");
     basics.setAttribute("aria-labelledby", "profile-basics-tab");
+    const sourcesPage = element("div", "profile-page");
+    sourcesPage.id = "profile-sources-page";
+    sourcesPage.dataset.profilePage = "sources";
+    sourcesPage.setAttribute("role", "tabpanel");
+    sourcesPage.setAttribute("aria-labelledby", "profile-sources-tab");
     const advanced = element("div", "profile-page");
     advanced.id = "profile-advanced-page";
     advanced.dataset.profilePage = "advanced";
     advanced.setAttribute("role", "tabpanel");
     advanced.setAttribute("aria-labelledby", "profile-advanced-tab");
 
-    const focus = profileSection("Search focus", "Set the time frames and broad source collections you want to follow. Turning off a source pack also hides its prior listings after you save.");
+    const focus = profileSection("Search focus", "Set the recruiting cycles you want to follow. Leave this empty to consider any timeframe.");
     focus.grid.append(
-      profileTagField("Time frames", "timeframes", profileDraft.timeframes, {wide: true, disabled, limit: 12, placeholder: "Summer 2028", help: "Add more than one if you are considering several cycles."}),
+      profileTagField("Time frames", "timeframes", profileDraft.timeframes, {wide: true, disabled, limit: 12, placeholder: "Summer 2028", help: "Add more than one if you are considering several cycles."})
+    );
+    basics.appendChild(focus.section);
+
+    const sourceCoverage = profileSection("Source coverage", "Choose how the app builds the pool of official job and program sources.");
+    sourceCoverage.grid.append(
       profileSelectField(
         "STEM coverage preset",
         "coverage_preset",
@@ -1107,16 +1385,16 @@
           },
         }
       ),
-      profileChoiceField("Source packs", "selected_packs", profileDraft.selected_packs, profilePackOptions, true, disabled, true)
+      profileSourceField(profileDraft.selected_packs, disabled)
     );
-    basics.appendChild(focus.section);
+    sourcesPage.appendChild(sourceCoverage.section);
 
     const person = profileSection("About you", "These facts help detect eligibility and experience mismatches.");
     person.grid.append(
       profileChoiceField("Current stage", "candidate.current_stage", candidate.current_stage, CAREER_STAGE_OPTIONS, false, disabled, true),
       profileTextField("Expected graduation", "candidate.expected_graduation", candidate.expected_graduation, {placeholder: "May 2028", maxLength: 80, disabled}),
       profileTextField("Maximum required experience", "candidate.max_required_experience_years", candidate.max_required_experience_years, {type: "number", min: 0, max: 50, help: "Hide roles requiring more years than this.", disabled}),
-      profileTagField("Completed degrees", "candidate.completed_degrees", candidate.completed_degrees, {wide: true, disabled, placeholder: "B.S. Physics"}),
+      profileDegreesField("candidate.completed_degrees", candidate.completed_degrees, disabled),
       profileTagField("Demonstrated skills", "candidate.skills", candidate.skills, {wide: true, disabled, placeholder: "Python"})
     );
     basics.appendChild(person.section);
@@ -1127,7 +1405,8 @@
       profileTagField("Role families", "targets.role_families", targets.role_families, {wide: true, disabled, placeholder: "Machine learning research"}),
       profileTagField("Domains", "targets.domains", targets.domains, {wide: true, disabled, placeholder: "Scientific computing", help: "Removing a domain also retires positive advanced rules tied only to that domain."}),
       profileTagField("Supporting skills", "targets.supporting_skills", targets.supporting_skills, {wide: true, disabled, placeholder: "C++"}),
-      profileTagField("Locations", "targets.locations", targets.locations, {wide: true, disabled, placeholder: "New York"}),
+      profileTagField("Locations", "targets.locations", targets.locations, {wide: true, disabled, placeholder: "City, state, or country", suggestions: locationOptions, requireSuggestion: true, help: "Choose a suggestion at city, state, or country level. Country and state choices include matching cities below them."}),
+      profileBooleanField("Only show listings in my selected locations", "targets.strict_locations", targets.strict_locations, disabled),
       profileChoiceField("Work arrangements", "targets.work_arrangements", targets.work_arrangements, WORK_ARRANGEMENT_OPTIONS, true, disabled, true),
       profileChoiceField("Remote preference", "targets.remote_preference", targets.remote_preference, REMOTE_PREFERENCE_OPTIONS, false, disabled, true),
       profileTagField("Exclude", "targets.exclusions", targets.exclusions, {wide: true, disabled, placeholder: "Sales internship", help: "Listings matching these phrases can be penalized or removed."}),
@@ -1165,7 +1444,7 @@
     renderDocumentRoutes(documentSection.section, documents.routes, disabled);
     advanced.appendChild(documentSection.section);
 
-    fields.append(basics, advanced);
+    fields.append(basics, sourcesPage, advanced);
     setProfilePage(profileActivePage, false);
   }
 
@@ -2721,6 +3000,7 @@
   document.getElementById("edit-profile-button").addEventListener("click", openProfileDialog);
   document.getElementById("profile-select").addEventListener("change", activateProfile);
   document.getElementById("profile-new-button").addEventListener("click", () => openProfileNameDialog("create"));
+  document.getElementById("profile-import-button").addEventListener("click", openProfileImportDialog);
   document.getElementById("profile-duplicate-button").addEventListener("click", () => openProfileNameDialog("duplicate"));
   document.getElementById("profile-rename-button").addEventListener("click", () => openProfileNameDialog("rename"));
   document.getElementById("profile-delete-button").addEventListener("click", openProfileDeleteDialog);
@@ -2732,7 +3012,16 @@
   document.getElementById("profile-delete-cancel").addEventListener("click", () => {
     closeDashboardDialog(document.getElementById("profile-delete-dialog"));
   });
-  ["profile-name-dialog", "profile-delete-dialog"].forEach((id) => {
+  document.getElementById("profile-import-form").addEventListener("submit", submitProfileImport);
+  document.getElementById("profile-import-template").addEventListener("click", () => {
+    const input = document.getElementById("profile-import-input");
+    input.value = JSON.stringify(profileImportTemplate(), null, 2);
+    input.focus();
+  });
+  document.getElementById("profile-import-cancel").addEventListener("click", () => {
+    closeDashboardDialog(document.getElementById("profile-import-dialog"));
+  });
+  ["profile-name-dialog", "profile-delete-dialog", "profile-import-dialog"].forEach((id) => {
     document.getElementById(id).addEventListener("cancel", (event) => {
       if (state.pendingProfileManagement) event.preventDefault();
     });

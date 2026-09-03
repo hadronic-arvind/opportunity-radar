@@ -29,8 +29,8 @@ python3 -m monitor init --non-interactive \
 Onboarding asks only about work preferences.
 It does not request demographic or other protected personal attributes.
 
-The optional macOS app presents the same profile as a guided setup screen with separate Basics and Advanced pages.
-It uses consistent select and multiple-choice controls for the STEM coverage preset, source packs, career stage, opportunity types, work arrangements, and remote preference, with open text entries for timeframes, roles, skills, locations, exclusions, and organizations.
+The optional macOS app presents the same profile as a guided setup screen with separate Basics, Sources, and Advanced pages.
+It provides searchable local suggestions for city, state, country, and field of study, a structured degree-level control, and a searchable source-pack picker with source counts.
 Advanced contains exact scoring controls, matching rules, and document routing, while the most intuitive bounded values use accessible sliders.
 
 After onboarding, inspect or change the profile at any time:
@@ -50,6 +50,30 @@ python3 -m monitor profile validate
 `profile show --json` produces the same bounded editor object used by the app.
 `profile apply --file PATH` and `profile apply --stdin` validate and atomically apply that object for advanced or scripted changes.
 Every successful change rescores stored opportunities and rebuilds the dashboard without fetching the network.
+
+## One-shot profile import
+
+`profile template` prints the stable version 1 JSON shape intended for direct editing or generation by an AI model from a resume and writing samples.
+`profile import` validates the bounded input, creates a separate named profile, activates it, rescores existing listings, and rebuilds the dashboard atomically.
+
+```bash
+python3 -m monitor profile template > my-profile.json
+python3 -m monitor profile import --file my-profile.json --dry-run
+python3 -m monitor profile import --file my-profile.json
+```
+
+The top-level keys are `version`, `name`, and optional `candidate`, `search`, `sources`, and `documents` objects.
+Candidate keys are `stage`, `graduation`, `degrees`, `skills`, and `max_experience_years`.
+Each degree can be a string or an object with `type` and `field`, where common forms such as `BS`, `bachelors`, `MS`, and `PhD` are normalized.
+Search keys are `timeframes`, `opportunity_types`, `roles`, `domains`, `skills`, `locations`, `strict_locations`, `work_arrangements`, `remote_preference`, `exclude`, and `organizations`.
+Sources accepts `mode` plus `packs`, and documents uses the same `default` and `routes` shape as the advanced editor.
+Unknown keys are rejected so an AI-generated profile cannot silently misspell a preference.
+
+Locations are canonicalized using an offline catalog derived from GeoNames country, first-level administrative region, and cities-with-population-over-15,000 datasets under CC BY 4.0.
+Field-of-study suggestions use the U.S. Department of Education NCES 2020 Classification of Instructional Programs.
+No location query or profile content is sent to a geocoding service.
+Country selections match recognized states and cities in that country, state selections match recognized cities in that state, and city selections remain city-specific.
+With `strict_locations` set to `true`, only confidently resolved mismatches are hidden, while ambiguous or missing locations remain visible for review.
 
 ## Named profiles
 

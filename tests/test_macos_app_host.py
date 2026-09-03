@@ -134,7 +134,7 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
     def test_profile_management_is_strict_and_never_queued_behind_a_scan(self):
         self.assertIn("private func validProfileManagementRequest(", self.source)
         self.assertIn(
-            '["activate", "create", "duplicate", "rename", "delete"].contains(operation)',
+            '["activate", "create", "duplicate", "rename", "delete", "import"].contains(operation)',
             self.source,
         )
         self.assertIn(
@@ -148,6 +148,7 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
         self.assertIn("guard Set(value.keys) == keys else", self.source)
         self.assertIn("validProfileID(profileID)", self.source)
         self.assertIn("validProfileName(name)", self.source)
+        self.assertIn('keys = Set(["version", "operation", "expected_revision", "profile"])', self.source)
         self.assertIn(
             'if profile["operation"] != nil && (scanIsRunning || scanCompletionPending)',
             self.source,

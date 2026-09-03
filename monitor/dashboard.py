@@ -17,6 +17,7 @@ from .config import (
     resolve_private_state_path,
 )
 from .profile import profile_catalog_payload, profile_editor_payload
+from .taxonomy import taxonomy_payload
 
 
 STYLE_MARKER = "/*__OPPORTUNITY_STYLES__*/"
@@ -85,12 +86,16 @@ def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
     legacy_target = str(dashboard.get("target_season", "")).strip()
     if not timeframes and legacy_target:
         timeframes = [legacy_target]
+    resources = _source_resource_directory()
     packs = [
         {
             "id": str(pack.get("id", "")),
             "name": str(pack.get("name", pack.get("id", ""))),
             "description": str(pack.get("description", ""))[:240],
             "default": bool(pack.get("default", False)),
+            "source_count": sum(
+                1 for resource in resources if str(pack.get("id", "")) in resource["packs"]
+            ),
         }
         for pack in load_source_packs()
         if str(pack.get("id", "")).strip()
@@ -125,7 +130,8 @@ def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
         "profile_editor": profile_editor_payload(profile),
         "coverage_presets": coverage_preset_payload(),
         "source_packs": packs,
-        "source_resources": _source_resource_directory(),
+        "source_resources": resources,
+        "taxonomy": taxonomy_payload(),
     }
 
 

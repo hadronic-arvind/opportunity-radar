@@ -84,8 +84,21 @@ python3 -m monitor profile validate
 Profile changes immediately rescore the existing dashboard without a network request.
 Every later due or forced scan reads the latest saved profile.
 If a scan is already running, the app keeps the profile editor available and applies one saved update immediately afterward, so the active scan finishes with its original snapshot and the next scan uses the new profile.
-The app keeps everyday profile choices on the Basics page and scoring, matching rules, and document routing on Advanced.
+The app keeps personal goals on Basics, searchable source packs on Sources, and scoring, matching rules, and document routing on Advanced.
 Removing a basic role or domain retires obsolete positive advanced rules tied only to the removed target, while retained cross-domain, negative, qualification, and hard-gate rules stay intact.
+
+Create a complete named profile in one shot from versioned JSON, including JSON drafted from a resume by an AI model.
+
+```bash
+python3 -m monitor profile template > my-profile.json
+python3 -m monitor profile import --file my-profile.json --dry-run
+python3 -m monitor profile import --file my-profile.json
+```
+
+The app offers the same flow through **Import JSON**.
+Location choices use an embedded offline city, state, and country hierarchy, so selecting a country also matches listings that name only a city in that country.
+Degree entry separates normalized degree level from a suggested field of study.
+See [Configuration](docs/CONFIGURATION.md#one-shot-profile-import) for the complete format.
 
 Save separate profiles for different people, disciplines, career stages, or search strategies, then activate the one that should control sources and matching.
 

@@ -27,6 +27,27 @@ def saved_profile(root: Path):
 
 
 class CliTests(unittest.TestCase):
+    def test_profile_template_prints_valid_one_shot_json(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(cli.main(["profile", "template"]), 0)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["version"], 1)
+        self.assertEqual(payload["candidate"]["degrees"][0]["type"], "bachelors")
+        self.assertIn("locations", payload["search"])
+
+    def test_profile_import_stdin_uses_management_contract(self):
+        portable = {"version": 1, "name": "Imported", "search": {"roles": ["Engineer"]}}
+        with (
+            patch.object(cli.sys, "stdin", io.StringIO(json.dumps(portable))),
+            patch.object(cli, "profile_catalog_payload", return_value={"version": 1, "expected_revision": "a" * 64}),
+            patch.object(cli, "apply_profile_management_payload", return_value={"saved": True}) as apply,
+        ):
+            self.assertEqual(cli.main(["profile", "import", "--stdin", "--quiet"]), 0)
+        request = apply.call_args.args[0]
+        self.assertEqual(request["operation"], "import")
+        self.assertEqual(request["profile"], portable)
+
     def test_help_uses_public_product_identity_without_changing_commands(self):
         parser = cli.build_parser()
         help_text = parser.format_help()
@@ -852,7 +873,10 @@ class CliTests(unittest.TestCase):
 
             saved, _saved_sources, _store_path = saved_profile(root)
             self.assertEqual(saved["timeframes"], ["Summer 2028", "Fall 2028"])
-            self.assertEqual(saved["targets"]["locations"], ["remote", "Baltimore"])
+            self.assertEqual(
+                saved["targets"]["locations"],
+                ["remote", "Baltimore, Maryland, United States"],
+            )
             self.assertEqual(saved["targets"]["remote_preference"], "remote_preferred")
             self.assertEqual(
                 saved["targets"]["role_families"],

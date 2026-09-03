@@ -1672,7 +1672,7 @@ private final class AppDelegate: NSObject,
         guard
             isBridgeVersionOne(value["version"]),
             let operation = value["operation"] as? String,
-            ["activate", "create", "duplicate", "rename", "delete"].contains(operation),
+            ["activate", "create", "duplicate", "rename", "delete", "import"].contains(operation),
             let revision = value["expected_revision"] as? String,
             revision.utf8.count == 64,
             revision.utf8.allSatisfy({ byte in
@@ -1689,6 +1689,8 @@ private final class AppDelegate: NSObject,
             keys = Set(["version", "operation", "expected_revision", "name"])
         case "duplicate", "rename":
             keys = Set(["version", "operation", "expected_revision", "profile_id", "name"])
+        case "import":
+            keys = Set(["version", "operation", "expected_revision", "profile"])
         default:
             return false
         }
@@ -1706,6 +1708,11 @@ private final class AppDelegate: NSObject,
                 let name = value["name"] as? String,
                 validProfileName(name)
             else {
+                return false
+            }
+        }
+        if keys.contains("profile") {
+            guard let profile = value["profile"] as? [String: Any], boundedProfileValue(profile) else {
                 return false
             }
         }

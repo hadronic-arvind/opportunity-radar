@@ -1101,6 +1101,45 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(source_path.read_bytes(), legacy_bytes[1])
         self.assertEqual(store_path.stat().st_mode & 0o777, 0o600)
 
+    def test_one_shot_import_creates_and_activates_an_isolated_profile(self):
+        (self.root / "config" / "profile.json").write_text(json.dumps({
+            "matching": {"base_score": 50, "tier_thresholds": {"priority": 80, "strong": 65, "watch": 25}, "rules": []},
+            "documents": {"default": "General", "routes": []},
+        }), encoding="utf-8")
+        (self.root / "config" / "sources.json").write_text(json.dumps({
+            "packs": [{"id": "starter", "default": True}, {"id": "research"}],
+            "sources": [],
+        }), encoding="utf-8")
+        lifecycle = self.root / "Application Support" / ".OpportunityRadar.lifecycle-lock"
+        with (
+            patch.object(config, "PROJECT_ROOT", self.root),
+            patch.object(profile_service, "_lifecycle_lock_path", return_value=lifecycle),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            catalog = profile_service.profile_catalog_payload()
+            result = profile_service.apply_profile_management_payload({
+                "version": 1,
+                "operation": "import",
+                "expected_revision": catalog["expected_revision"],
+                "profile": {
+                    "version": 1,
+                    "name": "Imported research",
+                    "candidate": {"degrees": [{"type": "MS", "field": "Statistics"}]},
+                    "search": {"roles": ["Data Scientist"], "locations": ["Canada"]},
+                    "sources": {"mode": "manual", "packs": ["research"]},
+                },
+            }, rebuild=False)
+            self.assertTrue(result["saved"])
+            imported_id = result["profile_id"]
+            self.assertEqual(result["profile_catalog"]["active_profile_id"], imported_id)
+            profile, sources, store_path = self.saved_local_configuration()
+            self.assertEqual(profile["targets"]["role_families"], ["Data Scientist"])
+            self.assertEqual(profile["targets"]["locations"], ["Canada"])
+            self.assertEqual(profile["candidate"]["completed_degrees"], ["Master's degree in Statistics"])
+            self.assertEqual(sources["coverage_preset"], "manual")
+            self.assertEqual(sources["selected_packs"], ["research"])
+            self.assertEqual(store_path.stat().st_mode & 0o777, 0o600)
+
     def test_profile_activation_rolls_back_render_failure_then_refreshes_without_losing_workflow_state(self):
         (self.root / "config" / "profile.json").write_text(
             json.dumps(
