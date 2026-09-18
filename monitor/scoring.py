@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
+from .eligibility import degree_gates, nationality_gates
 from .models import Opportunity
 from .taxonomy import location_match_details
 from .targeting import effective_matching_rules
@@ -31,7 +32,7 @@ DEFAULT_FIELDS = (
 CURATED_DOCUMENT_PROVENANCE = "curated_explicit"
 LEGACY_CURATED_DOCUMENT_PROVENANCE = "curated_legacy"
 PROFILE_DOCUMENT_PROVENANCE = "profile"
-SCORING_SCHEMA_VERSION = 6
+SCORING_SCHEMA_VERSION = 7
 STRUCTURED_ENGINE = "structured_v2"
 STRUCTURED_DIMENSIONS = ("interest", "target", "qualification", "preference")
 DEFAULT_FIELD_WEIGHTS = {
@@ -70,15 +71,6 @@ EXPERIENCE_RE = re.compile(
     r"\b(?:(?:minimum(?:\s+of)?|at\s+least|requires?|must\s+have)\s+)?"
     r"(?P<years>\d{1,2})\+?\s+years?\s+(?:of\s+)?"
     r"(?:[a-z][a-z0-9+#./-]*\s+){0,4}experience\b",
-    re.IGNORECASE,
-)
-UNDERGRADUATE_ONLY_RE = re.compile(
-    r"\b(?:undergraduate students? only|pursuing (?:a |an )?bachelor(?:'s)?(?: degree)?|"
-    r"currently enrolled in (?:a |an )?bachelor(?:'s)?(?: degree)?)\b",
-    re.IGNORECASE,
-)
-ADVANCED_DEGREE_ALTERNATIVE_RE = re.compile(
-    r"\b(?:master(?:'s)?|doctoral|doctorate|ph\.?d\.?)\b",
     re.IGNORECASE,
 )
 COMPLETED_PHD_RE = re.compile(
@@ -1196,24 +1188,8 @@ def _structured_gates(
         gates.append({"id": "career_stage", "state": "fail", "evidence": ["senior title"]})
 
     requirements_text = "{} {}".format(item.eligibility, item.description)
-    undergraduate_only = UNDERGRADUATE_ONLY_RE.search(requirements_text)
-    undergraduate_context = (
-        _sentence_around(
-            requirements_text,
-            undergraduate_only.start(),
-            undergraduate_only.end(),
-        )
-        if undergraduate_only
-        else ""
-    )
-    if (
-        stage in EARLY_CAREER_STAGES - {"undergraduate", "undergraduate_student"}
-        and undergraduate_only
-        and not ADVANCED_DEGREE_ALTERNATIVE_RE.search(undergraduate_context)
-    ):
-        gates.append(
-            {"id": "degree_stage", "state": "fail", "evidence": ["undergraduate-only wording"]}
-        )
+    gates.extend(degree_gates(item, stage, completed_degree_levels))
+    gates.extend(nationality_gates(item, candidate))
     completed_phd = COMPLETED_PHD_RE.search(requirements_text)
     completed_phd_context = (
         _sentence_around(
@@ -1705,6 +1681,10 @@ def profile_fingerprint(profile: Dict[str, Any]) -> str:
         expected_graduation = _graduation_interval(expected_raw)
         structured_profile = {
             "candidate": {
+                "filter_nationality": candidate.get("filter_nationality", False),
+                "citizenships": sorted(candidate.get("citizenships", [])),
+                "permanent_residencies": sorted(candidate.get("permanent_residencies", [])),
+                "us_national": candidate.get("us_national", False),
                 "current_stage": candidate.get("current_stage"),
                 "career_stage": candidate.get("career_stage"),
                 "program": candidate.get("program"),

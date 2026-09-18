@@ -59,6 +59,7 @@ EXPECTED_EDITOR_KEYS = {
 }
 OPTIONAL_EDITOR_KEYS = {"coverage_preset"}
 CANDIDATE_KEYS = {
+    "filter_nationality", "citizenships", "permanent_residencies", "us_national",
     "current_stage",
     "expected_graduation",
     "completed_degrees",
@@ -114,7 +115,7 @@ LEGACY_TARGET_KEYS = {
 }
 PORTABLE_PROFILE_VERSION = 1
 PORTABLE_PROFILE_KEYS = {"version", "name", "candidate", "search", "sources", "documents"}
-PORTABLE_CANDIDATE_KEYS = {"stage", "graduation", "degrees", "skills", "max_experience_years"}
+PORTABLE_CANDIDATE_KEYS = {"filter_nationality", "citizenships", "permanent_residencies", "us_national", "stage", "graduation", "degrees", "skills", "max_experience_years"}
 PORTABLE_SEARCH_KEYS = {
     "timeframes", "opportunity_types", "roles", "domains", "skills", "locations",
     "strict_locations", "work_arrangements", "remote_preference", "exclude", "organizations",
@@ -589,6 +590,19 @@ def _normalize_candidate(value: Any) -> Dict[str, Any]:
     for key in ("current_stage", "expected_graduation"):
         if key in value and str(value[key]).strip():
             output[key] = _clean_string(value[key], "candidate.{}".format(key), 80)
+    from .eligibility import country_code
+
+    for key in ("filter_nationality", "us_national"):
+        if key in value:
+            if not isinstance(value[key], bool):
+                raise ProfileValidationError("candidate.{} must be a boolean".format(key))
+            output[key] = value[key]
+    for key in ("citizenships", "permanent_residencies"):
+        if key in value:
+            entries = _string_list(value[key], "candidate.{}".format(key))
+            if any(country_code(entry) is None for entry in entries):
+                raise ProfileValidationError("candidate.{} must contain recognized countries".format(key))
+            output[key] = list(dict.fromkeys(country_code(entry) for entry in entries))
     for key in ("completed_degrees", "skills"):
         output[key] = _string_list(value.get(key, []), "candidate.{}".format(key))
     if "max_required_experience_years" in value and value[
@@ -1856,6 +1870,10 @@ def portable_profile_editor(payload: Any) -> Tuple[str, Dict[str, Any]]:
         candidate["expected_graduation"] = candidate_input["graduation"]
     if candidate_input.get("max_experience_years") not in (None, ""):
         candidate["max_required_experience_years"] = candidate_input["max_experience_years"]
+
+    for key in ("filter_nationality", "citizenships", "permanent_residencies", "us_national"):
+        if key in candidate_input:
+            candidate[key] = candidate_input[key]
 
     locations = _string_list(search.get("locations", []), "search.locations")
     targets = {

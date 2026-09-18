@@ -901,6 +901,15 @@
     editor.querySelector(".profile-tag-list").appendChild(tag);
   }
 
+  function profileCountryField(label, path, values, disabled) {
+    const countries = Array.isArray(taxonomy.countries) ? taxonomy.countries : [];
+    const names = new Map(countries.map((entry) => [entry[0], entry[1]]));
+    return profileTagField(label, path, profileStrings(values).map((value) => names.get(value) || value), {
+      disabled, suggestions: countries.map((entry) => entry[1]),
+      requireSuggestion: true, placeholder: "Choose a country",
+    });
+  }
+
   function profileTagField(label, path, values, options) {
     const config = options || {};
     const field = element("div", "profile-field" + (config.wide ? " wide" : ""));
@@ -1395,8 +1404,13 @@
       profileTextField("Expected graduation", "candidate.expected_graduation", candidate.expected_graduation, {placeholder: "May 2028", maxLength: 80, disabled}),
       profileTextField("Maximum required experience", "candidate.max_required_experience_years", candidate.max_required_experience_years, {type: "number", min: 0, max: 50, help: "Hide roles requiring more years than this.", disabled}),
       profileDegreesField("candidate.completed_degrees", candidate.completed_degrees, disabled),
+      profileBooleanField("Filter by citizenship eligibility", "candidate.filter_nationality", candidate.filter_nationality, disabled),
+      profileCountryField("Citizenship / nationality", "candidate.citizenships", candidate.citizenships, disabled),
+      profileCountryField("Permanent residency", "candidate.permanent_residencies", candidate.permanent_residencies, disabled),
+      profileBooleanField("I am a U.S. national (including noncitizen nationals)", "candidate.us_national", candidate.us_national, disabled),
       profileTagField("Demonstrated skills", "candidate.skills", candidate.skills, {wide: true, disabled, placeholder: "Python"})
     );
+    person.section.appendChild(element("p", "profile-help", "Choose all citizenships and permanent residencies. Leave residency empty if you have none. Birthplace and study location do not establish citizenship. Enable the filter to hide explicit mismatches; incomplete or ambiguous requirements remain flagged for review."));
     basics.appendChild(person.section);
 
     const goals = profileSection("What you want", "Use broad interests here. Detailed matching keywords live in the next section.");
