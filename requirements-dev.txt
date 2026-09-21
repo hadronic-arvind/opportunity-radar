@@ -1,0 +1,2 @@
+# Optional contributor tooling. Never installed by the app or scheduler.
+ruff==0.15.7

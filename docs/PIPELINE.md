@@ -1,5 +1,21 @@
 # Pipeline design
 
+```mermaid
+flowchart TD
+    A[CLI / OS schedule / optional Swift host] --> B[cli.py and lifecycle locks]
+    B --> C[profile.py / config.py / source_registry.py]
+    C --> D[pipeline.py]
+    D --> E[fetchers.py: public HTTPS sources]
+    E --> F[scoring.py / eligibility.py / targeting.py]
+    F --> G[database.py: private SQLite]
+    G --> H[dashboard.py + tracked HTML/CSS/JS]
+    H --> I[Private local dashboard in browser or WKWebView]
+    D --> J[Change-only notifications, then exit]
+```
+
+Contributor tools, tests, agent instructions, and change records stay in the source checkout.
+The scheduler installer copies the runtime package, selected configuration/dashboard assets, and its runtime launcher; it does not install developer requirements.
+
 ## Run lifecycle
 
 1. A manual command or operating-system schedule starts one Python process.

@@ -20,11 +20,13 @@ Public visibility and GitHub's fork functionality do not grant permission to use
 2. Create a focused branch.
 3. Reproduce a bug through the public command or dashboard path when applicable.
 4. Add or update tests for the behavior.
-5. Run `./scripts/check.sh`.
+5. Follow the focused validation and release checks in the [Developer guide](docs/DEVELOPMENT.md).
 6. Review `git diff` and the privacy-check output before opening a pull request.
 
 Keep changes small enough to review and explain any source-specific assumptions.
 Do not hide fetch failures or deactivate prior opportunities after a failed response.
+The [Developer guide](docs/DEVELOPMENT.md) is the canonical home for setup, source navigation, interrupted work, and isolated worktrees.
+Development tooling is optional for contributors and must never become an application runtime or user installation requirement.
 
 ## Adding a source
 
