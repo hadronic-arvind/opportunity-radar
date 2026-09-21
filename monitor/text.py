@@ -33,7 +33,10 @@ OPPORTUNITY_TYPE_PATTERNS = (
 def clean_text(value: Optional[str]) -> str:
     if not value:
         return ""
-    return SPACE_RE.sub(" ", html.unescape(TAG_RE.sub(" ", value))).strip()
+    # Some ATS feeds encode the entire HTML fragment, including its tags.
+    for _ in range(2):
+        value = html.unescape(value)
+    return SPACE_RE.sub(" ", TAG_RE.sub(" ", value)).strip()
 
 
 def normalize_opportunity_type(value: object) -> str:

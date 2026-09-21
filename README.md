@@ -15,6 +15,7 @@ The setup and operation instructions below are for the copyright holder and anyo
 
 Requirements are Python 3.9 or newer on macOS or another Unix-like system.
 The scanner has no third-party Python dependencies.
+Building the optional macOS app also requires the Apple Command Line Tools (`xcode-select --install`).
 
 ```bash
 git clone https://github.com/hadronic-arvind/opportunity-radar.git
@@ -24,7 +25,7 @@ python3 -m monitor init
 ./scripts/open_dashboard.sh
 ```
 
-`init` creates private, ignored configuration files and lets you choose a target-aware STEM coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
+`init` creates private, ignored configuration files and lets you choose a target-aware coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
 Automatic coverage is the default and derives a broad source mix from the roles, fields, skills, career stage, and opportunity types in that profile.
 Choosing a named field preset also seeds practical role, domain, and skill targets that remain editable.
 Skip it to use the neutral starter profile and five diverse structured feeds.
@@ -98,6 +99,8 @@ python3 -m monitor profile import --file my-profile.json
 The app offers the same flow through **Import JSON**.
 Location choices use an embedded offline city, state, and country hierarchy, so selecting a country also matches listings that name only a city in that country.
 Degree entry separates normalized degree level from a suggested field of study.
+Enrollment restrictions distinguish undergraduate, master's, and doctoral candidates without treating a minimum degree as a maximum.
+The optional citizenship filter supports multiple citizenships, permanent residency, and U.S. national status; incomplete requirements remain flagged for review.
 See [Configuration](docs/CONFIGURATION.md#one-shot-profile-import) for the complete format.
 
 Save separate profiles for different people, disciplines, career stages, or search strategies, then activate the one that should control sources and matching.
@@ -183,7 +186,15 @@ Read [Security](SECURITY.md) for the trust model and vulnerability reporting pro
 ./scripts/uninstall_launch_agent.sh
 ```
 
-Run the scheduler installer again after pulling code changes.
+After pulling code changes, upgrade the scheduler first if installed, then rebuild the optional native app:
+
+```bash
+./scripts/install_launch_agent.sh
+python3 extras/macos-app/install.py
+```
+
+Quit and reopen the app to load the upgrade.
+The upgrade preserves saved profiles, bookmarks, and application status.
 Profile and source-pack changes made through the app or CLI do not require reinstallation.
 Uninstalling the scheduler leaves the database and dashboard intact.
 
@@ -191,3 +202,8 @@ Developer details are in [Pipeline design](docs/PIPELINE.md), [Operations](docs/
 
 Opportunity Radar is publicly viewable but proprietary software.
 All rights are reserved under the [license and copyright notice](LICENSE).
+
+## Profile coverage audit
+
+Nine anonymous [example profiles](examples/profiles/README.md) cover medicine, business, biomedical engineering, accounting, teaching, law, design, skilled trades, and an international PhD student.
+The [coverage audit](docs/AUDIENCE_AUDIT.md) records live-source findings, known gaps, and the sandbox rerun command.

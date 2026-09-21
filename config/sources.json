@@ -166,6 +166,31 @@
       "id": "veterinary-animal",
       "name": "Veterinary and animal science",
       "description": "Veterinary medicine, animal health, zoology, comparative medicine, and animal science."
+    },
+    {
+      "id": "business-operations",
+      "name": "Business, management, and consulting",
+      "description": "Business, management, consulting, marketing, and operations."
+    },
+    {
+      "id": "accounting-finance",
+      "name": "Accounting and corporate finance",
+      "description": "Public accounting, audit, taxation, and corporate finance."
+    },
+    {
+      "id": "education-teaching",
+      "name": "Education and teaching",
+      "description": "Classroom teaching, instructional support, and school operations."
+    },
+    {
+      "id": "legal-policy",
+      "name": "Law and public policy",
+      "description": "Legal research, civil rights, and public policy."
+    },
+    {
+      "id": "biomedical-devices",
+      "name": "Biomedical engineering and medical devices",
+      "description": "Medical devices, biomedical engineering, quality, and clinical technology."
     }
   ],
   "sources": [
@@ -563,7 +588,7 @@
       "url": "https://www.aclu.org/careers/internships",
       "api_url": "https://boards-api.greenhouse.io/v1/boards/acluinternships/jobs",
       "source_type": "listing_feed",
-      "packs": ["public-interest", "cybersecurity", "product-design", "students-early-career", "education-social-impact"],
+      "packs": ["public-interest", "cybersecurity", "product-design", "students-early-career", "education-social-impact", "legal-policy"],
       "domains": ["public_interest", "civil_rights", "law", "technology", "design"],
       "opportunity_types": ["internship"],
       "career_levels": ["undergraduate", "graduate", "law_student", "early_career"],
@@ -582,7 +607,7 @@
       "url": "https://www.aclu.org/careers",
       "api_url": "https://boards-api.greenhouse.io/v1/boards/aclu/jobs",
       "source_type": "listing_feed",
-      "packs": ["data-software", "cybersecurity", "product-design", "public-interest", "fellowships", "education-social-impact"],
+      "packs": ["data-software", "cybersecurity", "product-design", "public-interest", "fellowships", "education-social-impact", "legal-policy"],
       "domains": ["software", "data", "cybersecurity", "design", "public_interest", "civil_rights", "law"],
       "opportunity_types": ["job", "fellowship"],
       "career_levels": ["graduate", "law_student", "early_career", "experienced"],
@@ -1184,7 +1209,7 @@
       "url": "https://job-boards.greenhouse.io/verainstituteofjustice",
       "api_url": "https://boards-api.greenhouse.io/v1/boards/verainstituteofjustice/jobs",
       "source_type": "listing_feed",
-      "packs": ["data-software", "product-design", "public-interest", "students-early-career", "education-social-impact"],
+      "packs": ["data-software", "product-design", "public-interest", "students-early-career", "education-social-impact", "legal-policy"],
       "domains": ["software", "data", "product", "design", "public_interest", "social_impact"],
       "opportunity_types": ["job", "internship", "fellowship"],
       "career_levels": ["undergraduate", "graduate", "new_grad", "early_career", "experienced"],
@@ -10834,6 +10859,321 @@
       "verified_at": "2026-08-23",
       "cadence_hours": 168,
       "enabled": false
+    },
+    {
+      "id": "engine_lever",
+      "name": "The Engine",
+      "kind": "lever",
+      "source_type": "listing_feed",
+      "packs": [
+        "business-operations"
+      ],
+      "domains": [
+        "business",
+        "consulting"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "site": "engine",
+      "url": "https://jobs.lever.co/engine",
+      "api_url": "https://api.lever.co/v0/postings/engine?mode=json"
+    },
+    {
+      "id": "guidepoint_greenhouse",
+      "name": "Guidepoint",
+      "kind": "greenhouse",
+      "source_type": "listing_feed",
+      "packs": [
+        "business-operations"
+      ],
+      "domains": [
+        "business",
+        "research"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "board": "guidepoint",
+      "url": "https://job-boards.greenhouse.io/guidepoint",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/guidepoint/jobs"
+    },
+    {
+      "id": "bpmcpa_lever",
+      "name": "BPM LLP",
+      "kind": "lever",
+      "source_type": "listing_feed",
+      "packs": [
+        "accounting-finance",
+        "business-operations"
+      ],
+      "domains": [
+        "accounting",
+        "tax",
+        "audit"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "site": "bpmcpa",
+      "url": "https://jobs.lever.co/bpmcpa",
+      "api_url": "https://api.lever.co/v0/postings/bpmcpa?mode=json"
+    },
+    {
+      "id": "aprio_lever",
+      "name": "Aprio",
+      "kind": "lever",
+      "source_type": "listing_feed",
+      "packs": [
+        "accounting-finance",
+        "business-operations"
+      ],
+      "domains": [
+        "accounting",
+        "tax",
+        "audit"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "site": "Aprio",
+      "url": "https://jobs.lever.co/Aprio",
+      "api_url": "https://api.lever.co/v0/postings/Aprio?mode=json"
+    },
+    {
+      "id": "lansingschools_lever",
+      "name": "Lansing School District",
+      "kind": "lever",
+      "source_type": "listing_feed",
+      "packs": [
+        "education-teaching"
+      ],
+      "domains": [
+        "education",
+        "teaching"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "site": "lansingschools",
+      "url": "https://jobs.lever.co/lansingschools",
+      "api_url": "https://api.lever.co/v0/postings/lansingschools?mode=json"
+    },
+    {
+      "id": "headroyce_lever",
+      "name": "Head-Royce School",
+      "kind": "lever",
+      "source_type": "listing_feed",
+      "packs": [
+        "education-teaching"
+      ],
+      "domains": [
+        "education",
+        "teaching"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "site": "headroyce",
+      "url": "https://jobs.lever.co/headroyce",
+      "api_url": "https://api.lever.co/v0/postings/headroyce?mode=json"
+    },
+    {
+      "id": "noahmedical_greenhouse",
+      "name": "Noah Medical",
+      "kind": "greenhouse",
+      "source_type": "listing_feed",
+      "packs": [
+        "biomedical-devices",
+        "medicine-clinical"
+      ],
+      "domains": [
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "board": "noahmedical",
+      "url": "https://job-boards.greenhouse.io/noahmedical",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/noahmedical/jobs"
+    },
+    {
+      "id": "atricure_greenhouse",
+      "name": "AtriCure",
+      "kind": "greenhouse",
+      "source_type": "listing_feed",
+      "packs": [
+        "biomedical-devices",
+        "medicine-clinical"
+      ],
+      "domains": [
+        "biomedical_engineering",
+        "medical_devices"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "board": "atricure",
+      "url": "https://job-boards.greenhouse.io/atricure",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/atricure/jobs"
+    },
+    {
+      "id": "rtwinvestments_greenhouse",
+      "name": "RTW Investments",
+      "kind": "greenhouse",
+      "source_type": "listing_feed",
+      "packs": [
+        "legal-policy",
+        "business-operations",
+        "public-health"
+      ],
+      "domains": [
+        "public_policy",
+        "healthcare",
+        "finance"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "united_states"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "verified_at": "2026-09-20",
+      "cadence_hours": 12,
+      "enabled": false,
+      "board": "rtwinvestments",
+      "url": "https://job-boards.greenhouse.io/rtwinvestments",
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/rtwinvestments/jobs"
     }
   ]
 }

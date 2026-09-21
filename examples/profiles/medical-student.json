@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "Medical student - research",
+  "candidate": {
+    "stage": "graduate_student",
+    "degrees": [
+      {
+        "type": "bachelors",
+        "field": "Biology"
+      }
+    ],
+    "skills": [
+      "clinical protocols",
+      "data collection"
+    ],
+    "max_experience_years": 1,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "clinical research assistant",
+      "clinical research coordinator",
+      "research internship"
+    ],
+    "domains": [
+      "medicine",
+      "clinical research",
+      "translational research"
+    ],
+    "skills": [
+      "clinical protocols",
+      "data collection"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship",
+      "fellowship",
+      "research_program"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

@@ -90,6 +90,23 @@ class ProfileRescoreTests(unittest.TestCase):
             "SELECT id FROM opportunities WHERE external_id=?", (external_id,)
         ).fetchone()["id"]
 
+    def test_nationality_toggle_rescores_existing_grfp(self):
+        self.add_item("grfp", title="NSF GRFP")
+        profile = {"candidate": {"citizenships": ["IN"], "filter_nationality": False},
+                   "matching": {"engine": "structured_v2", "base_score": 80, "rules": []}}
+        self.database.rescore_for_profile(profile)
+        def tier():
+            return self.database.connection.execute(
+                "SELECT tier FROM opportunities WHERE external_id='grfp'"
+            ).fetchone()["tier"]
+        self.assertNotEqual(tier(), "skip")
+        profile["candidate"]["filter_nationality"] = True
+        self.assertEqual(self.database.rescore_for_profile(profile)["rescored"], 1)
+        self.assertEqual(tier(), "skip")
+        profile["candidate"]["permanent_residencies"] = ["US"]
+        self.assertEqual(self.database.rescore_for_profile(profile)["rescored"], 1)
+        self.assertNotEqual(tier(), "skip")
+
     def test_schema_upgrade_creates_private_fingerprint_state(self):
         self.database.connection.execute("DROP TABLE runtime_state")
         self.database.connection.execute("PRAGMA user_version = 3")

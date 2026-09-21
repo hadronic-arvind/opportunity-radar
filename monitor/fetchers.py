@@ -35,7 +35,9 @@ from .text import (
 
 USER_AGENT = "OpportunityRadar/{} (public opportunity monitor)".format(__version__)
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
-MAX_ASHBY_RESPONSE_BYTES = 24 * 1024 * 1024
+# Complete structured job boards include descriptions for every listing.
+# Keep a fixed, larger ceiling for these feeds; ordinary pages remain at 8 MiB.
+MAX_LISTING_RESPONSE_BYTES = 24 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
 MAX_JIBE_PAGES = 50
 MAX_JIBE_JOBS = 5000
@@ -825,7 +827,7 @@ def fetch_greenhouse(source: Dict[str, Any]) -> FetchResult:
     url = "https://boards-api.greenhouse.io/v1/boards/{}/jobs".format(source["board"])
     if source.get("include_content", True):
         url += "?content=true"
-    payload = _request(url)
+    payload = _request(url, max_bytes=MAX_LISTING_RESPONSE_BYTES)
     data = json.loads(payload.decode("utf-8"))
     if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
         raise ValueError("Greenhouse response did not contain a jobs list")
@@ -900,9 +902,9 @@ def fetch_ashby(source: Dict[str, Any]) -> FetchResult:
     url = "https://api.ashbyhq.com/posting-api/job-board/{}".format(board)
     # Ashby's public response includes both plain-text and HTML descriptions.
     # Large boards can legitimately exceed the general single-page limit, so
-    # this adapter uses its own fixed ceiling while retaining all other request
+    # these adapters use a fixed ceiling while retaining all other request
     # safeguards and the global per-source opportunity bound.
-    payload = _request(url, max_bytes=MAX_ASHBY_RESPONSE_BYTES)
+    payload = _request(url, max_bytes=MAX_LISTING_RESPONSE_BYTES)
     data = json.loads(payload.decode("utf-8"))
     if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
         raise ValueError("Ashby response did not contain a jobs list")
@@ -968,7 +970,7 @@ def fetch_ashby(source: Dict[str, Any]) -> FetchResult:
 
 def fetch_lever(source: Dict[str, Any]) -> FetchResult:
     url = "https://api.lever.co/v0/postings/{}?mode=json".format(source["site"])
-    payload = _request(url)
+    payload = _request(url, max_bytes=MAX_LISTING_RESPONSE_BYTES)
     data = json.loads(payload.decode("utf-8"))
     if not isinstance(data, list):
         raise ValueError("Lever response was not a postings list")

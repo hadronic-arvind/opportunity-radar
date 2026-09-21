@@ -3,11 +3,12 @@ import signal
 import time
 import unittest
 import urllib.request
+from contextlib import nullcontext
 from unittest.mock import Mock, patch
 
 from monitor.dates import normalize_timestamp
 from monitor.fetchers import (
-    MAX_ASHBY_RESPONSE_BYTES,
+    MAX_LISTING_RESPONSE_BYTES,
     MAX_RESPONSE_BYTES,
     READ_CHUNK_BYTES,
     ResponseTooLargeError,
@@ -80,6 +81,23 @@ class FetcherTests(unittest.TestCase):
         )
         resolver.start()
         self.addCleanup(resolver.stop)
+
+    @patch("monitor.fetchers._open_remote")
+    def test_large_structured_boards_remain_bounded(self, urlopen):
+        for fetch, source, payload in (
+            (fetch_greenhouse, {"id": "large", "board": "large"}, b'{"jobs":[]}'),
+            (fetch_lever, {"id": "large", "site": "large"}, b'[]'),
+        ):
+            with self.subTest(adapter=fetch.__name__):
+                urlopen.return_value = FakeResponse(payload + b' ' * MAX_RESPONSE_BYTES)
+                self.assertEqual(fetch(source).opportunities, [])
+                oversized = FakeResponse(b'', headers={
+                    "Content-Length": str(24 * 1024 * 1024 + 1),
+                })
+                urlopen.return_value = oversized
+                with self.assertRaises(ResponseTooLargeError):
+                    fetch(source)
+                self.assertEqual(oversized.read_sizes, [])
 
     @patch("monitor.fetchers._open_remote")
     def test_greenhouse_normalization(self, urlopen):
@@ -346,10 +364,10 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(result.opportunities, [])
         request.assert_called_once_with(
             "https://api.ashbyhq.com/posting-api/job-board/large%2Fboard",
-            max_bytes=MAX_ASHBY_RESPONSE_BYTES,
+            max_bytes=MAX_LISTING_RESPONSE_BYTES,
         )
-        self.assertGreater(MAX_ASHBY_RESPONSE_BYTES, MAX_RESPONSE_BYTES)
-        self.assertLessEqual(MAX_ASHBY_RESPONSE_BYTES, 32 * 1024 * 1024)
+        self.assertGreater(MAX_LISTING_RESPONSE_BYTES, MAX_RESPONSE_BYTES)
+        self.assertLessEqual(MAX_LISTING_RESPONSE_BYTES, 32 * 1024 * 1024)
 
     @patch("monitor.fetchers._open_remote")
     def test_ashby_uses_secondary_location_without_leading_separator(self, urlopen):
@@ -1035,13 +1053,12 @@ class FetcherTests(unittest.TestCase):
         connection = _PublicHTTPSConnection("careers.example", timeout=0.1)
         connection._pinned_addresses = ["93.184.216.34", "93.184.216.35", "93.184.216.36"]
 
-        def stalled_connect(*_args, **_kwargs):
-            time.sleep(0.08)
-            raise OSError("synthetic timeout")
-
-        started = time.monotonic()
+        # Test the aggregate budget independently of runner scheduling latency.
+        # The first two attempts consume 80 ms each; the third must never start.
         with (
-            patch("monitor.fetchers.socket.create_connection", side_effect=stalled_connect),
+            patch("monitor.fetchers.time.monotonic", side_effect=[100.0, 100.0, 100.08, 100.16]),
+            patch("monitor.fetchers._unix_wall_clock_guard", return_value=nullcontext()),
+            patch("monitor.fetchers.socket.create_connection", side_effect=OSError("synthetic timeout")) as connect,
             self.assertRaisesRegex(TimeoutError, "connection exceeded"),
         ):
             connection._create_pinned_connection(
@@ -1049,7 +1066,11 @@ class FetcherTests(unittest.TestCase):
                 timeout=0.1,
                 source_address=None,
             )
-        self.assertLess(time.monotonic() - started, 0.2)
+        self.assertEqual(connect.call_count, 2)
+        self.assertEqual([call.args[0] for call in connect.call_args_list],
+                         [("93.184.216.34", 443), ("93.184.216.35", 443)])
+        self.assertAlmostEqual(connect.call_args_list[0].kwargs["timeout"], 0.1)
+        self.assertAlmostEqual(connect.call_args_list[1].kwargs["timeout"], 0.02)
 
     @unittest.skipUnless(hasattr(signal, "setitimer"), "aggregate request guard requires Unix signals")
     @patch("monitor.fetchers._open_remote")

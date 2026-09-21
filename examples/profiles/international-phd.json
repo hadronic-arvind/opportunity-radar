@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "name": "International doctoral researcher",
+  "candidate": {
+    "stage": "phd_student",
+    "degrees": [
+      {
+        "type": "masters",
+        "field": "Computer Science"
+      }
+    ],
+    "skills": [
+      "Python",
+      "statistics"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "IN"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "research intern",
+      "research scientist",
+      "research engineer"
+    ],
+    "domains": [
+      "machine learning",
+      "artificial intelligence"
+    ],
+    "skills": [
+      "Python",
+      "statistics"
+    ],
+    "opportunity_types": [
+      "internship",
+      "fellowship",
+      "research_program"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

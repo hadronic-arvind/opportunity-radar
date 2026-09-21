@@ -240,18 +240,21 @@ class MacOSNativeHostSourceTests(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
 
-            icon = root / "icon.png"
-            rendered = subprocess.run(
-                [str(executable), "--render-icon", str(icon), "64"],
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            self.assertEqual(rendered.returncode, 0, rendered.stderr)
-            payload = icon.read_bytes()
-            self.assertEqual(payload[:8], b"\x89PNG\r\n\x1a\n")
-            self.assertEqual(struct.unpack(">II", payload[16:24]), (64, 64))
+            for size in (16, 64, 1024):
+                with self.subTest(size=size):
+                    icon = root / "icon.png"
+                    rendered = subprocess.run(
+                        [str(executable), "--render-icon", str(icon), str(size)],
+                        check=False,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    )
+                    self.assertEqual(rendered.returncode, 0, rendered.stderr)
+                    payload = icon.read_bytes()
+                    self.assertEqual(payload[:8], b"\x89PNG\r\n\x1a\n")
+                    self.assertEqual(struct.unpack(">II", payload[16:24]), (size, size))
+
 
 
 if __name__ == "__main__":

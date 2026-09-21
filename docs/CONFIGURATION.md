@@ -63,7 +63,7 @@ python3 -m monitor profile import --file my-profile.json
 ```
 
 The top-level keys are `version`, `name`, and optional `candidate`, `search`, `sources`, and `documents` objects.
-Candidate keys are `stage`, `graduation`, `degrees`, `skills`, and `max_experience_years`.
+Candidate keys are `stage`, `graduation`, `degrees`, `skills`, `max_experience_years`, `filter_nationality`, `citizenships`, `permanent_residencies`, and `us_national`.
 Each degree can be a string or an object with `type` and `field`, where common forms such as `BS`, `bachelors`, `MS`, and `PhD` are normalized.
 Search keys are `timeframes`, `opportunity_types`, `roles`, `domains`, `skills`, `locations`, `strict_locations`, `work_arrangements`, `remote_preference`, `exclude`, and `organizations`.
 Sources accepts `mode` plus `packs`, and documents uses the same `default` and `routes` shape as the advanced editor.
@@ -74,6 +74,28 @@ Field-of-study suggestions use the U.S. Department of Education NCES 2020 Classi
 No location query or profile content is sent to a geocoding service.
 Country selections match recognized states and cities in that country, state selections match recognized cities in that state, and city selections remain city-specific.
 With `strict_locations` set to `true`, only confidently resolved mismatches are hidden, while ambiguous or missing locations remain visible for review.
+
+## Degree and citizenship eligibility
+
+The current stage determines enrollment eligibility; completed degrees do not turn a doctoral student into an undergraduate applicant.
+Explicit bachelor's/master's-only audiences are hidden from doctoral profiles, while minimum-degree requirements and alternatives including doctoral students remain available.
+
+In Profile > Basics, enable **Filter by citizenship eligibility**, select all citizenship countries, and add any permanent residencies.
+Country choices use the existing offline catalog and support dual citizenship.
+Leave permanent residency empty if you have none; leave citizenship empty if you do not want to declare it.
+The separate U.S. national checkbox supports noncitizen nationals.
+Birthplace, study location, and nationality labels alone are not substitutes for citizenship or residency status.
+
+For imports, `citizenships` and `permanent_residencies` are lists of country names or ISO codes, and `filter_nationality` and `us_national` are booleans.
+For example, `"filter_nationality": true, "citizenships": ["IN"], "permanent_residencies": []` filters known citizenship mismatches for an Indian citizen without permanent residency elsewhere.
+The filter is off by default for existing profiles.
+Saving changes rescores stored opportunities as well as future collections.
+
+Explicit single-country citizenship and permanent-residency requirements produce eligibility gates with the source wording as evidence.
+Sparse NSF GRFP listings also use its [official citizenship requirement](https://www.nsf.gov/funding/initiatives/grfp/eligibility), verified September 18, 2026: U.S. citizens, nationals, and permanent residents meet that particular requirement.
+This does not certify other GRFP requirements such as academic stage or prior applications.
+Complex multi-country rules and ambiguous exceptions remain unknown for review, and missing text is not proof of eligibility.
+The parser is deterministic and offline; it does not infer visa sponsorship or immigration status.
 
 ## Named profiles
 
@@ -166,10 +188,11 @@ A source may belong to multiple packs but is fetched only once per scan.
 The starter pack enables five structured, no-secret employer feeds.
 Other packs are selected directly or by a coverage preset, while a new clone without onboarding remains fast and predictable.
 
-## STEM coverage presets
+## Coverage presets
 
 The default `automatic` preset recalculates effective source packs from the profile's roles, domains, skills, career stage, and opportunity types whenever the profile is saved.
 It recognizes broad software, data, AI, engineering, robotics, mathematics, quantitative science, physics, space, chemistry, materials, Earth science, climate, life science, medicine, pharma, public health, agriculture, infrastructure, electronics, ocean science, and veterinary targets.
+Business, accounting, teaching, law and policy, design, biomedical devices, and skilled trades also have named and automatic coverage.
 The editor and onboarding also offer named presets for each of those areas when a user wants a predictable fixed baseline.
 Selecting a named preset merges a short editable set of representative roles, domains, and skills into the profile, without replacing targets the user already entered.
 The `manual` preset uses only explicitly checked packs.

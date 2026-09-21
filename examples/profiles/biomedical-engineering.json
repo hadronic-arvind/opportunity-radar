@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "name": "Biomedical engineering graduate",
+  "candidate": {
+    "stage": "new_grad",
+    "degrees": [
+      {
+        "type": "masters",
+        "field": "Biomedical Engineering"
+      }
+    ],
+    "skills": [
+      "design verification",
+      "CAD",
+      "laboratory"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "biomedical engineer",
+      "medical device engineer",
+      "quality engineer",
+      "validation engineer"
+    ],
+    "domains": [
+      "biomedical engineering",
+      "medical devices",
+      "biomaterials"
+    ],
+    "skills": [
+      "design verification",
+      "CAD",
+      "laboratory"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship",
+      "co_op"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

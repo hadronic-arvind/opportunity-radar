@@ -41,6 +41,11 @@ PACK_ORDER = [
     "electronics-semiconductors",
     "ocean-marine",
     "veterinary-animal",
+    "business-operations",
+    "accounting-finance",
+    "education-teaching",
+    "legal-policy",
+    "biomedical-devices",
 ]
 
 COVERAGE_PRESETS = [
@@ -227,6 +232,119 @@ COVERAGE_PRESETS = [
             "wildlife biology", "livestock",
         ],
     },
+    {
+        "id": "business-operations",
+        "name": "Business, management, and consulting",
+        "description": "Opportunities in business administration, management consulting, corporate strategy.",
+        "packs": [
+            "business-operations"
+        ],
+        "keywords": [
+            "business",
+            "mba",
+            "consulting",
+            "management consulting",
+            "corporate strategy",
+            "marketing",
+            "human resources"
+        ]
+    },
+    {
+        "id": "accounting-finance",
+        "name": "Accounting and corporate finance",
+        "description": "Opportunities in accounting, audit, taxation.",
+        "packs": [
+            "accounting-finance"
+        ],
+        "keywords": [
+            "accounting",
+            "accountant",
+            "audit",
+            "tax",
+            "taxation",
+            "corporate finance"
+        ]
+    },
+    {
+        "id": "education-teaching",
+        "name": "Education and teaching",
+        "description": "Opportunities in education, teaching, curriculum.",
+        "packs": [
+            "education-teaching",
+            "education-social-impact"
+        ],
+        "keywords": [
+            "education",
+            "teacher",
+            "teaching",
+            "curriculum",
+            "literacy"
+        ]
+    },
+    {
+        "id": "law-policy",
+        "name": "Law and public policy",
+        "description": "Opportunities in law, public policy, legal research.",
+        "packs": [
+            "legal-policy",
+            "public-interest"
+        ],
+        "keywords": [
+            "law",
+            "legal",
+            "public policy",
+            "human rights",
+            "political science"
+        ]
+    },
+    {
+        "id": "design-creative",
+        "name": "Design and creative work",
+        "description": "Opportunities in graphic design, user experience, digital media.",
+        "packs": [
+            "product-design"
+        ],
+        "keywords": [
+            "design",
+            "designer",
+            "graphic",
+            "user experience",
+            "ux",
+            "visual arts"
+        ]
+    },
+    {
+        "id": "biomedical-devices",
+        "name": "Biomedical engineering and medical devices",
+        "description": "Opportunities in biomedical engineering, medical devices, biomaterials.",
+        "packs": [
+            "biomedical-devices",
+            "biomedical-neuroscience",
+            "medicine-clinical"
+        ],
+        "keywords": [
+            "biomedical engineering",
+            "biomedical engineer",
+            "medical device",
+            "biomaterials"
+        ]
+    },
+    {
+        "id": "skilled-trades",
+        "name": "Skilled trades and technical work",
+        "description": "Opportunities in skilled trades, electrical maintenance, industrial maintenance.",
+        "packs": [
+            "skilled-technical"
+        ],
+        "keywords": [
+            "technician",
+            "electrician",
+            "skilled trades",
+            "electrical maintenance",
+            "industrial maintenance",
+            "apprentice"
+        ]
+    },
 ]
 
 TARGET_DEFAULTS = {
@@ -311,7 +429,122 @@ TARGET_DEFAULTS = {
         "domains": ["veterinary medicine", "animal health", "animal science", "zoology"],
         "supporting_skills": ["clinical care", "laboratory", "field research"],
     },
+    "business-operations": {
+        "role_families": [
+            "business analyst",
+            "strategy analyst",
+            "operations associate"
+        ],
+        "domains": [
+            "business administration",
+            "management consulting",
+            "corporate strategy"
+        ],
+        "supporting_skills": [
+            "market research",
+            "financial modeling"
+        ]
+    },
+    "accounting-finance": {
+        "role_families": [
+            "staff accountant",
+            "audit associate",
+            "tax associate"
+        ],
+        "domains": [
+            "accounting",
+            "audit",
+            "taxation"
+        ],
+        "supporting_skills": [
+            "financial reporting",
+            "Excel"
+        ]
+    },
+    "education-teaching": {
+        "role_families": [
+            "teacher",
+            "teaching assistant",
+            "curriculum associate"
+        ],
+        "domains": [
+            "education",
+            "teaching",
+            "curriculum"
+        ],
+        "supporting_skills": [
+            "lesson planning",
+            "classroom instruction"
+        ]
+    },
+    "law-policy": {
+        "role_families": [
+            "legal internship",
+            "policy intern",
+            "policy analyst",
+            "legal assistant"
+        ],
+        "domains": [
+            "law",
+            "public policy",
+            "legal research"
+        ],
+        "supporting_skills": [
+            "legal writing",
+            "policy research"
+        ]
+    },
+    "design-creative": {
+        "role_families": [
+            "graphic designer",
+            "UX designer",
+            "product designer"
+        ],
+        "domains": [
+            "graphic design",
+            "user experience",
+            "digital media"
+        ],
+        "supporting_skills": [
+            "visual design",
+            "Figma"
+        ]
+    },
+    "biomedical-devices": {
+        "role_families": [
+            "biomedical engineer",
+            "medical device engineer",
+            "quality engineer"
+        ],
+        "domains": [
+            "biomedical engineering",
+            "medical devices",
+            "biomaterials"
+        ],
+        "supporting_skills": [
+            "design verification",
+            "CAD"
+        ]
+    },
+    "skilled-trades": {
+        "role_families": [
+            "electrical technician",
+            "maintenance technician",
+            "electrician apprentice"
+        ],
+        "domains": [
+            "skilled trades",
+            "electrical maintenance",
+            "industrial maintenance"
+        ],
+        "supporting_skills": [
+            "troubleshooting",
+            "electrical systems"
+        ]
+    },
 }
+
+
 
 
 def coverage_preset_ids() -> List[str]:
@@ -321,7 +554,7 @@ def coverage_preset_ids() -> List[str]:
 def validate_coverage_preset(value: Any) -> str:
     preset = str(value or AUTOMATIC_PRESET).strip().casefold()
     if preset not in set(coverage_preset_ids()):
-        raise ValueError("Unknown STEM coverage preset: {}".format(preset or "missing"))
+        raise ValueError("Unknown coverage preset: {}".format(preset or "missing"))
     return preset
 
 

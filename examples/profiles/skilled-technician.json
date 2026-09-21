@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "Early-career electrical technician",
+  "candidate": {
+    "stage": "early_career",
+    "degrees": [
+      {
+        "type": "diploma",
+        "field": "Electrical Technology"
+      }
+    ],
+    "skills": [
+      "troubleshooting",
+      "electrical systems"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "electrical technician",
+      "maintenance technician",
+      "electrician apprentice",
+      "manufacturing technician"
+    ],
+    "domains": [
+      "electrical maintenance",
+      "skilled trades",
+      "industrial maintenance"
+    ],
+    "skills": [
+      "troubleshooting",
+      "electrical systems"
+    ],
+    "opportunity_types": [
+      "job",
+      "apprenticeship",
+      "training"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

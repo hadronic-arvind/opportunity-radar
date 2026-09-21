@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "name": "Design graduate",
+  "candidate": {
+    "stage": "new_grad",
+    "degrees": [
+      {
+        "type": "bachelors",
+        "field": "Graphic Design"
+      }
+    ],
+    "skills": [
+      "Figma",
+      "visual design"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "graphic designer",
+      "junior designer",
+      "UX designer",
+      "product designer"
+    ],
+    "domains": [
+      "graphic design",
+      "user experience",
+      "digital media"
+    ],
+    "skills": [
+      "Figma",
+      "visual design"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

@@ -638,11 +638,28 @@ private enum RadarIcon {
     static func writePNG(path: String, pixels: Int) throws {
         _ = NSApplication.shared
         let rendered = image(size: CGFloat(pixels))
-        guard
-            let tiff = rendered.tiffRepresentation,
-            let bitmap = NSBitmapImageRep(data: tiff),
-            let png = bitmap.representation(using: .png, properties: [:])
-        else {
+        // NSImage focus follows the display backing scale. Export into an
+        // explicit pixel buffer so iconset dimensions are stable on Retina too.
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixels,
+            pixelsHigh: pixels,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        rendered.draw(in: NSRect(x: 0, y: 0, width: pixels, height: pixels))
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+        guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw CocoaError(.fileWriteUnknown)
         }
         try png.write(to: URL(fileURLWithPath: path), options: .atomic)
