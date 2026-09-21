@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from monitor.dates import normalize_timestamp
 from monitor.fetchers import (
-    MAX_ASHBY_RESPONSE_BYTES,
+    MAX_LISTING_RESPONSE_BYTES,
     MAX_RESPONSE_BYTES,
     READ_CHUNK_BYTES,
     ResponseTooLargeError,
@@ -80,6 +80,23 @@ class FetcherTests(unittest.TestCase):
         )
         resolver.start()
         self.addCleanup(resolver.stop)
+
+    @patch("monitor.fetchers._open_remote")
+    def test_large_structured_boards_remain_bounded(self, urlopen):
+        for fetch, source, payload in (
+            (fetch_greenhouse, {"id": "large", "board": "large"}, b'{"jobs":[]}'),
+            (fetch_lever, {"id": "large", "site": "large"}, b'[]'),
+        ):
+            with self.subTest(adapter=fetch.__name__):
+                urlopen.return_value = FakeResponse(payload + b' ' * MAX_RESPONSE_BYTES)
+                self.assertEqual(fetch(source).opportunities, [])
+                oversized = FakeResponse(b'', headers={
+                    "Content-Length": str(24 * 1024 * 1024 + 1),
+                })
+                urlopen.return_value = oversized
+                with self.assertRaises(ResponseTooLargeError):
+                    fetch(source)
+                self.assertEqual(oversized.read_sizes, [])
 
     @patch("monitor.fetchers._open_remote")
     def test_greenhouse_normalization(self, urlopen):
@@ -346,10 +363,10 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(result.opportunities, [])
         request.assert_called_once_with(
             "https://api.ashbyhq.com/posting-api/job-board/large%2Fboard",
-            max_bytes=MAX_ASHBY_RESPONSE_BYTES,
+            max_bytes=MAX_LISTING_RESPONSE_BYTES,
         )
-        self.assertGreater(MAX_ASHBY_RESPONSE_BYTES, MAX_RESPONSE_BYTES)
-        self.assertLessEqual(MAX_ASHBY_RESPONSE_BYTES, 32 * 1024 * 1024)
+        self.assertGreater(MAX_LISTING_RESPONSE_BYTES, MAX_RESPONSE_BYTES)
+        self.assertLessEqual(MAX_LISTING_RESPONSE_BYTES, 32 * 1024 * 1024)
 
     @patch("monitor.fetchers._open_remote")
     def test_ashby_uses_secondary_location_without_leading_separator(self, urlopen):

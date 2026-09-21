@@ -30,7 +30,15 @@ def _text(value):
         def normalize(match):
             token = replacement or (match.group(1) + match.group(2)).lower()
             following = text[match.end():].lstrip()
-            boundary = match.group().endswith(".") and (not following or following[0].isupper())
+            word = re.match(r"[a-z]+", following.casefold())
+            continuation = word.group() if word else ""
+            status_words = {"citizen", "citizens", "citizenship", "national", "nationals",
+                            "permanent", "resident", "residents"}
+            degree_words = {"student", "students", "candidate", "candidates", "degree",
+                            "program", "required", "preferred", "holder", "holders"}
+            continues = continuation in (status_words if token == "us" else degree_words)
+            boundary = (match.group().endswith(".") and not continues
+                        and (not following or following[0].isupper()))
             return token + ("." if boundary else "")
         text = re.sub(pattern, normalize, text, flags=re.IGNORECASE)
     return text.casefold()

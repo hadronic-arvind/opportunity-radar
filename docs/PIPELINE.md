@@ -31,7 +31,8 @@ The same checks run before every redirect and against the final response URL.
 Timeouts, denied requests, oversized responses, malformed data, and parser failures affect only that source.
 A failed fetch never deactivates its prior listings.
 A validated empty structured feed is a successful result.
-Each response is capped at 8 MiB, and each source is capped at 5,000 normalized records.
+Ordinary responses are capped at 8 MiB; complete Greenhouse, Lever, and Ashby job-board feeds have a fixed 24 MiB ceiling.
+Each source is capped at 5,000 normalized records.
 Paginated Jibe collection has a 90-second aggregate deadline.
 Paginated HTML collection is limited to 20 pages, 32 MiB total, and 60 seconds.
 Normalized text, URLs, metadata values, macOS notification arguments, and in-memory notification lists all have explicit limits.

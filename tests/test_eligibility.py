@@ -99,6 +99,12 @@ class EligibilityTests(unittest.TestCase):
             filter_nationality=True, citizenships=["IN"]
         )["eligibility"], "unknown")
 
+    def test_capitalized_abbreviation_continuations(self):
+        self.assertEqual(self.score("Only Ph.D. Students may apply.",
+                                    current_stage="undergraduate_student")["eligibility"], "ineligible")
+        self.assertEqual(self.score("U.S. Citizenship Required.", filter_nationality=True,
+                                    citizenships=["IN"])["eligibility"], "ineligible")
+
     def test_profile_validation_and_fingerprint(self):
         candidate = _normalize_candidate({'filter_nationality': True, 'citizenships': ['India', 'IN'],
                                            'permanent_residencies': ['United States'], 'us_national': False})

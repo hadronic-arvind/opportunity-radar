@@ -17,7 +17,7 @@ The scheduled runtime uses Python's standard library and SQLite.
 It opens no listening port and keeps no resident process.
 It performs read-only HTTPS requests to configured public sources and never automates applications or authenticated employer sessions.
 
-External response bodies are capped at 8 MiB before parsing.
+External response bodies are capped at 8 MiB before parsing, with a fixed 24 MiB ceiling for complete Greenhouse, Lever, and Ashby job-board feeds.
 Each source is capped at 5,000 normalized records, paginated Jibe collection has a 90-second aggregate deadline, and normalized fields have explicit length limits.
 The rendered dashboard caps active discovery data at 5,000 records while retaining every planned or applied record.
 Collection URLs cannot contain credentials or nonstandard ports.
