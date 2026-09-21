@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "name": "Law student - legal and policy research",
+  "candidate": {
+    "stage": "graduate_student",
+    "degrees": [
+      {
+        "type": "bachelors",
+        "field": "Political Science"
+      }
+    ],
+    "skills": [
+      "legal writing",
+      "policy research"
+    ],
+    "max_experience_years": 1,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "legal intern",
+      "policy analyst",
+      "legal assistant",
+      "research assistant",
+      "legal internship",
+      "policy intern"
+    ],
+    "domains": [
+      "law",
+      "public policy",
+      "human rights",
+      "legal research"
+    ],
+    "skills": [
+      "legal writing",
+      "policy research"
+    ],
+    "opportunity_types": [
+      "internship",
+      "job",
+      "fellowship",
+      "research_program"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

@@ -305,7 +305,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('.profile-catalog select {', styles)
         self.assertIn('height: 43px;', styles)
         self.assertIn('"Automatic from my goals"', script)
-        self.assertIn('"STEM coverage preset"', script)
+        self.assertIn('"Coverage preset"', script)
         self.assertIn('element("select", "profile-input profile-select")', script)
         self.assertIn('.date-meta { gap: .35em; }', styles)
         self.assertIn('clip-path: inset(50%);', styles)

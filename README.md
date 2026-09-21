@@ -25,7 +25,7 @@ python3 -m monitor init
 ./scripts/open_dashboard.sh
 ```
 
-`init` creates private, ignored configuration files and lets you choose a target-aware STEM coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
+`init` creates private, ignored configuration files and lets you choose a target-aware coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
 Automatic coverage is the default and derives a broad source mix from the roles, fields, skills, career stage, and opportunity types in that profile.
 Choosing a named field preset also seeds practical role, domain, and skill targets that remain editable.
 Skip it to use the neutral starter profile and five diverse structured feeds.
@@ -202,3 +202,8 @@ Developer details are in [Pipeline design](docs/PIPELINE.md), [Operations](docs/
 
 Opportunity Radar is publicly viewable but proprietary software.
 All rights are reserved under the [license and copyright notice](LICENSE).
+
+## Profile coverage audit
+
+Nine anonymous [example profiles](examples/profiles/README.md) cover medicine, business, biomedical engineering, accounting, teaching, law, design, skilled trades, and an international PhD student.
+The [coverage audit](docs/AUDIENCE_AUDIT.md) records live-source findings, known gaps, and the sandbox rerun command.

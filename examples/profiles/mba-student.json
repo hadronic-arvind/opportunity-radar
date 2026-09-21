@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "MBA student - business",
+  "candidate": {
+    "stage": "masters_student",
+    "degrees": [
+      {
+        "type": "bachelors",
+        "field": "Economics"
+      }
+    ],
+    "skills": [
+      "financial modeling",
+      "market research"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "business analyst",
+      "business operations",
+      "strategy analyst",
+      "consulting internship"
+    ],
+    "domains": [
+      "business administration",
+      "management consulting",
+      "corporate strategy"
+    ],
+    "skills": [
+      "financial modeling",
+      "market research"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship",
+      "training"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

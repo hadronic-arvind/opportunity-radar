@@ -188,10 +188,11 @@ A source may belong to multiple packs but is fetched only once per scan.
 The starter pack enables five structured, no-secret employer feeds.
 Other packs are selected directly or by a coverage preset, while a new clone without onboarding remains fast and predictable.
 
-## STEM coverage presets
+## Coverage presets
 
 The default `automatic` preset recalculates effective source packs from the profile's roles, domains, skills, career stage, and opportunity types whenever the profile is saved.
 It recognizes broad software, data, AI, engineering, robotics, mathematics, quantitative science, physics, space, chemistry, materials, Earth science, climate, life science, medicine, pharma, public health, agriculture, infrastructure, electronics, ocean science, and veterinary targets.
+Business, accounting, teaching, law and policy, design, biomedical devices, and skilled trades also have named and automatic coverage.
 The editor and onboarding also offer named presets for each of those areas when a user wants a predictable fixed baseline.
 Selecting a named preset merges a short editable set of representative roles, domains, and skills into the profile, without replacing targets the user already entered.
 The `manual` preset uses only explicitly checked packs.

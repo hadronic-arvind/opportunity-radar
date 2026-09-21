@@ -13,7 +13,7 @@ Neither waits for a network scan before first paint.
 
 The native dashboard buttons can check due sources or force all enabled sources.
 The native profile manager creates, duplicates, renames, activates, and deletes named profiles without opening a terminal.
-The editor updates keywords, targets, timeframes, a target-aware STEM coverage preset, source packs, preferred organizations, score visibility, and document routes for the active profile.
+The editor updates keywords, targets, timeframes, a target-aware coverage preset, source packs, preferred organizations, score visibility, and document routes for the active profile.
 It remains available during a scan and queues one saved revision behind that scan.
 The running scan keeps its original profile snapshot, then the queued save rescores the database before the dashboard reloads.
 The native Sources card can add a company or program from its official hosted job-board or careers URL.

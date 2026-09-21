@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "Education graduate",
+  "candidate": {
+    "stage": "new_grad",
+    "degrees": [
+      {
+        "type": "bachelors",
+        "field": "Education"
+      }
+    ],
+    "skills": [
+      "lesson planning",
+      "classroom instruction"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "teacher",
+      "teaching assistant",
+      "curriculum associate",
+      "education coordinator"
+    ],
+    "domains": [
+      "education",
+      "teaching",
+      "curriculum",
+      "literacy"
+    ],
+    "skills": [
+      "lesson planning",
+      "classroom instruction"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship",
+      "training"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

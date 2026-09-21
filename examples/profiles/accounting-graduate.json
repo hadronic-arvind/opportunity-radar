@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "Accounting graduate",
+  "candidate": {
+    "stage": "new_grad",
+    "degrees": [
+      {
+        "type": "bachelors",
+        "field": "Accounting"
+      }
+    ],
+    "skills": [
+      "Excel",
+      "financial reporting"
+    ],
+    "max_experience_years": 2,
+    "filter_nationality": true,
+    "citizenships": [
+      "US"
+    ],
+    "permanent_residencies": []
+  },
+  "search": {
+    "roles": [
+      "staff accountant",
+      "audit associate",
+      "tax associate",
+      "financial analyst"
+    ],
+    "domains": [
+      "accounting",
+      "audit",
+      "taxation",
+      "corporate finance"
+    ],
+    "skills": [
+      "Excel",
+      "financial reporting"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship",
+      "training"
+    ]
+  },
+  "sources": {
+    "mode": "automatic"
+  }
+}

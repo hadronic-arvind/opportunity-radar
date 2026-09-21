@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from .eligibility import degree_gates, nationality_gates
 from .models import Opportunity
+from .text import clean_text
 from .taxonomy import location_match_details
 from .targeting import effective_matching_rules
 
@@ -32,7 +33,7 @@ DEFAULT_FIELDS = (
 CURATED_DOCUMENT_PROVENANCE = "curated_explicit"
 LEGACY_CURATED_DOCUMENT_PROVENANCE = "curated_legacy"
 PROFILE_DOCUMENT_PROVENANCE = "profile"
-SCORING_SCHEMA_VERSION = 7
+SCORING_SCHEMA_VERSION = 8
 STRUCTURED_ENGINE = "structured_v2"
 STRUCTURED_DIMENSIONS = ("interest", "target", "qualification", "preference")
 DEFAULT_FIELD_WEIGHTS = {
@@ -58,7 +59,7 @@ EARLY_CAREER_STAGES = {
     "early_career",
 }
 STRONG_SENIOR_TITLE_RE = re.compile(
-    r"\b(?:senior|staff|principal|director|head|vice president|vp)\b",
+    r"\b(?:senior|sr\.?|staff(?!\s+(?:accountant|nurse)\b)|principal|director|head|vice president|vp)\b",
     re.IGNORECASE,
 )
 MANAGER_TITLE_RE = re.compile(r"\b(?:manager|team leader)\b", re.IGNORECASE)
@@ -69,8 +70,9 @@ EARLY_TITLE_RE = re.compile(
 )
 EXPERIENCE_RE = re.compile(
     r"\b(?:(?:minimum(?:\s+of)?|at\s+least|requires?|must\s+have)\s+)?"
-    r"(?P<years>\d{1,2})\+?\s+years?\s+(?:of\s+)?"
-    r"(?:[a-z][a-z0-9+#./-]*\s+){0,4}experience\b",
+    r"(?P<years>\d{1,2})(?:\s*[-–]\s*\d{1,2})?\+?\s*(?:\([a-z]+\)\s*)?years?\s+"
+    r"(?:(?:or\s+more\s+)?(?:as|in)\s+(?:a[n]?\s+)?[a-z][a-z /-]{0,50}|(?:of\s+)?"
+    r"(?:[a-z][a-z0-9+#./-]*\s+){0,4}experience\b)",
     re.IGNORECASE,
 )
 COMPLETED_PHD_RE = re.compile(
@@ -1004,7 +1006,7 @@ def _listing_timeframes(item: Opportunity) -> Tuple[List[int], List[str]]:
 
 def _required_experience_years(item: Opportunity) -> Any:
     values = []
-    text = "{} {}".format(item.eligibility, item.description)
+    text = clean_text("{} {}".format(item.eligibility, item.description))
     for match in EXPERIENCE_RE.finditer(text):
         try:
             years = int(match.group("years"))

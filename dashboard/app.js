@@ -564,7 +564,7 @@
     input.setAttribute("aria-invalid", "false");
     if (operation === "create") {
       title.textContent = "Create a new profile";
-      description.textContent = "Start with neutral STEM preferences, then tailor the new profile after it opens.";
+      description.textContent = "Start with neutral preferences, then tailor the new profile after it opens.";
       submit.textContent = "Create profile";
       input.value = "";
     } else if (operation === "duplicate") {
@@ -1371,7 +1371,7 @@
     const sourceCoverage = profileSection("Source coverage", "Choose how the app builds the pool of official job and program sources.");
     sourceCoverage.grid.append(
       profileSelectField(
-        "STEM coverage preset",
+        "Coverage preset",
         "coverage_preset",
         profileDraft.coverage_preset || "automatic",
         coveragePresetOptions,
@@ -1519,7 +1519,7 @@
     }
     const coveragePreset = String(profile && profile.coverage_preset || "");
     if (!coveragePresetOptions.some(([value]) => value === coveragePreset)) {
-      return "Choose a valid STEM coverage preset.";
+      return "Choose a valid coverage preset.";
     }
     if (profileStrings(profile.timeframes).length > 12) {
       return "Choose no more than 12 time frames.";
@@ -2696,7 +2696,7 @@
       list.appendChild(card);
     });
     if (!matching.length) {
-      const empty = element("div", "source-resource-empty", "No STEM resources match that search.");
+      const empty = element("div", "source-resource-empty", "No career resources match that search.");
       list.appendChild(empty);
     }
     const count = document.getElementById("source-resource-count");
@@ -2709,8 +2709,8 @@
     const browse = document.getElementById("source-resource-button");
     browse.hidden = sourceResources.length === 0;
     browse.textContent = sourceResources.length
-      ? "Browse " + sourceResources.length + " STEM resources"
-      : "Browse STEM resources";
+      ? "Browse " + sourceResources.length + " career resources"
+      : "Browse career resources";
   }
 
   function openSourceResourceDirectory() {

@@ -157,7 +157,7 @@ def interactive_values() -> Dict[str, Any]:
             selected.append(str(packs[int(token) - 1]["id"]))
         else:
             selected.append(token)
-    print("Choose a STEM coverage preset:")
+    print("Choose a coverage preset:")
     print("   0. automatic (recommended) - Infer broad source coverage from your goals")
     for index, preset in enumerate(coverage_preset_payload(), 1):
         print("  {:>2}. {} - {}".format(index, preset["id"], preset["description"]))
