@@ -182,7 +182,6 @@ Read [Security](SECURITY.md) for the trust model and vulnerability reporting pro
 
 ```bash
 ./scripts/doctor.sh
-./scripts/check.sh
 ./scripts/uninstall_launch_agent.sh
 ```
 
@@ -198,7 +197,9 @@ The upgrade preserves saved profiles, bookmarks, and application status.
 Profile and source-pack changes made through the app or CLI do not require reinstallation.
 Uninstalling the scheduler leaves the database and dashboard intact.
 
-Developer details are in [Pipeline design](docs/PIPELINE.md), [Operations](docs/OPERATIONS.md), and [Repository participation](CONTRIBUTING.md).
+Contributors can use the separate [Developer guide](docs/DEVELOPMENT.md) for optional tooling, code navigation, and validation.
+These tools are not required to install or use the app.
+See [Operations](docs/OPERATIONS.md) for runtime maintenance and [Repository participation](CONTRIBUTING.md) for contribution terms.
 
 Opportunity Radar is publicly viewable but proprietary software.
 All rights are reserved under the [license and copyright notice](LICENSE).

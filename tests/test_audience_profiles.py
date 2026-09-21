@@ -1,10 +1,13 @@
 """Public profile imports and cross-discipline matching regressions."""
 import json
+import os
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
 
+from monitor import config
 from monitor.models import Opportunity
 from monitor.scoring import score_opportunity
 from monitor.text import clean_text
@@ -76,10 +79,23 @@ class AudienceProfileTests(unittest.TestCase):
                          'Requires 3+ years experience')
 
     def test_offline_audit_never_fetches_or_writes_profile(self):
-        before = (ROOT / 'config/profile.json').read_bytes()
         with tempfile.TemporaryDirectory() as directory, patch('scripts.audit_profiles.fetch_source') as fetch:
-            result = audit(ROOT / 'examples/profiles', Path(directory))
+            root = Path(directory)
+            (root / 'config').mkdir()
+            for name in ('profile.json', 'sources.json'):
+                shutil.copyfile(ROOT / 'config' / name, root / 'config' / name)
+            before = (root / 'config/profile.json').read_bytes()
+            environment = {key: value for key, value in os.environ.items()
+                           if not key.startswith(('OPPORTUNITY_RADAR_', 'OPPORTUNITY_MONITOR_'))}
+            with patch('scripts.audit_profiles.ROOT', root), \
+                    patch.object(config, 'PROJECT_ROOT', root), \
+                    patch.dict(os.environ, environment, clear=True):
+                result = audit(ROOT / 'examples/profiles', root / 'reports')
+                # The guard still rejects private state; only the test fixture is isolated.
+                (root / 'config/profile.local.json').write_text('{}')
+                with self.assertRaisesRegex(ValueError, 'clean checkout'):
+                    audit(ROOT / 'examples/profiles', root / 'reports')
             fetch.assert_not_called()
             self.assertEqual(len(result['profiles']), 9)
             self.assertTrue(all(s['status'] == 'not_fetched' for s in result['sources'].values()))
-        self.assertEqual((ROOT / 'config/profile.json').read_bytes(), before)
+            self.assertEqual((root / 'config/profile.json').read_bytes(), before)
