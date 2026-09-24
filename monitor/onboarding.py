@@ -158,7 +158,7 @@ def interactive_values() -> Dict[str, Any]:
         else:
             selected.append(token)
     print("Choose a coverage preset:")
-    print("   0. automatic (recommended) - Infer broad source coverage from your goals")
+    print("   0. automatic (recommended) - Search employers across industries and match their jobs to your goals")
     for index, preset in enumerate(coverage_preset_payload(), 1):
         print("  {:>2}. {} - {}".format(index, preset["id"], preset["description"]))
     print("   m. manual - Use only the source packs selected above")

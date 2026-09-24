@@ -56,7 +56,10 @@ Normalized text, URLs, metadata values, macOS notification arguments, and in-mem
 The public catalog groups sources into overlapping packs.
 A source selected by several packs is still registered and fetched once.
 Each profile stores an automatic, named, or manual coverage preset alongside explicit pack choices.
-Automatic coverage infers broad packs from target roles, domains, skills, career stage, and opportunity types, while named presets provide a stable field baseline and manual mode is an explicit opt-out.
+Automatic and named coverage always include the shared cross-industry pack of supported structured employer feeds.
+Employer industry tags do not restrict this baseline; the scorer evaluates individual job content and requirements.
+Automatic coverage adds specialist packs inferred from target roles, domains, skills, career stage, and opportunity types, while named presets add a stable field baseline and manual mode is an explicit opt-out.
+Explicit per-source disabling remains authoritative, and feeds selected through multiple packs are still fetched once per due scan.
 When selected during onboarding or profile editing, a named preset also merges bounded role, domain, and skill suggestions into empty or existing target lists so its collected listings can be matched immediately.
 The effective pack set is the union of preset packs and explicit choices, so new catalog feeds become available to matching profiles without rewriting their private files.
 Only a small structured starter pack is enabled before onboarding.

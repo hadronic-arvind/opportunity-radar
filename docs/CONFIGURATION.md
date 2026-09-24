@@ -190,7 +190,13 @@ Other packs are selected directly or by a coverage preset, while a new clone wit
 
 ## Coverage presets
 
-The default `automatic` preset recalculates effective source packs from the profile's roles, domains, skills, career stage, and opportunity types whenever the profile is saved.
+The default `automatic` preset includes the shared `cross-industry` employer pack and adds specialist packs from the profile's roles, domains, skills, career stage, and opportunity types.
+Named presets also include the same cross-industry employer pack; their field labels describe additional coverage rather than limiting which employers can have relevant jobs.
+Job titles, descriptions, departments, and requirements determine job relevance, not the employer's catalog industry tags.
+The first broad scan can take longer; new employer feeds have a 24-hour cadence, and all collection remains sequential and bounded.
+Use `manual` coverage for a smaller exact pack selection, or `python3 -m monitor sources disable SOURCE_ID` to exclude a particular employer.
+Explicit source disabling always overrides automatic pack membership.
+See [source coverage](SOURCE_COVERAGE.md) for the shared pack and catalog maintenance procedure.
 It recognizes broad software, data, AI, engineering, robotics, mathematics, quantitative science, physics, space, chemistry, materials, Earth science, climate, life science, medicine, pharma, public health, agriculture, infrastructure, electronics, ocean science, and veterinary targets.
 Business, accounting, teaching, law and policy, design, biomedical devices, and skilled trades also have named and automatic coverage.
 The editor and onboarding also offer named presets for each of those areas when a user wants a predictable fixed baseline.

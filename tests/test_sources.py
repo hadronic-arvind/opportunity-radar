@@ -765,7 +765,10 @@ class PublicSourceCatalogTests(unittest.TestCase):
         }
         sources = {source["id"]: source for source in self.sources}
         for source_id in finance_employers:
-            self.assertEqual(sources[source_id]["packs"], ["finance-quant"], source_id)
+            self.assertEqual(
+                [pack for pack in sources[source_id]["packs"] if pack != "cross-industry"],
+                ["finance-quant"], source_id,
+            )
 
         with tempfile.TemporaryDirectory() as directory:
             local = Path(directory) / "sources.local.json"
@@ -773,6 +776,7 @@ class PublicSourceCatalogTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema_version": 2,
+                        "coverage_preset": "manual",
                         "selected_packs": [
                             "engineering",
                             "data-software",
