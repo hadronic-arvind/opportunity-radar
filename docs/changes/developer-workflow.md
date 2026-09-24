@@ -1,6 +1,6 @@
 # Developer workflow improvement
 
-Status: implementation complete and validated locally; publication and remote checks are tracked by the GitHub pull request.
+Status: complete and merged in [PR #13](https://github.com/hadronic-arvind/opportunity-radar/pull/13).
 
 ## Acceptance criteria
 
@@ -56,8 +56,8 @@ Validation on the pending changes based on `2b59486` (macOS, Python 3.13, Ruff 0
 - `./scripts/check.sh`: passed, all 353 tests, native host compilation, configuration/compilation checks, doctor, launch-agent checks, and publication privacy/history.
 - YAML and TOML parsing, Python 3.9 syntax parsing for the new Python files, new documentation links, ignore rules, and `git diff --check`: passed.
 
-GitHub CI has not been dispatched; the configured Linux Python 3.9/3.14 matrix will run when the changes are pushed.
-No implementation work remains for this change; the owner has authorized publication and verification on GitHub.
+All eleven GitHub checks passed, including Linux Python 3.9/3.14, macOS tests/native app build, developer checks, and CodeQL.
+No implementation or publication work remains for this change.
 An owner-selected open-source license and corresponding contribution terms remain a separate release decision.
 Broader Pyflakes inspection found four pre-existing unused imports and one unused local; leave those outside this change and enforce the clean correctness subset instead.
 No application installation, scheduler mutation, or license change is part of this tooling change.
