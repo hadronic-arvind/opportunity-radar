@@ -70,7 +70,7 @@ Run one focused loop while editing:
 
 Without test arguments, `./scripts/dev_check.sh` runs only static checks.
 It checks Python correctness rules across source/tests, formatting for the new navigation tool and its tests, shell syntax, available JavaScript syntax, and diff whitespace.
-Format that baseline with `.venv/bin/python -m ruff format scripts/dev_nav.py tests/test_dev_nav.py`.
+Format that baseline with `.venv/bin/python -m ruff format scripts/dev_nav.py tests/test_dev_nav.py tests/test_cross_industry.py`.
 Legacy modules retain their established formatting; extend the explicit baseline in dev_check.sh only during an intentional module migration.
 Type checking is not enabled yet; the tool adoption rationale is in [ADR 0001](decisions/0001-development-tools.md).
 

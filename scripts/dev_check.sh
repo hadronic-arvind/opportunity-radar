@@ -12,7 +12,7 @@ fi
 
 "$PYTHON_BIN" -m ruff check monitor scripts tests extras
 # Expand this explicit formatting baseline when a module is deliberately migrated.
-"$PYTHON_BIN" -m ruff format --check scripts/dev_nav.py tests/test_dev_nav.py
+"$PYTHON_BIN" -m ruff format --check scripts/dev_nav.py tests/test_dev_nav.py tests/test_cross_industry.py
 if command -v node >/dev/null 2>&1; then
   node --check dashboard/app.js
 else

@@ -159,7 +159,7 @@
     ]).filter(([id, label]) => id && label).slice(0, 64)
     : PACK_OPTIONS;
   const coveragePresetOptions = [
-    ["automatic", "Automatic from my goals", "Broad source coverage is recalculated from roles, domains, skills, stage, and opportunity types whenever you save."],
+    ["automatic", "Automatic across industries", "Search employers across industries, then match individual jobs to your goals. Your goals also add specialist sources."],
     ...(Array.isArray(settings.coverage_presets) ? settings.coverage_presets : []).map((preset) => [
       String(preset && preset.id || "").trim(),
       String(preset && (preset.name || preset.id) || "").trim(),
@@ -1111,7 +1111,7 @@
     choices.addEventListener("change", update);
     update();
     field.append(heading, search, choices);
-    field.appendChild(element("span", "profile-help", "Automatic and named coverage add packs inferred from your goals. Your checks extend that coverage. Manual mode uses only these checks."));
+    field.appendChild(element("span", "profile-help", "Automatic and named coverage include employers across industries plus specialist sources. Your checks extend coverage. Manual mode uses only these checks. Broader coverage makes the first scan longer; later scans respect each source's schedule."));
     return field;
   }
 
@@ -1378,7 +1378,7 @@
         {
           wide: true,
           disabled,
-          help: "Automatic is recommended. Checked packs extend automatic or named coverage; manual uses only the checked packs.",
+          help: "Automatic searches employers across industries and matches their jobs to your goals. Named presets keep that broad employer coverage. Manual uses only checked packs.",
           onChange: (value) => {
             profileDraft = collectProfileForm();
             profileDraft.coverage_preset = value;

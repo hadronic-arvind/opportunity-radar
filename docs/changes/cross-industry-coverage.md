@@ -1,0 +1,55 @@
+# Cross-industry employer coverage
+
+Status: implementation in progress on `cross-industry-coverage`, based on `b246280`.
+The developer workflow is merged in GitHub PR #13; all eleven remote checks passed.
+
+## Problem and behavior
+
+An anonymous accounting profile with automatic coverage currently enables only seven sources through `monitor sources list --json`.
+It excludes SpaceX, Natera, and Discord before their individual jobs can be evaluated.
+Employer pack labels are therefore an unintended limit on job discovery.
+
+Automatic and named coverage should include a shared cross-industry pack of supported structured employer feeds, independent of the profile's profession.
+Existing field packs still add specialized resources; manual coverage and explicit source disabling remain authoritative.
+The unconfigured five-feed starter remains small.
+Job content, requirements, and the user's preferences determine relevance; employer sectors are descriptive metadata, not job qualifications or fit points.
+
+## Acceptance criteria
+
+- Accounting, healthcare, software, and other automatic/named profiles can see the same cross-industry employer baseline.
+- Manual coverage, explicit disabling, custom sources, per-source cadences, failure isolation, and saved application state remain intact.
+- Add a substantial batch of live-verified official employer feeds spanning technology, finance, retail, logistics, media, healthcare, manufacturing, energy, and public interest.
+- Exclude failed, empty, unsupported, or oversized candidate feeds from the new supported additions.
+- Preserve sequential, bounded, read-only collection and zero-idle runtime behavior.
+- Cover source selection and job-level matching through public CLI paths with anonymous fixtures.
+- Update user-facing explanations, catalog maintenance guidance, validation evidence, and GitHub.
+
+## Steps and checkpoint
+
+| Step | Depends on | State |
+| --- | --- | --- |
+| Publish developer tooling | none | complete, PR #13 merged |
+| Reproduce selection gap and define behavior | tooling | complete |
+| Validate candidate employer feeds | design | complete: 69 nonempty feeds from 110 candidates |
+| Implement cross-industry selection, catalog, and tests | design | complete |
+| Validate and publish feature | implementation and feed validation | local validation complete; GitHub checks pending |
+| Upgrade and verify local app if installed | passing release checks | pending |
+
+Reproduction used temporary public config copies plus an anonymous accounting profile, with no private app writes.
+Source validation runs sequentially through the existing fetch adapters and saves compact evidence outside the repository.
+The new regressions failed before implementation, including the public scan/search flow that could not find accounting jobs at aerospace, biotech, and software employers.
+The completed change adds the shared pack to automatic/named coverage, retains manual behavior and explicit exclusions, and adds 69 verified feeds on a 24-hour cadence.
+The catalog now has 352 resources and 189 supported structured feeds in the shared employer set.
+Existing source objects are byte-semantically unchanged except for pack membership; existing cadence, request limits, and adapter behavior are preserved.
+The new sources returned 11,566 listings during validation; 35 failed and six empty candidates were excluded.
+Version 0.8.0 marks the runtime behavior change so older installed runtimes cannot silently run against the new checkout.
+
+Validation on macOS/Python 3.13:
+
+- `./scripts/dev_check.sh discover -s tests -p 'test_cross_industry.py'`: five tests pass, including CLI profile import, scan, search, saved status, deduplication, and cadence.
+- `./scripts/dev_check.sh discover -s tests -p 'test_sources.py'`: 22 tests pass.
+- `python3 -m unittest discover -s tests -p 'test_dashboard.py'`: passes.
+- `./scripts/check.sh`: all 358 tests and the full release/privacy gate pass, including native host compilation.
+- Python 3.9 syntax parsing and a semantic comparison of all existing source objects pass.
+
+Next: publish the feature PR, verify remote CI, merge, then upgrade and check the installed runtime without changing private preferences.

@@ -6,9 +6,11 @@ from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 AUTOMATIC_PRESET = "automatic"
 MANUAL_PRESET = "manual"
+CROSS_INDUSTRY_PACK = "cross-industry"
 
 PACK_ORDER = [
     "starter-diverse",
+    CROSS_INDUSTRY_PACK,
     "engineering",
     "data-software",
     "cybersecurity",
@@ -623,6 +625,10 @@ def effective_source_packs(
 ) -> List[str]:
     effective = list(selected_packs)
     chosen = validate_coverage_preset(preset)
+    # Employer industry cannot predict every occupation on its job board.
+    # Profiles rank individual listings; manual mode is the explicit opt-out.
+    if chosen != MANUAL_PRESET:
+        effective.append(CROSS_INDUSTRY_PACK)
     if chosen == AUTOMATIC_PRESET:
         effective.extend(recommend_source_packs(profile))
     elif chosen != MANUAL_PRESET:

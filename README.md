@@ -26,7 +26,8 @@ python3 -m monitor init
 ```
 
 `init` creates private, ignored configuration files and lets you choose a target-aware coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
-Automatic coverage is the default and derives a broad source mix from the roles, fields, skills, career stage, and opportunity types in that profile.
+Automatic coverage is the default and searches supported employers across industries, then matches individual jobs to your profile.
+Your roles, fields, skills, career stage, and opportunity types also add specialist sources.
 Choosing a named field preset also seeds practical role, domain, and skill targets that remain editable.
 Skip it to use the neutral starter profile and five diverse structured feeds.
 
@@ -122,12 +123,15 @@ They are not acceptance probabilities.
 
 ## Sources and customization
 
-The public catalog contains 274 official resources across computing, mathematical sciences, physics, quantum science, astronomy, chemistry, materials, Earth and geospatial science, ecology, environment, agriculture, food science, medicine, clinical research, public health, pharma, neuroscience, civil infrastructure, electronics, semiconductors, ocean science, veterinary science, and the original cross-industry packs.
-It includes 115 automated listing feeds, with 39 feeds spanning medicine, clinical research, biotech, pharma, public health, and neuroscience.
-The five-source starter stays small, while the broader packs remain opt-in.
-Supported structured feeds become searchable listings when their pack is selected directly or through a profile coverage preset.
+The public catalog contains 352 official resources across technology, finance, retail, logistics, media, healthcare, manufacturing, energy, science, education, public interest, and other fields.
+Automatic and named coverage include a shared set of 189 supported structured employer feeds across industries, including 69 newly verified additions.
+A healthcare company can have accounting jobs, and an aerospace company can have legal or software jobs: employer industry never excludes a company from this shared set.
+Each job is matched using its own title, department, description, requirements, and your preferences.
+The unconfigured five-source starter stays small; choose Manual coverage to use only selected packs, or explicitly disable individual sources.
+Broader coverage makes the first scan longer; later scans respect each source's cadence, and new feeds are checked at most once per 24 hours unless you choose Scan all.
+See [Cross-industry source coverage](docs/SOURCE_COVERAGE.md) for the design, additions, and verification details.
 Named presets add bounded target suggestions as well as sources, which gives a new profile useful matches before the user learns the advanced scoring controls.
-Large official directories remain available in the dashboard resource library without being fetched automatically, so broad coverage does not make scans unexpectedly slow.
+Large official directories remain available in the dashboard resource library without being fetched automatically.
 
 ```bash
 python3 -m monitor sources packs
