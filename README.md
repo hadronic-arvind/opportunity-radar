@@ -68,6 +68,8 @@ Without the app, use `python3 -m monitor scan` for a due-only refresh or `./scri
 `./scripts/open_dashboard.sh` opens immediately and does not wait for the network.
 
 The Discover view supports field-aware search, sorting, filters, saved items, a compact system/light/dark selector, and 24-item pages.
+Filters include the opportunity types present in your results, including research programs, scholarships, co-ops, and training.
+Expand **Review fit and requirements** on a listing to see compatibility checks and score limits.
 In the native app, Plan application and Mark applied persist the workflow in SQLite.
 In a regular browser, the same controls use bounded local browser storage because a static file cannot safely write to SQLite.
 
@@ -120,6 +122,9 @@ Bookmarks and application status remain shared, so switching profiles never lose
 
 Fit scores are deterministic triage from your rules.
 They are not acceptance probabilities.
+When your profile names specific interests, broad words such as Fellowship or Research do not establish subject fit by themselves.
+A human-rights fellowship can be a strong match for a legal profile while staying outside a technical research profile.
+Saved opportunities and applications remain accessible when your profile changes.
 
 ## Sources and customization
 

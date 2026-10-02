@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from monitor import pipeline
 from monitor.database import Database
-from monitor.models import FetchResult
+from monitor.models import FetchResult, Opportunity
 from monitor.pipeline import _import_curated, _register_sources, _target_year
 
 
@@ -192,6 +192,40 @@ class PipelineConfigurationTests(unittest.TestCase):
         self.assertEqual(source_state["last_content_hash"], "stable")
         self.assertEqual(source_state["pending_content_hash"], "")
         self.assertEqual(source_state["pending_content_checks"], 0)
+
+    def test_failed_source_refresh_rolls_back_earlier_rows_and_counts(self):
+        runtime = self.root / "runtime"
+        source = {"id": "fixture", "name": "Fixture", "kind": "greenhouse",
+                  "url": "https://example.org/jobs", "cadence_hours": 1}
+        items = [Opportunity("fixture", str(i), "Role " + str(i), "Example",
+                             "https://example.org/" + str(i)) for i in range(2)]
+        real_score = pipeline.score_opportunity
+
+        def score(item, profile):
+            if item.external_id == "1":
+                raise ValueError("Invalid fixture")
+            return real_score(item, profile)
+
+        with (
+            patch("monitor.pipeline.project_path", side_effect=lambda *p: runtime.joinpath(*p)),
+            patch("monitor.pipeline.load_profile", return_value={"matching": {"base_score": 80}}),
+            patch("monitor.pipeline.load_sources", return_value=[source]),
+            patch("monitor.pipeline.fetch_source", return_value=FetchResult(items, "fixture")),
+            patch("monitor.pipeline.score_opportunity", side_effect=score),
+            patch("monitor.pipeline.render_dashboard", return_value=runtime / "dashboard/index.html"),
+            patch("monitor.pipeline.ensure_profile_lifecycle_idle"),
+            patch("monitor.pipeline.polite_pause"),
+        ):
+            result = pipeline.run_scan(force=True)
+        observer = Database(runtime / "data/opportunities.sqlite3")
+        try:
+            self.assertEqual(result["status"], "partial")
+            self.assertEqual(result["new_count"], 0)
+            self.assertEqual(result["new_high_fit"], [])
+            self.assertEqual(observer.connection.execute("SELECT COUNT(*) FROM opportunities").fetchone()[0], 0)
+            self.assertEqual(observer.source_status("fixture"), "error")
+        finally:
+            observer.close()
 
 
 if __name__ == "__main__":

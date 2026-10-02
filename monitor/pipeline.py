@@ -197,58 +197,64 @@ def run_scan(force: bool = False, send_notifications: bool = False) -> Dict[str,
                 if not database.source_due(source["id"], force=force):
                     continue
                 checked += 1
+                source_counts = (new_count, updated_count, len(new_high_fit))
                 try:
                     result = fetch_source(source)
-                    current_ids = []
-                    for item in result.opportunities:
-                        score_opportunity(item, profile)
-                        outcome = database.upsert_opportunity(item)
-                        current_ids.append(item.external_id)
-                        if outcome == "new":
-                            new_count += 1
+                    # One commit per source avoids per-listing fsyncs and makes
+                    # a failed refresh leave its previous snapshot intact.
+                    with database.transaction():
+                        current_ids = []
+                        for item in result.opportunities:
+                            score_opportunity(item, profile)
+                            outcome = database.upsert_opportunity(item)
+                            current_ids.append(item.external_id)
+                            if outcome == "new":
+                                new_count += 1
+                                if (
+                                    item.tier in {"priority", "strong"}
+                                    and len(new_high_fit) < MAX_NOTIFICATION_ITEMS
+                                ):
+                                    new_high_fit.append(
+                                        {
+                                            "title": item.title,
+                                            "organization": item.organization,
+                                            "score": item.score,
+                                            "url": item.url,
+                                            "tier": item.tier,
+                                        }
+                                    )
+                            elif outcome == "updated":
+                                updated_count += 1
+                        database.mark_source_stale(source["id"], current_ids)
+                        if source["kind"] == "watch_page":
+                            created = database.source_watch_success(
+                                source["id"],
+                                result.content_hash,
+                                len(result.opportunities),
+                                "Page changed: {}".format(source["name"]),
+                                str(source.get("url", "")),
+                            )
                             if (
-                                item.tier in {"priority", "strong"}
+                                created
+                                and source.get("notify_page_changes", True)
                                 and len(new_high_fit) < MAX_NOTIFICATION_ITEMS
                             ):
                                 new_high_fit.append(
                                     {
-                                        "title": item.title,
-                                        "organization": item.organization,
-                                        "score": item.score,
-                                        "url": item.url,
-                                        "tier": item.tier,
+                                        "title": "Page changed",
+                                        "organization": source["name"],
+                                        "score": 0,
+                                        "url": source.get("url", ""),
+                                        "tier": "watch",
                                     }
                                 )
-                        elif outcome == "updated":
-                            updated_count += 1
-                    database.mark_source_stale(source["id"], current_ids)
-                    if source["kind"] == "watch_page":
-                        created = database.source_watch_success(
-                            source["id"],
-                            result.content_hash,
-                            len(result.opportunities),
-                            "Page changed: {}".format(source["name"]),
-                            str(source.get("url", "")),
-                        )
-                        if (
-                            created
-                            and source.get("notify_page_changes", True)
-                            and len(new_high_fit) < MAX_NOTIFICATION_ITEMS
-                        ):
-                            new_high_fit.append(
-                                {
-                                    "title": "Page changed",
-                                    "organization": source["name"],
-                                    "score": 0,
-                                    "url": source.get("url", ""),
-                                    "tier": "watch",
-                                }
+                        else:
+                            database.source_success(
+                                source["id"], result.content_hash, len(result.opportunities)
                             )
-                    else:
-                        database.source_success(
-                            source["id"], result.content_hash, len(result.opportunities)
-                        )
                 except Exception as error:
+                    new_count, updated_count, notification_count = source_counts
+                    del new_high_fit[notification_count:]
                     if (
                         isinstance(error, urllib.error.HTTPError)
                         and error.code in source.get("expected_http_statuses", [])

@@ -2240,9 +2240,8 @@
       if (state.filter === "saved" && !workflow.bookmarked) return;
       if (state.filter === "dismissed" && workflow.status !== "skip") return;
       if (state.filter === "priority" && item.tier !== "priority") return;
-      if (state.filter === "internship" && !normalizedType(item).includes("intern")) return;
-      if (state.filter === "fellowship" && !normalizedType(item).includes("fellow")) return;
-      if (state.filter === "job" && normalizedType(item) !== "job") return;
+      if (Object.prototype.hasOwnProperty.call(TYPE_LABELS, state.filter)
+        && normalizedType(item) !== state.filter) return;
       if (state.filter === "apply" && workflow.status !== "apply") return;
       if (state.filter === "applied" && workflow.status !== "applied") return;
       const relevance = queryRank(item, phrase, terms);
@@ -2334,7 +2333,8 @@
   function appendMatchSummary(article, item) {
     const components = matchComponents(item);
     if (!components.length) {
-      article.appendChild(element("p", "reason", String(settings.default_reason || "Matches your current profile.").slice(0, 240)));
+      article.appendChild(element("p", "reason", (item.tier === "skip" ? "Outside your current profile. Review fit and requirements for details."
+        : String(settings.default_reason || "Matches your current profile.")).slice(0, 240)));
       return;
     }
     const block = element("div", "match-summary");
@@ -2359,6 +2359,34 @@
       block.appendChild(details);
     }
     article.appendChild(block);
+  }
+
+  function appendMatchAudit(article, item) {
+    if (item.match && item.match.engine === "structured_v2") {
+      const audit = element("details", "match-audit");
+      audit.appendChild(element("summary", "", "Review fit and requirements"));
+      const list = element("ul", "match-more-list");
+      const visibility = item.match.visibility || {};
+      if (visibility.anchor_matched === false) {
+        list.appendChild(element("li", "", visibility.interest_matched === false
+          ? "No evidence for your preferred roles or fields."
+          : "Subject fit relies on weaker evidence. Review the listing details."));
+      }
+      (Array.isArray(item.match.gates) ? item.match.gates : []).forEach((gate) => {
+        const label = humanizeProfileValue(gate.id || "Requirement");
+        const outcome = gate.state === "fail" ? "Does not meet your profile"
+          : gate.state === "unknown" ? "Needs verification" : "Compatible with your profile";
+        const evidence = Array.isArray(gate.evidence) ? gate.evidence.slice(0, 2).join(", ").slice(0, 240) : "";
+        list.appendChild(element("li", "", label + ": " + outcome + (evidence ? " - " + evidence : "")));
+      });
+      (Array.isArray(item.match.visibility && item.match.visibility.ceilings)
+        ? item.match.visibility.ceilings : []).forEach((ceiling) => {
+        list.appendChild(element("li", "", humanizeProfileValue(ceiling.id) + ": score limited to " + Number(ceiling.score || 0)));
+      });
+      if (!list.childNodes.length) list.appendChild(element("li", "", "Matches your configured interests. Check the official listing for complete requirements."));
+      audit.appendChild(list);
+      article.appendChild(audit);
+    }
   }
 
   function cardFor(item) {
@@ -2403,12 +2431,15 @@
     }
     if (workflow.status === "apply") addTag(tags, "Preparing application", "stage");
     if (workflow.status === "applied") addTag(tags, "Applied", "stage");
-    if (!isAvailable(item)) addTag(tags, "Listing no longer active", "warning");
+    if (!item.active) addTag(tags, "Listing no longer active", "warning");
+    else if (item.source_enabled === 0) addTag(tags, "Source disabled", "warning");
+    else if (item.tier === "skip") addTag(tags, "Outside current profile", "warning");
     const warning = Array.isArray(item.warnings) ? item.warnings[0] : "";
     if (warning) addTag(tags, String(warning).slice(0, 120), "warning");
     if (tags.childNodes.length) article.appendChild(tags);
 
     appendMatchSummary(article, item);
+    appendMatchAudit(article, item);
 
     const actions = element("div", "card-actions");
     const official = safeUrl(item.url);
@@ -2567,9 +2598,20 @@
           ? " Use Refresh above, or run python3 -m monitor scan in a terminal."
           : state.query || state.filter !== "all"
             ? " Try a broader search or clear the filters."
-            : " Check another source pack or run Scan all.";
+            : " Review your roles and fields in Edit profile, or check source health before refreshing.";
       empty.append(element("strong", "", heading));
       empty.append(document.createTextNode(guidance));
+      if (state.view === "discover") {
+        const action = element("button", "control subtle empty-action",
+          state.query || state.filter !== "all" ? "Clear filters" : firstRun ? "Refresh sources" : "Review profile");
+        action.type = "button";
+        action.addEventListener("click", () => {
+          if (state.query || state.filter !== "all") document.getElementById("clear-filters").click();
+          else if (firstRun) scan("due");
+          else openProfileDialog();
+        });
+        empty.appendChild(action);
+      }
       list.appendChild(empty);
       updateListMeta();
       return;
@@ -2592,9 +2634,11 @@
   }
 
   function filtersForView() {
+    const types = new Set((data.opportunities || []).filter(isAvailable).map(normalizedType));
     return state.view === "applications"
       ? [["all", "All"], ["apply", "Preparing"], ["applied", "Applied"], ["saved", "Saved"]]
-      : [["all", "All"], ["saved", "Saved"], ["priority", "Priority"], ["internship", "Internships"], ["fellowship", "Fellowships"], ["job", "Jobs"], ["dismissed", "Dismissed"]];
+      : [["all", "All matches"], ["saved", "Saved"], ["priority", "Priority"],
+        ...OPPORTUNITY_TYPE_OPTIONS.filter(([value]) => types.has(value)), ["dismissed", "Dismissed"]];
   }
 
   function renderFilters() {
