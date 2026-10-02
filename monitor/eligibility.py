@@ -18,6 +18,68 @@ STAGES = {
 }
 RANK = {"bachelors": 1, "masters": 2, "doctorate": 3}
 
+CLINICAL_TITLE_RE = re.compile(
+    r"\b(?:physician|hospitalist|surgeon|psychiatrist|p(?:ae|e)diatrician|medical doctor|resident|residency)\b",
+    re.IGNORECASE,
+)
+CLINICAL_RESIDENCY_RE = re.compile(
+    r"\b(?:currently enrolled in|must (?:presently )?be|completed|completion of|completing)\b"
+    r"[^.!?]{0,220}\b(?:medical|medicine|pediatrics|paediatrics|psychiatry|surgery|"
+    r"radiology|anesthesiology|obstetrics|ophthalmology|neurology)\b"
+    r"[^.!?]{0,100}\bresiden(?:cy|t)\b",
+    re.IGNORECASE,
+)
+MEDICAL_DEGREE_RE = re.compile(
+    r"\b(?:m\.?\s*d\.?|d\.?\s*o\.?|mbbs|mbchb|medicine|medical degree|"
+    r"doctor of osteopathic medicine)\b",
+    re.IGNORECASE,
+)
+ADVANCED_PRACTICE_TITLE_RE = re.compile(r"\b(?:nurse practitioner|physician(?:'s|s)? assistant)\b", re.IGNORECASE)
+ADVANCED_PRACTICE_REQUIREMENT_RE = re.compile(
+    r"\b(?:completed|completion of|graduated? (?:from|of))\b[^.!?]{0,160}"
+    r"\b(?:fnp|np|pa|nurse practitioner|physician(?:'s|s)? assistant)\b"
+    r"[^.!?]{0,80}\b(?:program|degree|certification)\b", re.IGNORECASE,
+)
+ADVANCED_PRACTICE_DEGREE_RE = re.compile(
+    r"\b(?:nursing|nurse practitioner|physician(?:'s|s)? assistant|msn|dnp|fnp|pa[ -]?c)\b",
+    re.IGNORECASE,
+)
+STUDENT_STAGES = {
+    "student", "undergraduate", "undergraduate_student", "bachelors_student",
+    "graduate", "graduate_student", "masters_student", "phd", "phd_student",
+    "doctoral_student", "medical_student",
+    "new_grad", "early_career",
+}
+
+
+def clinical_degree_evidence(degrees, advanced_practice=False):
+    if not isinstance(degrees, list) or not degrees:
+        return "unknown"
+    pattern = ADVANCED_PRACTICE_DEGREE_RE if advanced_practice else MEDICAL_DEGREE_RE
+    if any(pattern.search(str(value)) for value in degrees):
+        return "medical"
+    if any(str(value).strip().casefold() in {"professional", "professional degree"} for value in degrees):
+        return "unknown"
+    return "non_medical"
+
+
+def clinical_training_gates(item, stage, candidate):
+    """Honor explicit clinical training requirements without inferring licenses."""
+    title = _text(item.title)
+    advanced_practice = bool(ADVANCED_PRACTICE_TITLE_RE.search(title))
+    if not advanced_practice and not CLINICAL_TITLE_RE.search(title):
+        return []
+    for clause in _clauses("\n".join((item.eligibility, item.description))):
+        if re.search(r"\b(?:preferred|not required|no requirement)\b", clause):
+            continue
+        requirement = ADVANCED_PRACTICE_REQUIREMENT_RE if advanced_practice else CLINICAL_RESIDENCY_RE
+        if not requirement.search(clause):
+            continue
+        degree_evidence = clinical_degree_evidence(candidate.get("completed_degrees"), advanced_practice)
+        state = "fail" if stage in STUDENT_STAGES and degree_evidence == "non_medical" else "unknown"
+        return [{"id": "clinical_training", "state": state, "evidence": [clause[:240]]}]
+    return []
+
 
 def _text(value):
     text = str(value or "").replace("’", "'").replace("‘", "'")

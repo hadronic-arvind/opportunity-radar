@@ -224,6 +224,175 @@ class CrossIndustryTests(unittest.TestCase):
         self.assertEqual(results[0], results[1])
         self.assertEqual(results[1], results[2])
 
+    def test_fellowship_labels_do_not_make_unrelated_work_a_technical_match(self):
+        profile = {
+            "targets": {
+                "role_families": ["machine learning", "Fellow", "Fellowship"],
+                "domains": ["physics", "Research", "Graduate Fellowships"],
+                "supporting_skills": ["Python", "data analysis"],
+                "opportunity_types": ["fellowship"],
+                "locations": ["United States"],
+            },
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 25,
+                "minimum_display_score": 40,
+                "tier_thresholds": {"priority": 75, "strong": 55, "watch": 25},
+                "rules": [],
+            },
+        }
+        (self.root / "config/profile.local.json").write_text(json.dumps(profile))
+        source = {
+            "id": "fixture",
+            "name": "Anonymous programs",
+            "kind": "greenhouse",
+            "url": "https://example.org/jobs",
+            "cadence_hours": 24,
+        }
+        titles = [
+            "Human Rights Fellowship",
+            "School Leadership Fellowship",
+            "Machine Learning Research Fellowship",
+        ]
+        items = [
+            Opportunity(
+                "fixture",
+                str(index),
+                title,
+                "Example",
+                "https://example.org/" + str(index),
+                location="United States",
+                opportunity_type="fellowship",
+                description="Research, Python and data analysis support the program.",
+            )
+            for index, title in enumerate(titles)
+        ]
+        with (
+            patch("monitor.pipeline.load_sources", return_value=[source]),
+            patch(
+                "monitor.pipeline.fetch_source",
+                return_value=FetchResult(items, "fixture"),
+            ),
+        ):
+            self.command("scan", "--force")
+        rows = self.command("opportunities", "search", "Fellowship", "--json")
+        visible = [row["title"] for row in rows if row["tier"] != "skip"]
+        self.assertEqual(visible, [titles[2]])
+        database = Database(self.root / "data/opportunities.sqlite3")
+        self.addCleanup(database.close)
+        payload = database.dashboard_payload()
+        self.assertEqual(
+            [row["title"] for row in payload["opportunities"]], [titles[2]]
+        )
+
+    def test_medical_student_does_not_match_required_physician_residency(self):
+        self.command(
+            "profile",
+            "import",
+            "--file",
+            str(ROOT / "examples/profiles/medical-student.json"),
+            "--quiet",
+        )
+        source = {
+            "id": "fixture",
+            "name": "Clinical careers",
+            "kind": "greenhouse",
+            "url": "https://example.org/jobs",
+            "cadence_hours": 24,
+        }
+        items = [
+            Opportunity(
+                "fixture",
+                "research",
+                "Clinical Research Assistant",
+                "Example",
+                "https://example.org/research",
+                opportunity_type="job",
+                description="Clinical research and data collection. No experience required.",
+            ),
+            Opportunity(
+                "fixture",
+                "physician",
+                "Early Career - Family Medicine Physician",
+                "Example",
+                "https://example.org/physician",
+                opportunity_type="job",
+                description="Required for this role: Currently enrolled in, or completed within the last year, an accredited Family or Internal Medicine/Pediatrics residency program.",
+            ),
+            Opportunity(
+                "fixture",
+                "practitioner",
+                "Family Medicine Nurse Practitioner or Physician Assistant",
+                "Example",
+                "https://example.org/practitioner",
+                opportunity_type="job",
+                description="Completed an accredited FNP or PA program with a national certification.",
+            ),
+        ]
+        with (
+            patch("monitor.pipeline.load_sources", return_value=[source]),
+            patch(
+                "monitor.pipeline.fetch_source",
+                return_value=FetchResult(items, "clinical"),
+            ),
+        ):
+            self.command("scan", "--force")
+        rows = self.command("opportunities", "list", "--json")
+        self.assertEqual(
+            [row["title"] for row in rows if row["tier"] != "skip"], [items[0].title]
+        )
+
+    def test_positive_interest_gate_keeps_matching_listings_visible(self):
+        profile = {
+            "matching": {
+                "engine": "structured_v2",
+                "base_score": 50,
+                "rules": [
+                    {
+                        "id": "required_subject",
+                        "dimension": "interest",
+                        "hard_gate": True,
+                        "weight": 1,
+                        "fields": ["title"],
+                        "terms": ["accountant"],
+                    }
+                ],
+            },
+        }
+        (self.root / "config/profile.local.json").write_text(json.dumps(profile))
+        source = {
+            "id": "fixture",
+            "name": "Anonymous employer",
+            "kind": "greenhouse",
+            "url": "https://example.org/jobs",
+            "cadence_hours": 24,
+        }
+        items = [
+            Opportunity(
+                "fixture",
+                str(index),
+                title,
+                "Example",
+                "https://example.org/" + str(index),
+                opportunity_type="job",
+            )
+            for index, title in enumerate(["Staff Accountant", "Mechanical Engineer"])
+        ]
+        with (
+            patch("monitor.pipeline.load_sources", return_value=[source]),
+            patch(
+                "monitor.pipeline.fetch_source",
+                return_value=FetchResult(items, "fixture"),
+            ),
+        ):
+            self.command("scan", "--force")
+        database = Database(self.root / "data/opportunities.sqlite3")
+        self.addCleanup(database.close)
+        self.assertEqual(
+            [row["title"] for row in database.dashboard_payload()["opportunities"]],
+            ["Staff Accountant"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

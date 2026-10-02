@@ -435,6 +435,9 @@ h1 {
 .card-button.danger:hover { color: var(--coral); border-color: var(--coral); }
 .empty { padding: 72px 24px; color: var(--muted); text-align: center; background: var(--surface-solid); }
 .empty strong { display: block; margin-bottom: 6px; color: var(--ink); font-family: Iowan Old Style, Georgia, serif; font-size: 22px; font-weight: 520; }
+.empty-action { display: block; margin: 18px auto 0; }
+.match-audit { margin-top: 12px; padding-top: 10px; }
+.match-audit .match-more-list { font-size: 12px; line-height: 1.6; }
 .side-column { display: grid; align-self: start; gap: 15px; }
 .side-card { padding: 20px; }
 .profile-summary { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }

@@ -2,6 +2,8 @@ import os
 import re
 import tempfile
 import unittest
+import shutil
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,6 +22,13 @@ from monitor.database import SCHEMA_VERSION
 
 
 class DashboardTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "Node is required for JavaScript behavior checks")
+    def test_dashboard_filter_search_and_saved_workflow_behavior(self):
+        subprocess.run(
+            [shutil.which("node"), str(Path(__file__).with_name("dashboard_behavior.js"))],
+            check=True, capture_output=True, text=True, timeout=10,
+        )
+
     def copy_dashboard_assets(self, destination):
         source = Path(__file__).resolve().parents[1] / "dashboard"
         for name in ("template.html", "styles.css", "app.js"):

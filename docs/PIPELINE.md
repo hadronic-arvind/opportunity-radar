@@ -46,6 +46,9 @@ Collection rejects non-HTTPS targets, credentials in URLs, nonstandard ports, an
 The same checks run before every redirect and against the final response URL.
 Timeouts, denied requests, oversized responses, malformed data, and parser failures affect only that source.
 A failed fetch never deactivates its prior listings.
+A source's listing updates, stale-record reconciliation, and success state commit together.
+Scoring or persistence failures roll back that source's entire refresh, including its notification candidates and reported listing counts.
+This also avoids a separate disk commit for every listing.
 A validated empty structured feed is a successful result.
 Ordinary responses are capped at 8 MiB; complete Greenhouse, Lever, and Ashby job-board feeds have a fixed 24 MiB ceiling.
 Each source is capped at 5,000 normalized records.
@@ -79,7 +82,14 @@ The score is deterministic triage rather than an acceptance estimate.
 The structured engine evaluates field-aware evidence, then compatibility gates, score ceilings, and visibility in that order.
 Title, organization, and opportunity-type matches carry more evidence strength than broad description text.
 Interest anchors prevent a generic skill mention from turning an unrelated position into a high fit.
+When a profile includes specific interests, broad terms such as fellow, fellowship, research, and data do not earn interest points or establish an anchor on their own.
+Listings without any evidence for the configured interests are hidden even when location, skills, type, or a high starting score would otherwise meet the display threshold.
+Profiles that deliberately request only broad program labels retain broad discovery.
+Generic academic role labels such as research assistant and research scientist also cannot establish the subject fit of a specific profile.
+Weak description evidence for a specific interest retains its existing score ceiling and can remain in Watch when the configured display threshold allows it.
 Compatibility gates cover requested opportunity type and cycle, early-career seniority, explicit degree-stage requirements, required experience, and configured hard rules.
+Clinical roles with explicit medical residency or completed NP/PA program requirements exclude student and early-career profiles whose declared completed degrees contain no relevant clinical degree evidence.
+Missing or ambiguous degree information and residency/licensing details remain flagged for verification; matching never certifies a professional license.
 A failed gate produces a score of zero and a hidden discovery tier, while an unknown gate remains visible only within its configured ceiling.
 The match record retains dimensions, normalized features, gate decisions, ceilings, and the minimum display decision so every result is auditable.
 
@@ -125,6 +135,9 @@ Only absolute HTTP or HTTPS listing URLs survive rendering.
 
 The browser renders 24 result cards per page and keeps the rest of the loaded records out of the DOM.
 Searches use a cached field index and rank exact organization or title evidence ahead of location, taxonomy, and description evidence.
+Type filters reflect all supported opportunity types present in available results.
+Saved records distinguish closed listings, disabled sources, and changes to profile fit.
+The fit-details disclosure exposes compatibility checks and applied score ceilings.
 Search input is debounced, and each search, filter, or view change resets to the first result page without refetching data.
 The generated dashboard includes at most the 5,000 highest-fit active discovery records while always preserving every planned or applied record.
 When that safety limit is reached, the result summary says so explicitly.

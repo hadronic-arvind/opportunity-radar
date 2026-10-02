@@ -5,7 +5,7 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
-from .eligibility import degree_gates, nationality_gates
+from .eligibility import clinical_degree_evidence, clinical_training_gates, degree_gates, nationality_gates
 from .models import Opportunity
 from .text import clean_text
 from .taxonomy import location_match_details
@@ -33,8 +33,23 @@ DEFAULT_FIELDS = (
 CURATED_DOCUMENT_PROVENANCE = "curated_explicit"
 LEGACY_CURATED_DOCUMENT_PROVENANCE = "curated_legacy"
 PROFILE_DOCUMENT_PROVENANCE = "profile"
-SCORING_SCHEMA_VERSION = 8
+SCORING_SCHEMA_VERSION = 10
 STRUCTURED_ENGINE = "structured_v2"
+# These describe a program or a broad activity, rather than its subject.
+# A deliberately broad profile can still use them; a specific profile must
+# match its subject before these labels can contribute interest evidence.
+GENERIC_INTEREST_TERMS = {
+    "research", "data", "fellow", "fellows", "fellowship", "fellowships",
+    "research fellowship", "research fellowships", "graduate fellowship",
+    "graduate fellowships", "graduate research", "graduate research fellowship",
+    "graduate research fellowships", "intern", "internship", "internships",
+    "program", "programs", "scholarship", "scholarships", "training",
+    "apprenticeship", "apprenticeships", "co op", "co-op", "student", "students",
+    "research assistant", "research assistants", "research intern", "research interns",
+    "research internship", "research internships", "research scientist", "research scientists",
+    "research fellow", "research fellows", "graduate researcher", "graduate researchers",
+    "researcher", "researchers",
+}
 STRUCTURED_DIMENSIONS = ("interest", "target", "qualification", "preference")
 DEFAULT_FIELD_WEIGHTS = {
     "title": 1.0,
@@ -1191,6 +1206,7 @@ def _structured_gates(
 
     requirements_text = "{} {}".format(item.eligibility, item.description)
     gates.extend(degree_gates(item, stage, completed_degree_levels))
+    gates.extend(clinical_training_gates(item, stage, candidate))
     gates.extend(nationality_gates(item, candidate))
     completed_phd = COMPLETED_PHD_RE.search(requirements_text)
     completed_phd_context = (
@@ -1349,15 +1365,27 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
     rule_results: List[Tuple[Dict[str, Any], List[Dict[str, Any]]]] = []
     anchor_matched = False
     has_interest_rules = False
+    interest_matched = False
     strongest_positive = 0.0
     description_exclusion_matched = False
+    rules = _structured_rules(profile)
+    specific_interest = any(
+        str(rule.get("dimension", "interest")).casefold() == "interest"
+        and int(rule.get("weight", 0)) > 0
+        and not rule.get("hard_gate")
+        and any(
+            " ".join(str(term).casefold().split()) not in GENERIC_INTEREST_TERMS
+            for term in rule.get("terms", [])
+        )
+        for rule in rules
+    )
 
-    for rule in _structured_rules(profile):
+    for rule in rules:
         dimension = str(rule.get("dimension", "interest")).casefold()
         if dimension not in dimensions:
             dimension = "interest"
         weight = int(rule.get("weight", 0))
-        if dimension == "interest" and weight > 0:
+        if dimension == "interest" and weight > 0 and not rule.get("hard_gate"):
             has_interest_rules = True
         evidence = _structured_rule_evidence(
             item,
@@ -1367,8 +1395,15 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
             match_cache,
         )
         rule_results.append((rule, evidence))
+        if specific_interest and dimension == "interest" and weight > 0 and not rule.get("hard_gate"):
+            evidence = [
+                entry for entry in evidence
+                if " ".join(str(entry["term"]).casefold().split()) not in GENERIC_INTEREST_TERMS
+            ]
         if not evidence:
             continue
+        if dimension == "interest" and weight > 0 and not rule.get("hard_gate"):
+            interest_matched = True
         if rule.get("description_exclusion"):
             description_exclusion_matched = True
         points = _structured_points(rule, evidence)
@@ -1538,7 +1573,8 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
             )
     item.score = max(0, min(100, int(round(score))))
     minimum_display = int(matching.get("minimum_display_score", 40))
-    visible = not failed_gates and item.score >= minimum_display
+    missing_interest = has_interest_rules and not interest_matched
+    visible = not failed_gates and not missing_interest and item.score >= minimum_display
     item.tier = _tier(item.score, profile) if visible else "skip"
     item.reasons = reasons[:6]
     item.warnings = warnings[:6]
@@ -1557,8 +1593,10 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
             "state": "visible" if visible else "hidden",
             "minimum_score": minimum_display,
             "anchor_matched": anchor_matched,
+            "interest_matched": interest_matched,
             "ceilings": applied_ceilings,
             "reasons": [entry["id"] for entry in failed_gates]
+            or (["no_interest_evidence"] if missing_interest else [])
             or (["below_minimum_score"] if item.score < minimum_display else []),
         },
     }
@@ -1701,6 +1739,8 @@ def profile_fingerprint(profile: Dict[str, Any]) -> str:
                         else "not_configured"
                     ),
                     "normalized_levels": completed_levels,
+                    "clinical_degree_evidence": clinical_degree_evidence(completed_entries),
+                    "advanced_practice_degree_evidence": clinical_degree_evidence(completed_entries, True),
                 },
                 "expected_graduation": (
                     {

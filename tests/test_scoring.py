@@ -269,6 +269,45 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(evidence["field"], "title")
         self.assertEqual(evidence["strength"], 1.0)
 
+    def test_same_fellowship_matches_its_field_and_not_an_unrelated_field(self):
+        for domain, expected in (("human rights", True), ("machine learning", False)):
+            with self.subTest(domain=domain):
+                profile = {"targets": {
+                    "role_families": ["Fellowship"], "domains": [domain, "Research"],
+                    "opportunity_types": ["fellowship"], "locations": ["United States"],
+                }, "matching": {"engine": "structured_v2", "base_score": 80,
+                                  "minimum_display_score": 40, "rules": []}}
+                item = Opportunity("source", domain, "Human Rights Fellowship", "Example",
+                    "https://example.org/job", location="United States",
+                    opportunity_type="fellowship", description="Research and data analysis.")
+                score_opportunity(item, profile)
+                self.assertEqual(item.tier != "skip", expected)
+                self.assertEqual(item.metadata["match"]["visibility"]["interest_matched"], expected)
+                if not expected:
+                    self.assertIn("no_interest_evidence", item.metadata["match"]["visibility"]["reasons"])
+
+    def test_deliberately_broad_program_profile_still_supports_discovery(self):
+        item = Opportunity("source", "broad", "Human Rights Fellowship", "Example",
+                           "https://example.org/job", opportunity_type="fellowship")
+        score_opportunity(item, {"targets": {"role_families": ["Fellowship"]},
+                                "matching": {"engine": "structured_v2", "base_score": 25}})
+        self.assertNotEqual(item.tier, "skip")
+
+    def test_generic_academic_role_needs_the_chosen_field(self):
+        profile = {"targets": {"role_families": ["research assistant", "legal intern"],
+                               "domains": ["human rights", "public policy"]},
+                   "matching": {"engine": "structured_v2", "base_score": 36,
+                                "minimum_display_score": 40}}
+        legal = Opportunity("source", "legal", "Human Rights Research Assistant", "Example",
+                            "https://example.org/legal", description="Investigate public policy.")
+        unrelated = Opportunity("source", "ai", "AI Research Assistant", "Example",
+                                "https://example.org/ai", description="Train neural networks.")
+        score_opportunity(legal, profile)
+        score_opportunity(unrelated, profile)
+        self.assertNotEqual(legal.tier, "skip")
+        self.assertEqual(unrelated.tier, "skip")
+        self.assertTrue(legal.metadata["match"]["visibility"]["anchor_matched"])
+
     def test_structured_engine_hard_gates_type_and_timeframe(self):
         profile = self.structured_profile()
         wrong_type = Opportunity(
