@@ -85,8 +85,11 @@ Interest anchors prevent a generic skill mention from turning an unrelated posit
 When a profile includes specific interests, broad terms such as fellow, fellowship, research, and data do not earn interest points or establish an anchor on their own.
 Listings without any evidence for the configured interests are hidden even when location, skills, type, or a high starting score would otherwise meet the display threshold.
 Profiles that deliberately request only broad program labels retain broad discovery.
+Generic academic role labels such as research assistant and research scientist also cannot establish the subject fit of a specific profile.
 Weak description evidence for a specific interest retains its existing score ceiling and can remain in Watch when the configured display threshold allows it.
 Compatibility gates cover requested opportunity type and cycle, early-career seniority, explicit degree-stage requirements, required experience, and configured hard rules.
+Clinical roles with explicit medical residency or completed NP/PA program requirements exclude student and early-career profiles whose declared completed degrees contain no relevant clinical degree evidence.
+Missing or ambiguous degree information and residency/licensing details remain flagged for verification; matching never certifies a professional license.
 A failed gate produces a score of zero and a hidden discovery tier, while an unknown gate remains visible only within its configured ceiling.
 The match record retains dimensions, normalized features, gate decisions, ceilings, and the minimum display decision so every result is auditable.
 

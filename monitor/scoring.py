@@ -5,7 +5,7 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
-from .eligibility import degree_gates, nationality_gates
+from .eligibility import clinical_degree_evidence, clinical_training_gates, degree_gates, nationality_gates
 from .models import Opportunity
 from .text import clean_text
 from .taxonomy import location_match_details
@@ -33,7 +33,7 @@ DEFAULT_FIELDS = (
 CURATED_DOCUMENT_PROVENANCE = "curated_explicit"
 LEGACY_CURATED_DOCUMENT_PROVENANCE = "curated_legacy"
 PROFILE_DOCUMENT_PROVENANCE = "profile"
-SCORING_SCHEMA_VERSION = 9
+SCORING_SCHEMA_VERSION = 10
 STRUCTURED_ENGINE = "structured_v2"
 # These describe a program or a broad activity, rather than its subject.
 # A deliberately broad profile can still use them; a specific profile must
@@ -45,6 +45,10 @@ GENERIC_INTEREST_TERMS = {
     "graduate research fellowships", "intern", "internship", "internships",
     "program", "programs", "scholarship", "scholarships", "training",
     "apprenticeship", "apprenticeships", "co op", "co-op", "student", "students",
+    "research assistant", "research assistants", "research intern", "research interns",
+    "research internship", "research internships", "research scientist", "research scientists",
+    "research fellow", "research fellows", "graduate researcher", "graduate researchers",
+    "researcher", "researchers",
 }
 STRUCTURED_DIMENSIONS = ("interest", "target", "qualification", "preference")
 DEFAULT_FIELD_WEIGHTS = {
@@ -1202,6 +1206,7 @@ def _structured_gates(
 
     requirements_text = "{} {}".format(item.eligibility, item.description)
     gates.extend(degree_gates(item, stage, completed_degree_levels))
+    gates.extend(clinical_training_gates(item, stage, candidate))
     gates.extend(nationality_gates(item, candidate))
     completed_phd = COMPLETED_PHD_RE.search(requirements_text)
     completed_phd_context = (
@@ -1380,7 +1385,7 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
         if dimension not in dimensions:
             dimension = "interest"
         weight = int(rule.get("weight", 0))
-        if dimension == "interest" and weight > 0:
+        if dimension == "interest" and weight > 0 and not rule.get("hard_gate"):
             has_interest_rules = True
         evidence = _structured_rule_evidence(
             item,
@@ -1734,6 +1739,8 @@ def profile_fingerprint(profile: Dict[str, Any]) -> str:
                         else "not_configured"
                     ),
                     "normalized_levels": completed_levels,
+                    "clinical_degree_evidence": clinical_degree_evidence(completed_entries),
+                    "advanced_practice_degree_evidence": clinical_degree_evidence(completed_entries, True),
                 },
                 "expected_graduation": (
                     {

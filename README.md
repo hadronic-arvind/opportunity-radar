@@ -124,6 +124,7 @@ Fit scores are deterministic triage from your rules.
 They are not acceptance probabilities.
 When your profile names specific interests, broad words such as Fellowship or Research do not establish subject fit by themselves.
 A human-rights fellowship can be a strong match for a legal profile while staying outside a technical research profile.
+Generic academic titles are evaluated with your chosen fields, and explicit medical residency requirements are checked against declared student qualifications.
 Saved opportunities and applications remain accessible when your profile changes.
 
 ## Sources and customization

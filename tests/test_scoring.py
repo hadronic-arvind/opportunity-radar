@@ -293,6 +293,21 @@ class ScoringTests(unittest.TestCase):
                                 "matching": {"engine": "structured_v2", "base_score": 25}})
         self.assertNotEqual(item.tier, "skip")
 
+    def test_generic_academic_role_needs_the_chosen_field(self):
+        profile = {"targets": {"role_families": ["research assistant", "legal intern"],
+                               "domains": ["human rights", "public policy"]},
+                   "matching": {"engine": "structured_v2", "base_score": 36,
+                                "minimum_display_score": 40}}
+        legal = Opportunity("source", "legal", "Human Rights Research Assistant", "Example",
+                            "https://example.org/legal", description="Investigate public policy.")
+        unrelated = Opportunity("source", "ai", "AI Research Assistant", "Example",
+                                "https://example.org/ai", description="Train neural networks.")
+        score_opportunity(legal, profile)
+        score_opportunity(unrelated, profile)
+        self.assertNotEqual(legal.tier, "skip")
+        self.assertEqual(unrelated.tier, "skip")
+        self.assertTrue(legal.metadata["match"]["visibility"]["anchor_matched"])
+
     def test_structured_engine_hard_gates_type_and_timeframe(self):
         profile = self.structured_profile()
         wrong_type = Opportunity(

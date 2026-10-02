@@ -124,3 +124,36 @@ class EligibilityTests(unittest.TestCase):
             'filter_nationality': True, 'citizenships': ['India'], 'permanent_residencies': ['US']}})
         self.assertTrue(editor['candidate']['filter_nationality'])
         self.assertEqual(editor['candidate']['citizenships'], ['IN'])
+
+    def test_clinical_residency_checks_student_degrees_without_inventing_licenses(self):
+        requirement = 'Currently enrolled in, or completed within the last year, an accredited Family or Internal Medicine residency program.'
+        for degrees, expected in [(['Bachelors in Biology'], 'fail'), (['Masters in Physics'], 'fail'),
+                                  (['M.D.'], 'unknown'), (['D.O.'], 'unknown'), (['MBBS'], 'unknown'),
+                                  (['Professional degree in Medicine'], 'unknown'), ([], 'unknown')]:
+            with self.subTest(degrees=degrees):
+                match = self.score(requirement, title='Family Medicine Physician', current_stage='graduate_student', completed_degrees=degrees)
+                gate = next(gate for gate in match['gates'] if gate['id'] == 'clinical_training')
+                self.assertEqual(gate['state'], expected)
+        for title, text in [('Clinical Research Assistant', requirement),
+                            ('Artist in Residence', 'Must have completed an artist residency program.'),
+                            ('Physician', 'Completion of a medical residency program preferred, not required.')]:
+            match = self.score(text, title=title, completed_degrees=['Bachelors in Biology'])
+            self.assertFalse(any(gate['id'] == 'clinical_training' for gate in match['gates']))
+        for degrees, expected in [(['Bachelors in Biology'], 'fail'), (['Masters in Nursing'], 'unknown'),
+                                  (['Masters in Physician Assistant Studies'], 'unknown')]:
+            match = self.score('Completed an accredited FNP or PA program with a national certification.',
+                title='Family Medicine Nurse Practitioner or Physician Assistant',
+                current_stage='graduate_student', completed_degrees=degrees)
+            gate = next(gate for gate in match['gates'] if gate['id'] == 'clinical_training')
+            self.assertEqual(gate['state'], expected)
+        match = self.score('Completed an accredited PA program with a national certification.',
+            title='Physician’s Assistant', current_stage='graduate_student', completed_degrees=['Bachelors in Biology'])
+        self.assertEqual(next(gate for gate in match['gates'] if gate['id'] == 'clinical_training')['state'], 'fail')
+
+    def test_medical_degree_evidence_changes_fingerprint_even_at_same_degree_level(self):
+        base = {'matching': {'engine': 'structured_v2'}, 'candidate': {
+            'current_stage': 'graduate_student', 'completed_degrees': ['Bachelors in Biology']}}
+        changed = {**base, 'candidate': {**base['candidate'], 'completed_degrees': ['Bachelors in Medicine (MBBS)']}}
+        self.assertNotEqual(profile_fingerprint(base), profile_fingerprint(changed))
+        changed['candidate']['completed_degrees'] = ['Bachelors in Nursing']
+        self.assertNotEqual(profile_fingerprint(base), profile_fingerprint(changed))
