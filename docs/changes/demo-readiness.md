@@ -1,6 +1,7 @@
 # Relevance and demo readiness
 
-Status: implementation and local release validation complete; publication and installed upgrade pending.
+Status: release implementation, validation, real-listing audit, and installed Mac upgrade complete.
+Publication: [PR #18](https://github.com/hadronic-arvind/opportunity-radar/pull/18).
 Branch: relevance-demo-readiness, based on 8c5cbd8 on main.
 
 ## Goal and constraints
@@ -31,23 +32,28 @@ Source refreshes now use one transaction, restoring the previous snapshot on fai
 The dashboard supports every present opportunity type, useful empty-state actions, accurate saved-record availability labels, and requirement/score-limit disclosures.
 No fictional demo feature remains.
 
-## Current validation and next action
+## Release validation
 
 `./scripts/dev_check.sh` and focused suites pass for cross-industry matching, scoring, pipeline, and dashboard behavior.
-`./scripts/check.sh` passed all 367 tests and the full release/privacy gate after the academic and clinical changes.
-PR review then identified positive interest hard gates being incorrectly counted as scored interest rules.
+`./scripts/check.sh` passes all 368 tests and the full release/privacy gate after the final code changes.
+PR review identified positive interest hard gates being incorrectly counted as scored interest rules.
 A public scan-to-dashboard regression reproduced the hidden matching listing; excluding hard gates from scored-interest detection fixes it, and all eight cross-industry tests pass.
-The final 368-test gate must run after the installed upgrade releases its lifecycle lock.
-An overlapping gate was rejected by the existing lifecycle guard in five tests; this was an operational test/install conflict, not a failing matching regression.
+The final gate ran without an installer active and passed; an earlier overlapping run was rejected by the existing lifecycle guard.
 Python 3.9 syntax parsing passes for every Python module in monitor, tests, and scripts.
 A 500-listing local persistence benchmark reduced commits from 500 to one and elapsed time from 0.161 seconds to 0.022 seconds; this does not measure network scan duration.
 The JavaScript behavior check exercises actual filter/search functions, saved records, and inactive applications with anonymous test fixtures.
 Visual UI inspection is blocked because macOS Computer Use permissions are not granted.
 The cross-discipline audit compares baseline/current matching on real stored public listings without changing the active profile or reading application state.
 The disposable native app build, plist lint, and signature verification passed.
-Initial GitHub CI and CodeQL checks passed on PR #18 before the final academic-role and clinical-training refinements.
-The initial local staged upgrade completed; a second upgrade is required to include those refinements.
-Next: finish the revised audit, push the refinement and evidence to PR #18, verify its final checks, merge, and refresh the installed runtime and app.
+The installed `~/Applications/Opportunity Radar.app` was rebuilt for 0.9.0; both plists and its strict deep signature verification pass.
+All 11 GitHub CI and CodeQL checks passed on PR #18 at ece26c9, including the final academic-role, clinical-training, and positive-hard-gate changes.
+The final supported installer completed a full real-source scan and promoted the release runtime.
+Hash checks confirm installed monitor code, public configuration, and dashboard assets exactly match the release checkout.
+All three private configuration files and all 38,425 original workflow records retained their pre-upgrade values.
+The existing 07:30 and 16:30 cron schedule is unchanged, with no scanner running between scans.
+The supported installation doctor reports no failures and confirms the runtime, dashboard assets, and cron fallback.
+Project-memory review found no new verified recurring guidance absent from the shared repository documentation.
+PR #18 owns the release publication; GitHub checks must remain passing when merged.
 
 ## Real-listing cross-discipline audit
 
