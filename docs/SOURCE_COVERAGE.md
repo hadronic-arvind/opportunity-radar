@@ -8,7 +8,7 @@ Custom private sources keep their existing enable/disable behavior.
 
 ## Cost and limits
 
-The catalog contains 352 resources, including 189 feeds in the shared cross-industry set.
+The catalog contains 400 resources, including 194 feeds in the shared cross-industry set.
 The unconfigured starter still enables five feeds.
 New feeds use a 24-hour cadence; existing source cadences remain unchanged.
 Collection is sequential, with the existing timeout, response-size, and 5,000-listing per-source limits.
@@ -107,3 +107,7 @@ These are additions to the existing catalog; this audit does not claim to have r
 
 The cross-industry tests enforce pack membership and exercise profile selection, job matching, explicit exclusions, cadence, and saved application status through the CLI.
 Schema details and private source controls remain in [Configuration](CONFIGURATION.md).
+
+## Distinctive employers
+
+See [the 48-company expansion](INTERESTING_EMPLOYERS.md) for official links, field and role discovery, collection limits, and verification results.

@@ -25,7 +25,7 @@ for (const name of ["TYPE_LABELS", "OPPORTUNITY_TYPE_OPTIONS"]) {
 }
 for (const name of ["normalizeSearchText", "buildSearchFields", "normalizedType", "isAvailable",
   "isApplication", "hasWholeTerm", "valueRank", "queryRank", "filteredItems", "filtersForView",
-  "appendMatchSummary", "appendMatchAudit"]) {
+  "appendMatchSummary", "appendMatchAudit", "sourceResourceSearchText", "matchingSourceResources"]) {
   const start = source.indexOf("  function " + name + "(");
   const end = source.indexOf("\n  function ", start + 1);
   assert(start >= 0 && end > start, name);
@@ -64,4 +64,19 @@ assert(text(article).includes("Outside your current profile"));
 assert(text(article).includes("No evidence for your preferred roles or fields"));
 assert(text(article).includes("Needs verification"));
 assert(text(article).includes("score limited to 49"));
+
+sandbox.sourceResources = [{name: "Bose", source_type: "manual_page", support_level: "manual", packs: ["engineering"], domains: ["acoustics"], role_families: ["software engineer", "accountant"], opportunity_types: ["internship"], career_levels: ["new_grad"]}];
+sandbox.sourceResourceView = {query: "software engineer"};
+assert.equal(sandbox.matchingSourceResources().length, 1);
+sandbox.sourceResourceView.query = "internship";
+assert.equal(sandbox.matchingSourceResources().length, 1);
+sandbox.sourceResourceView.query = "new grad";
+assert.equal(sandbox.matchingSourceResources().length, 1);
+sandbox.sourceResourceView.query = "acoustics";
+assert.equal(sandbox.matchingSourceResources().length, 1);
+sandbox.sourceResourceView.query = "accountant";
+assert.equal(sandbox.matchingSourceResources().length, 1);
+sandbox.sourceResourceView.query = "clinical residency";
+assert.equal(sandbox.matchingSourceResources().length, 0);
+
 console.log("Dashboard behavior checks passed");

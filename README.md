@@ -129,8 +129,8 @@ Saved opportunities and applications remain accessible when your profile changes
 
 ## Sources and customization
 
-The public catalog contains 352 official resources across technology, finance, retail, logistics, media, healthcare, manufacturing, energy, science, education, public interest, and other fields.
-Automatic and named coverage include a shared set of 189 supported structured employer feeds across industries, including 69 newly verified additions.
+The public catalog contains 400 official resources across technology, finance, retail, logistics, media, healthcare, manufacturing, energy, science, education, public interest, and other fields.
+Automatic and named coverage include a shared set of 194 supported structured employer feeds across industries, including 69 newly verified additions.
 A healthcare company can have accounting jobs, and an aerospace company can have legal or software jobs: employer industry never excludes a company from this shared set.
 Each job is matched using its own title, department, description, requirements, and your preferences.
 The unconfigured five-source starter stays small; choose Manual coverage to use only selected packs, or explicitly disable individual sources.

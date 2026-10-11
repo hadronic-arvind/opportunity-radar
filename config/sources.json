@@ -196,6 +196,11 @@
       "id": "biomedical-devices",
       "name": "Biomedical engineering and medical devices",
       "description": "Medical devices, biomedical engineering, quality, and clinical technology."
+    },
+    {
+      "id": "interesting-employers",
+      "name": "Distinctive technology and research employers",
+      "description": "Audio, scientific computing, precision instruments, robotics, quantum technology, materials, and distinctive product companies. Includes automatic feeds and clearly marked manual careers resources; hiring frequency varies."
     }
   ],
   "sources": [
@@ -13720,6 +13725,3335 @@
         "global"
       ],
       "verified_at": "2026-09-21"
+    },
+    {
+      "id": "bose_careers",
+      "name": "Bose",
+      "url": "https://careers.bose.com/us/en/search-results",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "bose_professional_careers",
+      "name": "Bose Professional",
+      "url": "https://boseprofessional.applytojob.com/apply",
+      "kind": "html_links",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "experimental",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "include": [
+        "/apply/"
+      ],
+      "exclude": [],
+      "pages": 1,
+      "same_domain": true,
+      "description_availability": "title_only",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "sonos_careers",
+      "name": "Sonos",
+      "url": "https://www.sonos.com/en-us/life-at-sonos",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "dolby_careers",
+      "name": "Dolby",
+      "url": "https://www.dolby.com/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "shure_careers",
+      "name": "Shure",
+      "url": "https://www.shure.com/en-US/careers/why-work-with-us",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "sennheiser_careers",
+      "name": "Sennheiser",
+      "url": "https://www.sennheiser.com/en-us/jobs-and-careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "harman_careers",
+      "name": "HARMAN",
+      "url": "https://jobs.harman.com/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "bang_olufsen_careers",
+      "name": "Bang & Olufsen",
+      "url": "https://www.bang-olufsen.com/en/us/story/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "electronics-semiconductors",
+        "product-design",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "acoustics",
+        "audio",
+        "signal_processing",
+        "electrical_engineering",
+        "software",
+        "machine_learning",
+        "design",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "acoustics engineer",
+        "signal processing engineer",
+        "audio engineer"
+      ]
+    },
+    {
+      "id": "mathworks_careers",
+      "name": "MathWorks",
+      "url": "https://www.mathworks.com/company/jobs/opportunities/search",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "wolfram_careers",
+      "name": "Wolfram",
+      "url": "https://www.wolfram.com/company/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "comsol_careers",
+      "name": "COMSOL",
+      "url": "https://www.comsol.com/company/careers/",
+      "kind": "html_links",
+      "source_type": "listing_feed",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "experimental",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "include": [
+        "/company/careers/job/"
+      ],
+      "exclude": [],
+      "pages": 1,
+      "same_domain": true,
+      "description_availability": "title_only",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "dassault_systemes_careers",
+      "name": "Dassault Systemes",
+      "url": "https://www.3ds.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "kitware_careers",
+      "name": "Kitware",
+      "url": "https://jobs.lever.co/kitware",
+      "kind": "lever",
+      "source_type": "listing_feed",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "cross-industry",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "site": "kitware",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ],
+      "api_url": "https://api.lever.co/v0/postings/kitware?mode=json"
+    },
+    {
+      "id": "maplesoft_careers",
+      "name": "Maplesoft",
+      "url": "https://www.maplesoft.com/company/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "zeiss_careers",
+      "name": "ZEISS",
+      "url": "https://www.zeiss.com/career/en/job-search.html",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "keysight_careers",
+      "name": "Keysight",
+      "url": "https://jobs.keysight.com/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "rohde_schwarz_careers",
+      "name": "Rohde & Schwarz",
+      "url": "https://www.rohde-schwarz.com/career/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "teledyne_careers",
+      "name": "Teledyne",
+      "url": "https://www.teledyne.com/en-us/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "hamamatsu_photonics_careers",
+      "name": "Hamamatsu Photonics",
+      "url": "https://www.hamamatsu.com/us/en/our-company/hamamatsu-careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "thorlabs_careers",
+      "name": "Thorlabs",
+      "url": "https://www.thorlabs.com/careers/search/remote",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "newport_mks_instruments_careers",
+      "name": "Newport / MKS Instruments",
+      "url": "https://www.mks.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "garmin_careers",
+      "name": "Garmin",
+      "url": "https://careers.garmin.com/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "dyson_careers",
+      "name": "Dyson",
+      "url": "https://careers.dyson.com/en-gb/search-results/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "lego_careers",
+      "name": "LEGO",
+      "url": "https://www.lego.com/en-us/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "nintendo_careers",
+      "name": "Nintendo",
+      "url": "https://careers.nintendo.com/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "valve_careers",
+      "name": "Valve",
+      "url": "https://www.valvesoftware.com/en/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "w_l_gore_associates_careers",
+      "name": "W. L. Gore & Associates",
+      "url": "https://www.gore.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "climate-energy",
+        "chemistry-materials",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "climate_energy",
+        "materials_science",
+        "engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "3m_careers",
+      "name": "3M",
+      "url": "https://www.3m.com/3M/en_US/careers-us/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "climate-energy",
+        "chemistry-materials",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "climate_energy",
+        "materials_science",
+        "engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "corning_careers",
+      "name": "Corning",
+      "url": "https://www.corning.com/worldwide/en/careers.html",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers",
+        "chemistry-materials"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal",
+        "materials_science",
+        "chemistry"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "bosch_careers",
+      "name": "Bosch",
+      "url": "https://www.bosch.com/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "dji_careers",
+      "name": "DJI",
+      "url": "https://careers.dji.com/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "robotics-autonomy",
+        "engineering",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "robotics",
+        "controls",
+        "engineering",
+        "software",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "robotics engineer",
+        "controls engineer",
+        "embedded software engineer"
+      ]
+    },
+    {
+      "id": "cognex_careers",
+      "name": "Cognex",
+      "url": "https://www.cognex.cn/en/company/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "robotics-autonomy",
+        "engineering",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "robotics",
+        "controls",
+        "engineering",
+        "software",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "robotics engineer",
+        "controls engineer",
+        "embedded software engineer"
+      ]
+    },
+    {
+      "id": "universal_robots_careers",
+      "name": "Universal Robots",
+      "url": "https://www.universal-robots.com/about-universal-robots/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "robotics-autonomy",
+        "engineering",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "robotics",
+        "controls",
+        "engineering",
+        "software",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "robotics engineer",
+        "controls engineer",
+        "embedded software engineer"
+      ]
+    },
+    {
+      "id": "boston_dynamics_careers",
+      "name": "Boston Dynamics",
+      "url": "https://bostondynamics.com/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "robotics-autonomy",
+        "engineering",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "robotics",
+        "controls",
+        "engineering",
+        "software",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "robotics engineer",
+        "controls engineer",
+        "embedded software engineer"
+      ]
+    },
+    {
+      "id": "hrl_laboratories_careers",
+      "name": "HRL Laboratories",
+      "url": "https://www.hrl.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "mathematical-sciences",
+        "electronics-semiconductors",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "quantum physicist",
+        "quantum engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "sri_international_careers",
+      "name": "SRI International",
+      "url": "https://www.sri.com/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "mathematical-sciences",
+        "data-software",
+        "engineering",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "mathematics",
+        "scientific_computing",
+        "software",
+        "simulation",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "scientific software engineer",
+        "numerical algorithms engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "draper_careers",
+      "name": "Draper",
+      "url": "https://www.draper.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "formlabs_careers",
+      "name": "Formlabs",
+      "url": "https://job-boards.greenhouse.io/formlabs",
+      "kind": "greenhouse",
+      "source_type": "listing_feed",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "cross-industry",
+        "interesting-employers"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "board": "formlabs",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ],
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/formlabs/jobs"
+    },
+    {
+      "id": "form_energy_careers",
+      "name": "Form Energy",
+      "url": "https://jobs.ashbyhq.com/formenergy",
+      "kind": "ashby",
+      "source_type": "listing_feed",
+      "packs": [
+        "climate-energy",
+        "chemistry-materials",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "cross-industry",
+        "interesting-employers"
+      ],
+      "domains": [
+        "climate_energy",
+        "materials_science",
+        "engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "board": "formenergy",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ],
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/formenergy"
+    },
+    {
+      "id": "skydio_careers",
+      "name": "Skydio",
+      "url": "https://www.skydio.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "robotics-autonomy",
+        "engineering",
+        "data-software",
+        "ai-research",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "robotics",
+        "controls",
+        "engineering",
+        "software",
+        "machine_learning",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "robotics engineer",
+        "controls engineer",
+        "embedded software engineer"
+      ]
+    },
+    {
+      "id": "quera_computing_careers",
+      "name": "QuEra Computing",
+      "url": "https://job-boards.greenhouse.io/queracomputinginc",
+      "kind": "greenhouse",
+      "source_type": "listing_feed",
+      "packs": [
+        "physics-quantum-astronomy",
+        "mathematical-sciences",
+        "electronics-semiconductors",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "cross-industry",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "board": "queracomputinginc",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "quantum physicist",
+        "quantum engineer",
+        "applications engineer"
+      ],
+      "api_url": "https://boards-api.greenhouse.io/v1/boards/queracomputinginc/jobs"
+    },
+    {
+      "id": "d_wave_careers",
+      "name": "D-Wave",
+      "url": "https://www.dwavequantum.com/company/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "mathematical-sciences",
+        "electronics-semiconductors",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "quantum physicist",
+        "quantum engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "quantum_machines_careers",
+      "name": "Quantum Machines",
+      "url": "https://www.quantum-machines.co/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "mathematical-sciences",
+        "electronics-semiconductors",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "quantum physicist",
+        "quantum engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "quantinuum_careers",
+      "name": "Quantinuum",
+      "url": "https://www.quantinuum.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "mathematical-sciences",
+        "electronics-semiconductors",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "quantum",
+        "mathematics",
+        "electrical_engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "quantum physicist",
+        "quantum engineer",
+        "applications engineer"
+      ]
+    },
+    {
+      "id": "oxford_instruments_careers",
+      "name": "Oxford Instruments",
+      "url": "https://www.oxinst.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ]
+    },
+    {
+      "id": "tae_technologies_careers",
+      "name": "TAE Technologies",
+      "url": "https://tae.com/careers/",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "climate-energy",
+        "chemistry-materials",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers"
+      ],
+      "domains": [
+        "climate_energy",
+        "materials_science",
+        "engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
+    },
+    {
+      "id": "helion_energy_careers",
+      "name": "Helion Energy",
+      "url": "https://jobs.ashbyhq.com/helion",
+      "kind": "ashby",
+      "source_type": "listing_feed",
+      "packs": [
+        "climate-energy",
+        "chemistry-materials",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "cross-industry",
+        "interesting-employers"
+      ],
+      "domains": [
+        "climate_energy",
+        "materials_science",
+        "engineering",
+        "software",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "board": "helion",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ],
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/helion"
+    },
+    {
+      "id": "blue_origin_careers",
+      "name": "Blue Origin",
+      "url": "https://www.blueorigin.com/careers",
+      "kind": "watch_page",
+      "source_type": "manual_page",
+      "packs": [
+        "engineering",
+        "product-design",
+        "data-software",
+        "skilled-technical",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers",
+        "space-aerospace"
+      ],
+      "domains": [
+        "engineering",
+        "design",
+        "software",
+        "manufacturing",
+        "business",
+        "accounting",
+        "legal",
+        "aerospace",
+        "space"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "manual",
+      "auto_enable": false,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal"
+      ]
     }
   ]
 }

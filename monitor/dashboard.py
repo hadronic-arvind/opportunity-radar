@@ -60,6 +60,9 @@ def _source_resource_directory() -> list:
                 "url": safe_external_url(source.get("url")),
                 "packs": _bounded_string_list(source.get("packs")),
                 "domains": _bounded_string_list(source.get("domains")),
+                "role_families": _bounded_string_list(source.get("role_families")),
+                "opportunity_types": _bounded_string_list(source.get("opportunity_types")),
+                "career_levels": _bounded_string_list(source.get("career_levels")),
                 "source_type": _bounded_setting(
                     source.get("source_type"), source.get("kind", "resource"), 80
                 ),

@@ -285,6 +285,9 @@
       url: safeUrl(entry && entry.url),
       packs: boundedTextList(entry && entry.packs, 24),
       domains: boundedTextList(entry && entry.domains, 24),
+      role_families: boundedTextList(entry && entry.role_families, 24),
+      opportunity_types: boundedTextList(entry && entry.opportunity_types, 24),
+      career_levels: boundedTextList(entry && entry.career_levels, 24),
       source_type: boundedInlineText(entry && entry.source_type, 80),
       support_level: boundedInlineText(entry && entry.support_level, 40),
       enabled: Boolean(entry && entry.enabled),
@@ -2699,7 +2702,10 @@
       resource.support_level,
       ...resource.packs,
       ...resource.domains,
-    ].join(" "));
+      ...resource.role_families,
+      ...resource.opportunity_types,
+      ...resource.career_levels,
+    ].map(humanizeProfileValue).join(" "));
   }
 
   function matchingSourceResources() {
