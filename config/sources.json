@@ -13729,9 +13729,9 @@
     {
       "id": "bose_careers",
       "name": "Bose",
-      "url": "https://careers.bose.com/us/en/search-results",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://boseallaboutme.wd503.myworkdayjobs.com/Bose_Careers",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "electronics-semiconductors",
@@ -13741,7 +13741,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "acoustics",
@@ -13770,8 +13771,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -13880,9 +13881,9 @@
     {
       "id": "sonos_careers",
       "name": "Sonos",
-      "url": "https://www.sonos.com/en-us/life-at-sonos",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://sonos.wd1.myworkdayjobs.com/Sonos",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "electronics-semiconductors",
@@ -13892,7 +13893,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "acoustics",
@@ -13921,8 +13923,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14024,9 +14026,9 @@
     {
       "id": "shure_careers",
       "name": "Shure",
-      "url": "https://www.shure.com/en-US/careers/why-work-with-us",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://careershub-shure.icims.com/jobs/search?pr=0&in_iframe=1",
+      "kind": "html_links",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "electronics-semiconductors",
@@ -14065,8 +14067,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14091,14 +14093,32 @@
         "acoustics engineer",
         "signal processing engineer",
         "audio engineer"
-      ]
+      ],
+      "include": [
+        "/jobs/"
+      ],
+      "exclude": [
+        "/search",
+        "/login",
+        "/intro",
+        "/connect",
+        "/form",
+        "/oauth",
+        "/logout",
+        "/candidate"
+      ],
+      "same_domain": false,
+      "pages": 7,
+      "pagination_parameter": "pr",
+      "link_title_prefix": "Job Title",
+      "description_availability": "title_only"
     },
     {
       "id": "sennheiser_careers",
       "name": "Sennheiser",
-      "url": "https://www.sennheiser.com/en-us/jobs-and-careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.sennheiser.com/",
+      "kind": "sap_public",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "electronics-semiconductors",
@@ -14137,8 +14157,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14381,9 +14401,9 @@
     {
       "id": "wolfram_careers",
       "name": "Wolfram",
-      "url": "https://www.wolfram.com/company/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://www.wolfram.com/company/careers/opportunities/",
+      "kind": "recruiterbox",
+      "source_type": "listing_feed",
       "packs": [
         "mathematical-sciences",
         "data-software",
@@ -14419,8 +14439,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14445,7 +14465,9 @@
         "scientific software engineer",
         "numerical algorithms engineer",
         "applications engineer"
-      ]
+      ],
+      "company": "wolframresearch",
+      "widget": "42716"
     },
     {
       "id": "comsol_careers",
@@ -14667,9 +14689,9 @@
     {
       "id": "maplesoft_careers",
       "name": "Maplesoft",
-      "url": "https://www.maplesoft.com/company/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://ats.rippling.com/maplesoft/jobs",
+      "kind": "rippling",
+      "source_type": "listing_feed",
       "packs": [
         "mathematical-sciences",
         "data-software",
@@ -14705,8 +14727,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14731,14 +14753,15 @@
         "scientific software engineer",
         "numerical algorithms engineer",
         "applications engineer"
-      ]
+      ],
+      "board": "maplesoft"
     },
     {
       "id": "zeiss_careers",
       "name": "ZEISS",
-      "url": "https://www.zeiss.com/career/en/job-search.html",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://zeissgroup.wd3.myworkdayjobs.com/External",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -14747,7 +14770,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -14775,8 +14799,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14806,9 +14830,9 @@
     {
       "id": "keysight_careers",
       "name": "Keysight",
-      "url": "https://jobs.keysight.com/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.keysight.com/external",
+      "kind": "jibe",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -14817,7 +14841,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -14845,8 +14870,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -14871,7 +14896,9 @@
         "optical engineer",
         "photonics engineer",
         "test engineer"
-      ]
+      ],
+      "api_url": "https://jobs.keysight.com/api/jobs?page=1&limit=100",
+      "job_url_template": "https://jobs.keysight.com/external/jobs/{slug}"
     },
     {
       "id": "rohde_schwarz_careers",
@@ -14946,9 +14973,9 @@
     {
       "id": "teledyne_careers",
       "name": "Teledyne",
-      "url": "https://www.teledyne.com/en-us/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://flir.wd1.myworkdayjobs.com/flircareers",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -14957,7 +14984,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -14985,8 +15013,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15086,9 +15114,9 @@
     {
       "id": "thorlabs_careers",
       "name": "Thorlabs",
-      "url": "https://www.thorlabs.com/careers/search/remote",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://apply.workable.com/thorlabs/",
+      "kind": "workable",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -15125,8 +15153,80 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
+      "enabled": false,
+      "publish_as_opportunity": false,
+      "cadence_hours": 24,
+      "verified_at": "2026-10-10",
+      "role_families": [
+        "software engineer",
+        "research scientist",
+        "hardware engineer",
+        "electrical engineer",
+        "mechanical engineer",
+        "data scientist",
+        "product designer",
+        "product manager",
+        "manufacturing technician",
+        "operations",
+        "accountant",
+        "finance",
+        "marketing",
+        "sales",
+        "human resources",
+        "legal",
+        "optical engineer",
+        "photonics engineer",
+        "test engineer"
+      ],
+      "board": "thorlabs"
+    },
+    {
+      "id": "newport_mks_instruments_careers",
+      "name": "Newport / MKS Instruments",
+      "url": "https://mksinst.wd1.myworkdayjobs.com/MKSCareersEMEA",
+      "kind": "workday",
+      "source_type": "listing_feed",
+      "packs": [
+        "physics-quantum-astronomy",
+        "electronics-semiconductors",
+        "engineering",
+        "data-software",
+        "business-operations",
+        "accounting-finance",
+        "legal-policy",
+        "interesting-employers",
+        "cross-industry"
+      ],
+      "domains": [
+        "physics",
+        "optics",
+        "photonics",
+        "electrical_engineering",
+        "software",
+        "metrology",
+        "business",
+        "accounting",
+        "legal"
+      ],
+      "opportunity_types": [
+        "job",
+        "internship"
+      ],
+      "career_levels": [
+        "undergraduate",
+        "graduate",
+        "new_grad",
+        "early_career",
+        "experienced"
+      ],
+      "regions": [
+        "global"
+      ],
+      "official": true,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15154,11 +15254,11 @@
       ]
     },
     {
-      "id": "newport_mks_instruments_careers",
+      "id": "newport_mks_instruments_americas",
       "name": "Newport / MKS Instruments",
-      "url": "https://www.mks.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://mksinst.wd1.myworkdayjobs.com/MKSCareersAmericas",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -15167,7 +15267,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -15192,11 +15293,12 @@
         "experienced"
       ],
       "regions": [
-        "global"
+        "north-america",
+        "south-america"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15226,9 +15328,9 @@
     {
       "id": "garmin_careers",
       "name": "Garmin",
-      "url": "https://careers.garmin.com/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://careers.garmin.com/careers-home/jobs",
+      "kind": "jibe",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -15237,7 +15339,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "engineering",
@@ -15263,8 +15366,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15286,14 +15389,16 @@
         "sales",
         "human resources",
         "legal"
-      ]
+      ],
+      "api_url": "https://careers.garmin.com/api/jobs?page=1&limit=100",
+      "job_url_template": "https://careers.garmin.com/careers-home/jobs/{slug}"
     },
     {
       "id": "dyson_careers",
       "name": "Dyson",
-      "url": "https://careers.dyson.com/en-gb/search-results/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://dyson.wd3.myworkdayjobs.com/dyson_careers",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -15302,7 +15407,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "engineering",
@@ -15328,8 +15434,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15356,9 +15462,9 @@
     {
       "id": "lego_careers",
       "name": "LEGO",
-      "url": "https://www.lego.com/en-us/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://lego.wd103.myworkdayjobs.com/LEGO_External",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -15367,7 +15473,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "engineering",
@@ -15393,8 +15500,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15421,9 +15528,9 @@
     {
       "id": "nintendo_careers",
       "name": "Nintendo",
-      "url": "https://careers.nintendo.com/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://careers.nintendo.com/jobs",
+      "kind": "html_links",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -15458,8 +15565,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15481,14 +15588,24 @@
         "sales",
         "human resources",
         "legal"
-      ]
+      ],
+      "include": [
+        "/job/",
+        "/jobs/"
+      ],
+      "exclude": [
+        "/jobs/?",
+        "/jobs/#"
+      ],
+      "same_domain": true,
+      "description_availability": "title_only"
     },
     {
       "id": "valve_careers",
       "name": "Valve",
       "url": "https://www.valvesoftware.com/en/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "kind": "html_links",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -15523,8 +15640,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15546,14 +15663,23 @@
         "sales",
         "human resources",
         "legal"
-      ]
+      ],
+      "include": [
+        "/en/jobs?job_id=",
+        "/en/jobs?jobId=",
+        "/en/jobs?job=",
+        "/en/jobs?job_id",
+        "/en/jobs?"
+      ],
+      "same_domain": true,
+      "description_availability": "title_only"
     },
     {
       "id": "w_l_gore_associates_careers",
       "name": "W. L. Gore & Associates",
-      "url": "https://www.gore.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://wlgore.jobs.hr.cloud.sap/",
+      "kind": "sap_public",
+      "source_type": "listing_feed",
       "packs": [
         "climate-energy",
         "chemistry-materials",
@@ -15588,8 +15714,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15611,14 +15737,15 @@
         "sales",
         "human resources",
         "legal"
-      ]
+      ],
+      "sort_by": "date"
     },
     {
       "id": "3m_careers",
       "name": "3M",
-      "url": "https://www.3m.com/3M/en_US/careers-us/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://3m.wd1.myworkdayjobs.com/Search",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "climate-energy",
         "chemistry-materials",
@@ -15627,7 +15754,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "climate_energy",
@@ -15653,8 +15781,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15681,9 +15809,9 @@
     {
       "id": "corning_careers",
       "name": "Corning",
-      "url": "https://www.corning.com/worldwide/en/careers.html",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://corningjobs.corning.com/search/?startrow=0&locale=en_US",
+      "kind": "html_links",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -15723,8 +15851,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15749,14 +15877,21 @@
         "optical engineer",
         "photonics engineer",
         "test engineer"
-      ]
+      ],
+      "include": [
+        "/job/"
+      ],
+      "pages": 20,
+      "pagination_parameter": "startrow",
+      "pagination_step": 25,
+      "same_domain": true
     },
     {
       "id": "bosch_careers",
       "name": "Bosch",
-      "url": "https://www.bosch.com/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.smartrecruiters.com/BoschGroup",
+      "kind": "smartrecruiters",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -15765,7 +15900,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "engineering",
@@ -15791,8 +15927,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -15814,7 +15950,8 @@
         "sales",
         "human resources",
         "legal"
-      ]
+      ],
+      "company": "BoschGroup"
     },
     {
       "id": "dji_careers",
@@ -15888,9 +16025,9 @@
     {
       "id": "cognex_careers",
       "name": "Cognex",
-      "url": "https://www.cognex.cn/en/company/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://cognex.wd1.myworkdayjobs.com/External_Career_Site",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "robotics-autonomy",
         "engineering",
@@ -15899,7 +16036,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "robotics",
@@ -15926,8 +16064,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16026,9 +16164,9 @@
     {
       "id": "boston_dynamics_careers",
       "name": "Boston Dynamics",
-      "url": "https://bostondynamics.com/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://bostondynamics.wd1.myworkdayjobs.com/Boston_Dynamics",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "robotics-autonomy",
         "engineering",
@@ -16037,7 +16175,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "robotics",
@@ -16064,8 +16203,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16095,9 +16234,9 @@
     {
       "id": "hrl_laboratories_careers",
       "name": "HRL Laboratories",
-      "url": "https://www.hrl.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.lever.co/dodmg",
+      "kind": "lever",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "mathematical-sciences",
@@ -16106,7 +16245,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -16133,8 +16273,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16159,14 +16299,16 @@
         "quantum physicist",
         "quantum engineer",
         "applications engineer"
-      ]
+      ],
+      "site": "dodmg",
+      "api_url": "https://api.lever.co/v0/postings/dodmg?mode=json"
     },
     {
       "id": "sri_international_careers",
       "name": "SRI International",
-      "url": "https://www.sri.com/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://careers-sri.icims.com/jobs/search?ss=1",
+      "kind": "html_links",
+      "source_type": "listing_feed",
       "packs": [
         "mathematical-sciences",
         "data-software",
@@ -16202,8 +16344,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16228,14 +16370,27 @@
         "scientific software engineer",
         "numerical algorithms engineer",
         "applications engineer"
-      ]
+      ],
+      "include": [
+        "/jobs/"
+      ],
+      "exclude": [
+        "/search",
+        "/login",
+        "/intro"
+      ],
+      "same_domain": true,
+      "pages": 5,
+      "pagination_parameter": "pr",
+      "link_title_prefix": "Title",
+      "description_availability": "title_only"
     },
     {
       "id": "draper_careers",
       "name": "Draper",
-      "url": "https://www.draper.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://draper.wd5.myworkdayjobs.com/Draper_Careers",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -16244,7 +16399,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -16272,8 +16428,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16439,9 +16595,9 @@
     {
       "id": "skydio_careers",
       "name": "Skydio",
-      "url": "https://www.skydio.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.ashbyhq.com/skydio",
+      "kind": "ashby",
+      "source_type": "listing_feed",
       "packs": [
         "robotics-autonomy",
         "engineering",
@@ -16450,7 +16606,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "robotics",
@@ -16477,8 +16634,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16503,7 +16660,9 @@
         "robotics engineer",
         "controls engineer",
         "embedded software engineer"
-      ]
+      ],
+      "board": "skydio",
+      "api_url": "https://api.ashbyhq.com/posting-api/job-board/skydio"
     },
     {
       "id": "quera_computing_careers",
@@ -16580,9 +16739,9 @@
     {
       "id": "d_wave_careers",
       "name": "D-Wave",
-      "url": "https://www.dwavequantum.com/company/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://ats.rippling.com/d-wave-quantum/jobs",
+      "kind": "rippling",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "mathematical-sciences",
@@ -16618,8 +16777,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16644,14 +16803,15 @@
         "quantum physicist",
         "quantum engineer",
         "applications engineer"
-      ]
+      ],
+      "board": "d-wave-quantum"
     },
     {
       "id": "quantum_machines_careers",
       "name": "Quantum Machines",
-      "url": "https://www.quantum-machines.co/careers/",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://www.comeet.com/jobs/quantummachines/D6.000",
+      "kind": "comeet",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "mathematical-sciences",
@@ -16687,8 +16847,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16718,9 +16878,9 @@
     {
       "id": "quantinuum_careers",
       "name": "Quantinuum",
-      "url": "https://www.quantinuum.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.eu.lever.co/quantinuum",
+      "kind": "lever",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "mathematical-sciences",
@@ -16729,7 +16889,8 @@
         "business-operations",
         "accounting-finance",
         "legal-policy",
-        "interesting-employers"
+        "interesting-employers",
+        "cross-industry"
       ],
       "domains": [
         "physics",
@@ -16756,8 +16917,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16782,14 +16943,17 @@
         "quantum physicist",
         "quantum engineer",
         "applications engineer"
-      ]
+      ],
+      "site": "quantinuum",
+      "api_region": "eu",
+      "api_url": "https://api.eu.lever.co/v0/postings/quantinuum?mode=json"
     },
     {
       "id": "oxford_instruments_careers",
       "name": "Oxford Instruments",
-      "url": "https://www.oxinst.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://jobs.oxinst.com/search/?startrow=0",
+      "kind": "html_links",
+      "source_type": "listing_feed",
       "packs": [
         "physics-quantum-astronomy",
         "electronics-semiconductors",
@@ -16826,8 +16990,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "experimental",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,
@@ -16852,7 +17016,15 @@
         "optical engineer",
         "photonics engineer",
         "test engineer"
-      ]
+      ],
+      "include": [
+        "/job/"
+      ],
+      "same_domain": true,
+      "pages": 20,
+      "pagination_parameter": "startrow",
+      "pagination_step": 25,
+      "description_availability": "title_only"
     },
     {
       "id": "tae_technologies_careers",
@@ -16990,9 +17162,9 @@
     {
       "id": "blue_origin_careers",
       "name": "Blue Origin",
-      "url": "https://www.blueorigin.com/careers",
-      "kind": "watch_page",
-      "source_type": "manual_page",
+      "url": "https://blueorigin.wd5.myworkdayjobs.com/BlueOrigin",
+      "kind": "workday",
+      "source_type": "listing_feed",
       "packs": [
         "engineering",
         "product-design",
@@ -17002,7 +17174,8 @@
         "accounting-finance",
         "legal-policy",
         "interesting-employers",
-        "space-aerospace"
+        "space-aerospace",
+        "cross-industry"
       ],
       "domains": [
         "engineering",
@@ -17030,8 +17203,8 @@
         "global"
       ],
       "official": true,
-      "support_level": "manual",
-      "auto_enable": false,
+      "support_level": "supported",
+      "auto_enable": true,
       "enabled": false,
       "publish_as_opportunity": false,
       "cadence_hours": 24,

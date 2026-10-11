@@ -75,7 +75,18 @@ class CrossIndustryTests(unittest.TestCase):
         return {source["id"] for source in self.command("sources", "list", "--json")}
 
     def test_automatic_and_named_coverage_cross_employer_industries(self):
-        expected = {"spacex_greenhouse", "natera_greenhouse", "discord_greenhouse"}
+        expected = {
+            "spacex_greenhouse",
+            "natera_greenhouse",
+            "discord_greenhouse",
+            "bose_careers",
+        }
+        catalog = json.loads((self.root / "config/sources.json").read_text())
+        expected.update(
+            source["id"]
+            for source in catalog["sources"]
+            if "interesting-employers" in source["packs"] and source.get("auto_enable")
+        )
         for mode, roles in (
             ("automatic", ["accountant"]),
             ("automatic", ["nurse"]),
@@ -107,7 +118,8 @@ class CrossIndustryTests(unittest.TestCase):
         eligible = [
             source
             for source in catalog["sources"]
-            if source["kind"] in {"greenhouse", "lever", "ashby", "jibe"}
+            if source["kind"]
+            in {"greenhouse", "lever", "ashby", "jibe", "workday", "smartrecruiters"}
             and source["support_level"] == "supported"
             and source["source_type"] == "listing_feed"
             and source.get("auto_enable", True)
@@ -120,6 +132,49 @@ class CrossIndustryTests(unittest.TestCase):
             self.assertFalse(source.get("item_include"), source["id"])
             self.assertFalse(source.get("item_exclude"), source["id"])
             self.assertFalse(source.get("category"), source["id"])
+
+    def test_bose_openings_reach_normal_search_for_every_coverage_profile(self):
+        self.select("automatic")
+        payload = {
+            "total": 1,
+            "jobPostings": [
+                {
+                    "title": "Staff Accountant",
+                    "externalPath": "/job/Boston/R1",
+                    "locationsText": "Boston, MA",
+                }
+            ],
+        }
+        details = {
+            "jobPostingInfo": {
+                "jobDescription": "Accounting and financial reporting. Bachelor's degree in accounting. No experience required.",
+                "startDate": "2026-10-01",
+            }
+        }
+        with patch(
+            "monitor.employer_feeds._request",
+            side_effect=[json.dumps(payload).encode(), json.dumps(details).encode()],
+        ):
+            result = self.command("scan", "--force", "--source", "bose_careers")
+        self.assertEqual(result["checked_sources"], 1)
+        rows = self.command("opportunities", "search", "Bose", "--json")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["organization"], "Bose")
+        self.assertEqual(rows[0]["title"], "Staff Accountant")
+        sources = {
+            source["id"]: source for source in self.command("sources", "list", "--json")
+        }
+        self.assertIn("spacex_greenhouse", sources)
+        with patch(
+            "monitor.pipeline.fetch_source",
+            side_effect=AssertionError("disabled source must not be fetched"),
+        ):
+            output = io.StringIO()
+            error = io.StringIO()
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+                self.assertNotEqual(
+                    cli.main(["scan", "--source", "mathworks_careers"]), 0
+                )
 
     def test_scan_matches_jobs_and_preserves_cadence_and_saved_status(self):
         self.command(

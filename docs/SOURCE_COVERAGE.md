@@ -8,7 +8,7 @@ Custom private sources keep their existing enable/disable behavior.
 
 ## Cost and limits
 
-The catalog contains 400 resources, including 194 feeds in the shared cross-industry set.
+The catalog contains 401 resources, including 213 feeds in the shared cross-industry set.
 The unconfigured starter still enables five feeds.
 New feeds use a 24-hour cadence; existing source cadences remain unchanged.
 Collection is sequential, with the existing timeout, response-size, and 5,000-listing per-source limits.

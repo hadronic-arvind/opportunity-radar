@@ -628,7 +628,7 @@ def effective_source_packs(
     # Employer industry cannot predict every occupation on its job board.
     # Profiles rank individual listings; manual mode is the explicit opt-out.
     if chosen != MANUAL_PRESET:
-        effective.append(CROSS_INDUSTRY_PACK)
+        effective.extend([CROSS_INDUSTRY_PACK, "interesting-employers"])
     if chosen == AUTOMATIC_PRESET:
         effective.extend(recommend_source_packs(profile))
     elif chosen != MANUAL_PRESET:

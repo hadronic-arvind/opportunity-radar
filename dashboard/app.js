@@ -2579,6 +2579,7 @@
   }
 
   function renderList() {
+    renderCompanyResources();
     const list = document.getElementById("opportunity-list");
     state.visibleItems = filteredItems();
     state.page = Math.min(Math.max(1, state.page), pageCount());
@@ -2693,6 +2694,41 @@
         delta + Number(currentApplication(item)) - Number(originalApplication(item))
       ), 0))
     );
+  }
+
+  function matchingCompanyResources() {
+    const query = normalizeSearchText(state.query);
+    if (state.view !== "discover" || query.length < 2) return [];
+    const terms = query.split(" ").filter(Boolean).slice(0, 12);
+    return sourceResources.filter((resource) => {
+      const name = normalizeSearchText(resource.name);
+      return terms.every((term) => name.includes(term));
+    }).slice(0, 6);
+  }
+
+  function renderCompanyResources() {
+    const panel = document.getElementById("company-source-results");
+    const resources = matchingCompanyResources();
+    panel.hidden = !resources.length;
+    panel.replaceChildren();
+    if (!resources.length) return;
+    panel.appendChild(element("h2", "company-source-heading", "Matching company sources"));
+    resources.forEach((resource) => {
+      const card = element("div", "company-source-result");
+      const name = element(resource.url ? "a" : "strong", "source-resource-name", resource.name);
+      if (resource.url) {
+        name.href = resource.url;
+        name.target = "_blank";
+        name.rel = "noopener noreferrer";
+      }
+      const note = !resource.auto_enable
+        ? "Openings are not collected yet. Browse the official careers page."
+        : resource.enabled
+          ? "Job collection enabled. Openings that match your profile appear below."
+          : "Job collection available. Enable this source in your profile.";
+      card.append(name, element("p", "source-resource-meta", note));
+      panel.appendChild(card);
+    });
   }
 
   function sourceResourceSearchText(resource) {

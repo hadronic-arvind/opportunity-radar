@@ -30,6 +30,13 @@ SUPPORTED_KINDS = {
     "jibe",
     "lever",
     "watch_page",
+    "workday",
+    "smartrecruiters",
+    "workable",
+    "sap_public",
+    "comeet",
+    "rippling",
+    "recruiterbox",
 }
 CUSTOM_PACK_ID = "custom-sources"
 CUSTOM_PACK = {
@@ -164,6 +171,7 @@ def validate_source(source: Any) -> Dict[str, Any]:
         "ashby": "board",
         "greenhouse": "board",
         "lever": "site",
+        "smartrecruiters": "company",
     }.get(kind)
     if adapter_key:
         adapter_value = str(result.get(adapter_key, "")).strip()
@@ -172,6 +180,21 @@ def validate_source(source: Any) -> Dict[str, Any]:
                 "{} source requires a valid {}".format(kind, adapter_key)
             )
         result[adapter_key] = adapter_value
+    if kind == "lever" and result.get("api_region", "us") not in {"us", "eu"}:
+        raise ProfileValidationError("Lever API region must be us or eu")
+    if kind == "sap_public" and result.get("sort_by", "recent") not in {"recent", "date"}:
+        raise ProfileValidationError("SAP public search sort_by must be recent or date")
+    if kind in {"rippling", "workable"} and not SLUG_RE.fullmatch(str(result.get("board", ""))):
+        raise ProfileValidationError("Rippling source requires a board slug")
+    if kind == "recruiterbox" and (not str(result.get("widget", "")).isdigit() or not SLUG_RE.fullmatch(str(result.get("company", "")))):
+        raise ProfileValidationError("Recruiterbox source requires a widget ID and company slug")
+    if kind == "workday":
+        from .employer_feeds import workday_board
+
+        try:
+            workday_board(result["url"])
+        except ValueError as error:
+            raise ProfileValidationError(str(error)) from error
     if kind == "jibe":
         result["api_url"] = _https_url(result.get("api_url"), "Jibe API URL")
         template = str(result.get("job_url_template", "")).strip()
@@ -187,6 +210,11 @@ def validate_source(source: Any) -> Dict[str, Any]:
         result["pages"] = _bounded_integer(
             result.get("pages", 1), "HTML page count", 1, MAX_HTML_LINK_PAGES
         )
+        parameter = result.get("pagination_parameter", "page")
+        if not isinstance(parameter, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", parameter):
+            raise ProfileValidationError("HTML pagination parameter must be a query key")
+        if "pagination_step" in result:
+            result["pagination_step"] = _bounded_integer(result["pagination_step"], "HTML pagination step", 1, 100)
         result["include"] = _bounded_strings(result.get("include", []), "HTML include terms")
         result["exclude"] = _bounded_strings(result.get("exclude", []), "HTML exclude terms")
         if "same_domain" in result and not isinstance(result["same_domain"], bool):
@@ -325,10 +353,26 @@ def detect_source(url: str) -> Tuple[str, Dict[str, str]]:
     parts = [urllib.parse.unquote(value) for value in parsed.path.split("/") if value]
     if host in {"boards.greenhouse.io", "job-boards.greenhouse.io"} and parts:
         return "greenhouse", {"board": parts[0]}
-    if host == "jobs.lever.co" and parts:
-        return "lever", {"site": parts[0]}
+    if host in {"jobs.lever.co", "jobs.eu.lever.co"} and parts:
+        settings = {"site": parts[0]}
+        if host == "jobs.eu.lever.co":
+            settings["api_region"] = "eu"
+        return "lever", settings
     if host == "jobs.ashbyhq.com" and parts:
         return "ashby", {"board": parts[0]}
+    if host == "ats.rippling.com" and len(parts) >= 2 and parts[1] == "jobs":
+        return "rippling", {"board": parts[0]}
+    if host == "apply.workable.com" and len(parts) == 1 and parts[0] not in {"j", "api"}:
+        return "workable", {"board": parts[0]}
+    if host == "www.comeet.com" and len(parts) == 3 and parts[0] == "jobs":
+        return "comeet", {}
+    if host == "jobs.smartrecruiters.com" and parts:
+        return "smartrecruiters", {"company": parts[0]}
+    if host.endswith(".myworkdayjobs.com"):
+        from .employer_feeds import workday_board
+
+        workday_board(validated)
+        return "workday", {}
     return "html_links", {}
 
 
@@ -362,7 +406,12 @@ def build_custom_source(
         "ashby": "board",
         "greenhouse": "board",
         "lever": "site",
+        "smartrecruiters": "company",
+        "rippling": "board",
+        "workable": "board",
     }.get(selected_kind)
+    if selected_kind == "lever" and detected.get("api_region"):
+        source["api_region"] = detected["api_region"]
     if adapter_key:
         value = str(adapter or detected.get(adapter_key, "")).strip()
         if not value:
@@ -370,8 +419,12 @@ def build_custom_source(
                 "Paste the provider's jobs URL or provide --adapter for {}".format(adapter_key)
             )
         source[adapter_key] = value
-        source["support_level"] = "supported"
+        source["support_level"] = "experimental" if selected_kind in {"rippling", "workable"} else "supported"
         source["source_type"] = "listing_feed"
+    elif selected_kind in {"comeet", "sap_public"}:
+        source.update({"support_level": "experimental", "source_type": "listing_feed"})
+    elif selected_kind == "workday":
+        source.update({"support_level": "supported", "source_type": "listing_feed"})
     elif selected_kind == "html_links":
         source.update(
             {

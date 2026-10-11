@@ -157,7 +157,7 @@ def _import_curated(database: Database, profile: Dict[str, Any]) -> Tuple[Dict[s
     return counts, None
 
 
-def run_scan(force: bool = False, send_notifications: bool = False) -> Dict[str, Any]:
+def run_scan(force: bool = False, send_notifications: bool = False, source_ids: Optional[List[str]] = None) -> Dict[str, Any]:
     ensure_profile_lifecycle_idle()
     database_path = resolve_private_state_path(
         project_path("data", "opportunities.sqlite3"),
@@ -175,6 +175,12 @@ def run_scan(force: bool = False, send_notifications: bool = False) -> Dict[str,
             database.rescore_for_profile(profile)
             all_sources = load_sources(include_disabled=True)
             sources = [source for source in all_sources if source.get("enabled", True)]
+            if source_ids:
+                requested = set(source_ids)
+                enabled_ids = {source["id"] for source in sources}
+                if requested - enabled_ids:
+                    raise ValueError("Requested scan sources are unknown or disabled: {}".format(", ".join(sorted(requested - enabled_ids))))
+                sources = [source for source in sources if source["id"] in requested]
             _register_sources(database, all_sources, profile)
             run_id, started_at = database.begin_run()
         except Exception:

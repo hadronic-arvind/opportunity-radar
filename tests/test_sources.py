@@ -192,8 +192,8 @@ REPRESENTATIVE_MANUAL_STEM_RESOURCES = {
     "avma_jobs": ({"veterinary-animal"}, {"veterinary_science"}),
 }
 
-RELIABLE_LISTING_KINDS = {"ashby", "greenhouse", "lever", "jibe"}
-LISTING_KINDS = RELIABLE_LISTING_KINDS | {"html_links"}
+RELIABLE_LISTING_KINDS = {"ashby", "greenhouse", "lever", "jibe", "workday", "smartrecruiters"}
+LISTING_KINDS = RELIABLE_LISTING_KINDS | {"html_links", "rippling", "recruiterbox", "sap_public", "comeet", "workable"}
 
 NEW_OPT_IN_FEED_PACKS = {
     "metr_lever": {"public-interest", "academia-research", "ai-research"},
@@ -431,7 +431,8 @@ class PublicSourceCatalogTests(unittest.TestCase):
                 expected = "https://boards-api.greenhouse.io/v1/boards/{}/jobs".format(source["board"])
                 self.assertEqual(source["api_url"], expected, source["id"])
             elif source["kind"] == "lever":
-                expected = "https://api.lever.co/v0/postings/{}?mode=json".format(source["site"])
+                host = "api.eu.lever.co" if source.get("api_region") == "eu" else "api.lever.co"
+                expected = "https://{}/v0/postings/{}?mode=json".format(host, source["site"])
                 self.assertEqual(source["api_url"], expected, source["id"])
             elif source["kind"] == "jibe":
                 self.assertTrue(source["api_url"].startswith("https://"), source["id"])
@@ -728,7 +729,7 @@ class PublicSourceCatalogTests(unittest.TestCase):
         for source in listing_feeds:
             self.assertIn(source["kind"], LISTING_KINDS, source["id"])
             expected_support = (
-                "experimental" if source["kind"] == "html_links" else "supported"
+                "experimental" if source["kind"] in {"html_links", "rippling", "recruiterbox", "sap_public", "comeet", "workable"} else "supported"
             )
             self.assertEqual(source["support_level"], expected_support, source["id"])
         for source in manual_watch_pages:

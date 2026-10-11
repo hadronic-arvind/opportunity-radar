@@ -25,7 +25,7 @@ for (const name of ["TYPE_LABELS", "OPPORTUNITY_TYPE_OPTIONS"]) {
 }
 for (const name of ["normalizeSearchText", "buildSearchFields", "normalizedType", "isAvailable",
   "isApplication", "hasWholeTerm", "valueRank", "queryRank", "filteredItems", "filtersForView",
-  "appendMatchSummary", "appendMatchAudit", "sourceResourceSearchText", "matchingSourceResources"]) {
+  "appendMatchSummary", "appendMatchAudit", "sourceResourceSearchText", "matchingSourceResources", "matchingCompanyResources"]) {
   const start = source.indexOf("  function " + name + "(");
   const end = source.indexOf("\n  function ", start + 1);
   assert(start >= 0 && end > start, name);
@@ -78,5 +78,16 @@ sandbox.sourceResourceView.query = "accountant";
 assert.equal(sandbox.matchingSourceResources().length, 1);
 sandbox.sourceResourceView.query = "clinical residency";
 assert.equal(sandbox.matchingSourceResources().length, 0);
+
+
+
+sandbox.state.view = "discover";
+sandbox.state.query = "bose";
+assert.equal(sandbox.matchingCompanyResources().length, 1);
+sandbox.state.query = "not a company";
+assert.equal(sandbox.matchingCompanyResources().length, 0);
+sandbox.state.query = "bose";
+sandbox.state.view = "saved";
+assert.equal(sandbox.matchingCompanyResources().length, 0);
 
 console.log("Dashboard behavior checks passed");

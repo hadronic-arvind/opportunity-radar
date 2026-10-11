@@ -552,6 +552,7 @@ def _request(
     timeout: int = 25,
     max_bytes: int = MAX_RESPONSE_BYTES,
     deadline: Any = None,
+    json_body: Any = None,
 ) -> bytes:
     if max_bytes < 1:
         raise ValueError("Response limit must be positive")
@@ -565,12 +566,19 @@ def _request(
     if remaining <= 0:
         raise TimeoutError("Source request exceeded its wall-clock deadline")
     validated_url = _validate_remote_url(url, resolution_timeout=remaining)
+    request_data = None
+    if json_body is not None:
+        request_data = json.dumps(json_body, separators=(",", ":")).encode("utf-8")
+        if len(request_data) > READ_CHUNK_BYTES:
+            raise ValueError("Source search request exceeds its size limit")
     request = urllib.request.Request(
         validated_url,
+        data=request_data,
         headers={
             "User-Agent": USER_AGENT,
             "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.8",
+            **({"Content-Type": "application/json"} if request_data is not None else {}),
         },
     )
     remaining = request_deadline - time.monotonic()
@@ -659,6 +667,26 @@ def _url_without_query_key(url: str, excluded_key: str) -> str:
     )
 
 
+def _html_page_url(source: Dict[str, Any], offset: int) -> str:
+    url = str(source["url"])
+    parsed = urllib.parse.urlsplit(url)
+    query = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
+    parameter = source.get("pagination_parameter", "page")
+    step = source.get("pagination_step", 1)
+    if not isinstance(parameter, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", parameter):
+        raise ValueError("HTML pagination parameter must be a query key")
+    if isinstance(step, bool) or not isinstance(step, int) or not 1 <= step <= 100:
+        raise ValueError("HTML pagination step must be from 1 to 100")
+    try:
+        first_page = int(query.get(parameter, 1))
+    except (TypeError, ValueError):
+        raise ValueError("HTML pagination query must be an integer")
+    if offset == 0:
+        return url
+    query[parameter] = str(first_page + offset * step)
+    return urllib.parse.urlunsplit(parsed._replace(query=urllib.parse.urlencode(query)))
+
+
 def _html_link_payloads(source: Dict[str, Any]) -> Tuple[List[bytes], str]:
     """Fetch a configured bounded run of page-numbered HTML result pages."""
     pages = source.get("pages", 1)
@@ -668,20 +696,12 @@ def _html_link_payloads(source: Dict[str, Any]) -> Tuple[List[bytes], str]:
                 MAX_HTML_LINK_PAGES
             )
         )
-    url = str(source["url"])
-    parsed = urllib.parse.urlsplit(url)
-    query = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
-    try:
-        first_page = int(query.get("page", 1))
-    except (TypeError, ValueError):
-        raise ValueError("HTML link source page query must be an integer")
-
     deadline = time.monotonic() + MAX_HTML_LINK_WALL_SECONDS
     payloads: List[bytes] = []
     total_bytes = 0
     combined_hash = hashlib.sha256()
     for offset in range(pages):
-        page_url = url if offset == 0 else _url_with_page(url, first_page + offset)
+        page_url = _html_page_url(source, offset)
         payload = _request(page_url, deadline=deadline)
         total_bytes += len(payload)
         if total_bytes > MAX_HTML_LINK_TOTAL_BYTES:
@@ -781,6 +801,29 @@ def _jibe_pages(source: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
 
 def fetch_source(source: Dict[str, Any]) -> FetchResult:
     kind = source["kind"]
+    if kind == "workable":
+        from .employer_feeds import fetch_workable
+
+        return fetch_workable(source)
+
+    if kind in {"sap_public", "comeet"}:
+        from .employer_feeds import fetch_sap_public, fetch_comeet
+
+        return fetch_sap_public(source) if kind == "sap_public" else fetch_comeet(source)
+
+    if kind in {"rippling", "recruiterbox"}:
+        from .employer_feeds import fetch_rippling, fetch_recruiterbox
+
+        return fetch_rippling(source) if kind == "rippling" else fetch_recruiterbox(source)
+
+    if kind == "smartrecruiters":
+        from .employer_feeds import fetch_smartrecruiters
+
+        return filter_items(source, fetch_smartrecruiters(source))
+    if kind == "workday":
+        from .employer_feeds import fetch_workday
+
+        return filter_items(source, fetch_workday(source))
     if kind == "ashby":
         result = fetch_ashby(source)
         return filter_items(source, result)
@@ -969,7 +1012,11 @@ def fetch_ashby(source: Dict[str, Any]) -> FetchResult:
 
 
 def fetch_lever(source: Dict[str, Any]) -> FetchResult:
-    url = "https://api.lever.co/v0/postings/{}?mode=json".format(source["site"])
+    region = source.get("api_region", "us")
+    if region not in {"us", "eu"}:
+        raise ValueError("Lever API region must be us or eu")
+    host = "api.eu.lever.co" if region == "eu" else "api.lever.co"
+    url = "https://{}/v0/postings/{}?mode=json".format(host, source["site"])
     payload = _request(url, max_bytes=MAX_LISTING_RESPONSE_BYTES)
     data = json.loads(payload.decode("utf-8"))
     if not isinstance(data, list):
@@ -1116,17 +1163,8 @@ def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
     )
     payloads, content_hash = _html_link_payloads(source)
     links: List[Tuple[str, str, str]] = []
-    parsed_source = urllib.parse.urlsplit(source_url)
-    source_query = dict(
-        urllib.parse.parse_qsl(parsed_source.query, keep_blank_values=True)
-    )
-    first_page = int(source_query.get("page", 1))
     for page_index, payload in enumerate(payloads):
-        page_url = (
-            source_url
-            if page_index == 0
-            else _url_with_page(source_url, first_page + page_index)
-        )
+        page_url = _html_page_url(source, page_index)
         parser = LinkParser(str(source.get("link_title_prefix", "")))
         parser.feed(payload.decode("utf-8", errors="replace"))
         if parser.overflow or len(links) + len(parser.links) > MAX_OPPORTUNITIES_PER_SOURCE:
@@ -1151,7 +1189,7 @@ def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
             # every listing link. It is navigation state, not listing
             # identity, and otherwise creates a new record whenever a role
             # moves between result pages.
-            resolved_url = _url_without_query_key(resolved_url, "page")
+            resolved_url = _url_without_query_key(resolved_url, str(source.get("pagination_parameter", "page")))
         url = canonical_url(resolved_url)
         haystack = "{} {}".format(title, url).lower()
         if not title or not url.startswith("http"):

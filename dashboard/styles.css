@@ -729,3 +729,9 @@ dialog p:not(.kicker) { color: var(--muted); font-size: 13px; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.company-source-results { margin: 0 0 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.company-source-results[hidden] { display: none; }
+.company-source-heading { margin: 0 0 .75rem; font-size: .95rem; }
+.company-source-result + .company-source-result { margin-top: .75rem; }
+.company-source-result p { margin: .25rem 0 0; }

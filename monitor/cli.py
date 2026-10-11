@@ -65,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     scan = subparsers.add_parser("scan", help="Run due source checks and rebuild the dashboard")
+    scan.add_argument("--source", action="append", default=None, help="Check only an enabled source ID; repeat for multiple sources")
     scan.add_argument("--force", action="store_true", help="Ignore per-source cadence")
     scan.add_argument("--notify", action="store_true", help="Send change-only notifications")
     scan.add_argument("--quiet", action="store_true", help="Suppress JSON output for scheduled runs")
@@ -89,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     source_add.add_argument("--id", default="", help="Optional lowercase source id")
     source_add.add_argument(
         "--kind",
-        choices=["auto", "ashby", "greenhouse", "lever", "html_links", "watch_page"],
+        choices=["auto", "ashby", "greenhouse", "lever", "workday", "smartrecruiters", "rippling", "workable", "comeet", "sap_public", "html_links", "watch_page"],
         default="auto",
         help="Provider type; auto recognizes hosted ATS URLs",
     )
@@ -297,8 +298,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def command_scan(force: bool, notify: bool, quiet: bool = False) -> int:
-    result = run_scan(force=force, send_notifications=notify)
+def command_scan(force: bool, notify: bool, quiet: bool = False, source_ids: Optional[List[str]] = None) -> int:
+    result = run_scan(force=force, send_notifications=notify, source_ids=source_ids)
     if not quiet:
         print(json.dumps(result, indent=2))
     return 0 if result["status"] in {"ok", "partial"} else 1
@@ -391,6 +392,9 @@ def command_doctor() -> int:
             "greenhouse": "board",
             "lever": "site",
             "jibe": "api_url",
+            "smartrecruiters": "company",
+            "rippling": "board",
+            "workable": "board",
         }.get(kind)
         if adapter_key:
             adapter_value = source.get(adapter_key)
@@ -398,7 +402,7 @@ def command_doctor() -> int:
                 failures.append(
                     "{} requires a non-empty {}".format(source_id, adapter_key)
                 )
-            elif adapter_key in {"board", "site"} and not re.fullmatch(
+            elif adapter_key in {"board", "site", "company"} and not re.fullmatch(
                 r"[A-Za-z0-9][A-Za-z0-9_-]{0,199}", adapter_value
             ):
                 failures.append("{} has an invalid {}".format(source_id, adapter_key))
@@ -425,6 +429,13 @@ def command_doctor() -> int:
                 )
         if not bounded_integer(source.get("cadence_hours", 12), 1, 24 * 31):
             failures.append("{} has an invalid cadence_hours".format(source_id))
+        if kind == "workday":
+            from .employer_feeds import workday_board
+
+            try:
+                workday_board(str(source.get("url", "")))
+            except ValueError:
+                failures.append("{} has an invalid Workday board".format(source_id))
         if kind == "html_links":
             if not bounded_integer(source.get("pages", 1), 1, MAX_HTML_LINK_PAGES):
                 failures.append("{} has an invalid pages value".format(source_id))
@@ -1354,7 +1365,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "scan":
-            return command_scan(args.force, args.notify, args.quiet)
+            return command_scan(args.force, args.notify, args.quiet, args.source)
         if args.command == "dashboard":
             return command_dashboard(args.quiet)
         if args.command == "doctor":
