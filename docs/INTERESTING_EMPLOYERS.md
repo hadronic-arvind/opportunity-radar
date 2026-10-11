@@ -61,7 +61,7 @@ Manual employers: Dolby, HARMAN, Bang & Olufsen, MathWorks, Dassault Systemes, R
 | Universal Robots | Manual careers page | robotics, controls, engineering, software | [Careers](https://www.universal-robots.com/about-universal-robots/careers/) |
 | Boston Dynamics | Automatic workday feed | robotics, controls, engineering, software | [Careers](https://bostondynamics.wd1.myworkdayjobs.com/Boston_Dynamics) |
 | HRL Laboratories | Automatic lever feed | physics, quantum, mathematics, electrical engineering | [Careers](https://jobs.lever.co/dodmg) |
-| SRI International | Automatic html links feed | mathematics, scientific computing, software, simulation | [Careers](https://careers-sri.icims.com/jobs/search?ss=1) |
+| SRI International | Automatic html links feed | mathematics, scientific computing, software, simulation | [Careers](https://careers-sri.icims.com/jobs/search?ss=1&pr=0) |
 | Draper | Automatic workday feed | physics, optics, photonics, electrical engineering | [Careers](https://draper.wd5.myworkdayjobs.com/Draper_Careers) |
 | Formlabs | Automatic greenhouse feed | engineering, design, software, manufacturing | [Careers](https://job-boards.greenhouse.io/formlabs) |
 | Form Energy | Automatic ashby feed | climate energy, materials science, engineering, software | [Careers](https://jobs.ashbyhq.com/formenergy) |

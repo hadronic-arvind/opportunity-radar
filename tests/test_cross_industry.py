@@ -176,6 +176,32 @@ class CrossIndustryTests(unittest.TestCase):
                     cli.main(["scan", "--source", "mathworks_careers"]), 0
                 )
 
+    def test_sri_scan_does_not_skip_second_result_page(self):
+        import urllib.parse
+
+        self.select("automatic")
+
+        def page(url, **_kwargs):
+            index = int(
+                dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query)).get(
+                    "pr", "0"
+                )
+            )
+            if index in {0, 1}:
+                return (
+                    '<a href="/jobs/{}/accountant/job">Title Staff Accountant</a>'.format(
+                        index + 100
+                    )
+                ).encode()
+            return b"<html></html>"
+
+        with patch("monitor.fetchers._request", side_effect=page):
+            result = self.command(
+                "scan", "--force", "--source", "sri_international_careers"
+            )
+        self.assertEqual(result["checked_sources"], 1)
+        self.assertEqual(result["new_count"], 2)
+
     def test_scan_matches_jobs_and_preserves_cadence_and_saved_status(self):
         self.command(
             "profile",
