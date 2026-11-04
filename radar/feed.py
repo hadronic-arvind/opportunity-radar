@@ -4,7 +4,6 @@ import json
 import os
 import re
 import stat
-import tempfile
 from contextlib import closing
 from datetime import datetime, timezone
 from html import unescape
@@ -29,8 +28,11 @@ def _settings_path(store):
     return store.path.with_name(store.path.name + ".dashboard.json")
 
 
-def _selected_goal(store):
+def _selected_goal(store, db):
     """Distinguish an explicit recent feed from a workspace without settings."""
+    row = db.execute("SELECT goal FROM dashboard_preferences WHERE id=1").fetchone()
+    if row is not None:
+        return True, row[0]
     try:
         fd = os.open(_settings_path(store), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
@@ -55,29 +57,23 @@ def _selected_goal(store):
     return True, data.get("goal")
 
 
-def set_preferences(store, goal):
+def set_preferences(store, goal, conn=None):
     """Persist the dashboard goal without changing saved goal definitions."""
     if goal == "":
         goal = None
     if goal is not None and (not isinstance(goal, str) or len(goal) > 100):
         raise ValueError("Choose a saved goal or the recent feed")
-    with closing(store.connect()) as db:
+    with store.transaction(conn) as db:
         if goal is not None:
             row = db.execute("SELECT name FROM goals WHERE name=?", (goal,)).fetchone()
             if row is None:
                 raise ValueError("Unknown goal")
             goal = row[0]
-    path = _settings_path(store)
-    fd, temporary = tempfile.mkstemp(prefix=".radar-dashboard-", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as staged:
-            json.dump({"goal": goal}, staged)
-            staged.flush()
-            os.fsync(staged.fileno())
-        os.replace(temporary, path)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+        db.execute(
+            "INSERT INTO dashboard_preferences VALUES (1,?) "
+            "ON CONFLICT(id) DO UPDATE SET goal=excluded.goal",
+            (goal,),
+        )
     return {"goal": goal}
 
 
@@ -89,7 +85,7 @@ def _goal_for_feed(store, db, goals, selected):
         if selected.casefold() not in names:
             raise ValueError("Unknown goal")
         return names[selected.casefold()]
-    configured, choice = _selected_goal(store)
+    configured, choice = _selected_goal(store, db)
     if configured and choice is None:
         return None
     if choice is not None and choice.casefold() in names:
@@ -268,10 +264,7 @@ def get_feed(
     kind = kind or None
     with closing(store.connect()) as db, db:
         db.execute("BEGIN")
-        goals = [
-            {"name": row["name"], "rules": json.loads(row["rules"])}
-            for row in db.execute("SELECT name,rules FROM goals ORDER BY name")
-        ]
+        goals = store.goals(db)
         active = _goal_for_feed(store, db, goals, goal)
         rules = next(
             (entry["rules"] for entry in goals if entry["name"] == active), None

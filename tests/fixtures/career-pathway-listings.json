@@ -1,0 +1,612 @@
+[
+  {
+    "external_id": "medicine-student-first",
+    "title": "Medical Student Research Fellow",
+    "organization": "Sable Teaching Hospital",
+    "location": "Bethesda, MD",
+    "kinds": [
+      "fellowship"
+    ],
+    "description": "Spend a funded research year with a clinician mentor in translational medicine and clinical outcomes research. Open to enrolled medical students in their clinical years. Work on a protocol, analyze de-identified study data and present findings at a departmental seminar."
+  },
+  {
+    "external_id": "medicine-student-also",
+    "title": "Internal Medicine Away Rotation",
+    "organization": "Cedar Bay Medical Center",
+    "location": "Baltimore, MD",
+    "kinds": [
+      "training"
+    ],
+    "description": "A supervised clinical elective for visiting medical students who have completed core clerkships. Observe care transitions and contribute to a clinical quality improvement elective. Home school approval is required."
+  },
+  {
+    "external_id": "medicine-professional-first",
+    "title": "Academic Hospitalist",
+    "organization": "Northfield University Hospital",
+    "location": "Philadelphia, PA",
+    "kinds": [
+      "job"
+    ],
+    "description": "Join academic general medicine as clinical faculty. The position includes resident supervision, protected research time and teaching on an inpatient service. Internal medicine residency completion and a state medical license are required."
+  },
+  {
+    "external_id": "medicine-professional-also",
+    "title": "Clinical Faculty in General Internal Medicine",
+    "organization": "Meridian Teaching Clinic",
+    "location": "Richmond, VA",
+    "kinds": [
+      "job"
+    ],
+    "description": "This internal medicine physician role includes protected research time and small-group teaching. Clinical work focuses on complex primary care and practice improvement."
+  },
+  {
+    "external_id": "cyber-student-first",
+    "title": "Security Operations Intern",
+    "organization": "Juniper Harbor Networks",
+    "location": "Raleigh, NC",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Work with a mentor in a detection lab, review endpoint alerts and assist with incident triage. Enrolled undergraduate cybersecurity students can apply."
+  },
+  {
+    "external_id": "cyber-student-also",
+    "title": "Digital Forensics Intern",
+    "organization": "Bracken Systems Lab",
+    "location": "Pittsburgh, PA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Document evidence handling and conduct a blue team exercise with a defender. The program includes a student security research project."
+  },
+  {
+    "external_id": "cyber-professional-first",
+    "title": "Detection Engineer",
+    "organization": "Port Willow Security",
+    "location": "Denver, CO",
+    "kinds": [
+      "job"
+    ],
+    "description": "Own endpoint detection and threat hunting in a security operations center. Validate analytic rules against realistic traffic and maintain incident response playbooks."
+  },
+  {
+    "external_id": "cyber-professional-also",
+    "title": "Incident Response Analyst",
+    "organization": "Larkspur Credit Services",
+    "location": "Chicago, IL",
+    "kinds": [
+      "job"
+    ],
+    "description": "Coordinate cloud security response with application teams, investigate anomalies and update incident response playbooks after each case."
+  },
+  {
+    "external_id": "epidemiology-student-first",
+    "title": "Epidemiology Practicum",
+    "organization": "Driftwood County Health Department",
+    "location": "Tacoma, WA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "A health department placement for MPH students. Summarize disease surveillance indicators, learn applied biostatistics and present findings under the supervision of the county epidemiologist."
+  },
+  {
+    "external_id": "epidemiology-student-also",
+    "title": "Surveillance Intern",
+    "organization": "Marsh Creek Health Partnership",
+    "location": "Madison, WI",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Assist with disease surveillance, clean reporting data and support applied public health training with a site preceptor."
+  },
+  {
+    "external_id": "epidemiology-professional-first",
+    "title": "Field Epidemiologist",
+    "organization": "Granite Basin Health Agency",
+    "location": "Minneapolis, MN",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead outbreak investigation, strengthen public health preparedness and design surveillance system evaluation for a regional reporting network."
+  },
+  {
+    "external_id": "epidemiology-professional-also",
+    "title": "Epidemiologist II",
+    "organization": "Silver Fir Health District",
+    "location": "Portland, OR",
+    "kinds": [
+      "job"
+    ],
+    "description": "Support surveillance system evaluation and occupational epidemiology in coordination with partner health departments."
+  },
+  {
+    "external_id": "energy-student-first",
+    "title": "Energy Systems Intern",
+    "organization": "Tideland Energy Lab",
+    "location": "Golden, CO",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Prototype building energy modeling workflows and assist battery storage research. Work with an engineer to measure community decarbonization outcomes."
+  },
+  {
+    "external_id": "energy-student-also",
+    "title": "Grid Modeling Intern",
+    "organization": "Cypress Microgrid Center",
+    "location": "Sacramento, CA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Study distribution constraints and work on energy burden analysis. The internship is part of a graduate clean energy fellowship."
+  },
+  {
+    "external_id": "energy-professional-first",
+    "title": "Distributed Energy Engineer",
+    "organization": "Stonebridge Electric Cooperative",
+    "location": "Boulder, CO",
+    "kinds": [
+      "job"
+    ],
+    "description": "Conduct distribution planning and scope virtual power plant integration. Partner with utility program teams on measurement and verification."
+  },
+  {
+    "external_id": "energy-professional-also",
+    "title": "Grid Interconnection Engineer",
+    "organization": "Tern Valley Power",
+    "location": "Albuquerque, NM",
+    "kinds": [
+      "job"
+    ],
+    "description": "Review requests for new distributed generation and model feeder behavior. Collaborate with planners on demand flexibility."
+  },
+  {
+    "external_id": "design-student-first",
+    "title": "Accessibility Design Intern",
+    "organization": "Sundial Civic Studio",
+    "location": "Remote - US",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Plan supervised usability testing and accessible prototyping for a civic service. Join a participatory design workshop with users of assistive technology."
+  },
+  {
+    "external_id": "design-student-also",
+    "title": "UX Research Intern",
+    "organization": "Alder Bridge Cooperative",
+    "location": "Boston, MA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Assist with usability testing and observe interviews with assistive technology users. Review accessible prototyping decisions with a mentor."
+  },
+  {
+    "external_id": "design-professional-first",
+    "title": "Digital Accessibility Specialist",
+    "organization": "Beacon Public Services",
+    "location": "Remote - US",
+    "kinds": [
+      "job"
+    ],
+    "description": "Define accessible design systems and conduct WCAG testing. Work with service teams to review accessibility conformance and prioritize fixes."
+  },
+  {
+    "external_id": "design-professional-also",
+    "title": "Accessibility Product Designer",
+    "organization": "Aster Transit Studio",
+    "location": "Seattle, WA",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead assistive technology research and prototype inclusive fare services. Translate research findings into acceptance criteria for accessible design systems."
+  },
+  {
+    "external_id": "robotics-student-first",
+    "title": "Robotics Engineering Intern",
+    "organization": "Copperfield Automation Lab",
+    "location": "Ann Arbor, MI",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Build a robotics prototype, support sensor integration and practice test fixture design with a supervising engineer."
+  },
+  {
+    "external_id": "robotics-student-also",
+    "title": "Mechatronics Intern",
+    "organization": "Lowbank Fabrication Center",
+    "location": "Cleveland, OH",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Calibrate sensors and document a robotics prototype. The placement includes a supervised controls laboratory internship project."
+  },
+  {
+    "external_id": "robotics-professional-first",
+    "title": "Robotics Controls Engineer",
+    "organization": "Quarry Motion Systems",
+    "location": "Detroit, MI",
+    "kinds": [
+      "job"
+    ],
+    "description": "Develop motion control for electromechanical assemblies. Own hardware in the loop tests and review functional safety with the operations team."
+  },
+  {
+    "external_id": "robotics-professional-also",
+    "title": "Robotics Integration Engineer",
+    "organization": "Fernline Industrial",
+    "location": "Milwaukee, WI",
+    "kinds": [
+      "job"
+    ],
+    "description": "Integrate production sensors and lead robotic workcell validation. The team investigates motion control faults before release."
+  },
+  {
+    "external_id": "audit-student-first",
+    "title": "Audit Intern",
+    "organization": "Finch and Rowan Assurance",
+    "location": "Boston, MA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Support financial statement testing and internal control testing. Prepare audit workpapers under a licensed supervisor."
+  },
+  {
+    "external_id": "audit-student-also",
+    "title": "Public Sector Audit Internship",
+    "organization": "Juniper State Oversight Office",
+    "location": "Providence, RI",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Examine samples of agency expenditure and maintain audit workpapers with a mentor. Current accounting students are eligible for consideration."
+  },
+  {
+    "external_id": "audit-professional-first",
+    "title": "Senior Auditor",
+    "organization": "Harborline Audit Group",
+    "location": "Hartford, CT",
+    "kinds": [
+      "job"
+    ],
+    "description": "Own audit planning and internal controls assessment for nonprofit clients. Review financial reporting controls and mentor associates."
+  },
+  {
+    "external_id": "audit-professional-also",
+    "title": "Audit Manager",
+    "organization": "Marlowe Public Accountability",
+    "location": "Albany, NY",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead government performance audit engagements and review fieldwork. The position supports annual audit planning and quality review."
+  },
+  {
+    "external_id": "law-student-first",
+    "title": "Public Interest Law Intern",
+    "organization": "Maple River Legal Aid",
+    "location": "Philadelphia, PA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Work in a housing justice clinic on legal research and writing. A supervising attorney reviews all client-facing materials."
+  },
+  {
+    "external_id": "law-student-also",
+    "title": "Summer Law Intern",
+    "organization": "Sage City Civil Rights Office",
+    "location": "Washington, DC",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Support a civil rights internship with legal research and writing and attend supervised intake meetings."
+  },
+  {
+    "external_id": "law-professional-first",
+    "title": "Legal Aid Staff Attorney",
+    "organization": "Blue Heron Community Legal Center",
+    "location": "Baltimore, MD",
+    "kinds": [
+      "job"
+    ],
+    "description": "Deliver civil legal services and tenant representation. Develop public benefits advocacy with a team of supervising attorneys."
+  },
+  {
+    "external_id": "law-professional-also",
+    "title": "Housing Justice Attorney",
+    "organization": "Pine Terrace Justice Project",
+    "location": "Newark, NJ",
+    "kinds": [
+      "job"
+    ],
+    "description": "Provide tenant representation, develop eviction defense materials and mentor volunteer counsel."
+  },
+  {
+    "external_id": "education-student-first",
+    "title": "Elementary Teacher Residency",
+    "organization": "Clover Ridge Public Schools",
+    "location": "Durham, NC",
+    "kinds": [
+      "training"
+    ],
+    "description": "Join a teacher preparation cohort with supervised classroom practice. Co-plan lessons with a mentor teacher and meet regularly with a university supervisor."
+  },
+  {
+    "external_id": "education-student-also",
+    "title": "Student Teaching Placement",
+    "organization": "Kingswell Learning Partnership",
+    "location": "Charlotte, NC",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Join a semester of supervised classroom practice and classroom observation in an elementary school."
+  },
+  {
+    "external_id": "education-professional-first",
+    "title": "Instructional Coordinator",
+    "organization": "Sparrow County Schools",
+    "location": "Greensboro, NC",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead assessment development and teacher professional development. Evaluate curriculum implementation with grade-level teams."
+  },
+  {
+    "external_id": "education-professional-also",
+    "title": "Curriculum Specialist",
+    "organization": "Cedar Hill Learning Network",
+    "location": "Knoxville, TN",
+    "kinds": [
+      "job"
+    ],
+    "description": "Support curriculum implementation and instructional materials adoption. Design teacher professional development with school leaders."
+  },
+  {
+    "external_id": "museum-student-first",
+    "title": "Museum Education Intern",
+    "organization": "Pine Harbor History Museum",
+    "location": "Boston, MA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Develop object-based learning activities and practice museum interpretation with a supervisor. Help staff adapt family programs for different age groups."
+  },
+  {
+    "external_id": "museum-student-also",
+    "title": "Visitor Experience Internship",
+    "organization": "Wren Street Historical Center",
+    "location": "Philadelphia, PA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Observe visitor programs and help a mentor test object-based learning scripts. The placement includes a museum outreach internship project."
+  },
+  {
+    "external_id": "museum-professional-first",
+    "title": "Museum Education Manager",
+    "organization": "Brass Lantern History Center",
+    "location": "Providence, RI",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead community interpretation and visitor studies evaluation. Coach educators and oversee partnerships with public libraries."
+  },
+  {
+    "external_id": "museum-professional-also",
+    "title": "Interpretive Program Manager",
+    "organization": "Sycamore Industrial Heritage Museum",
+    "location": "Lowell, MA",
+    "kinds": [
+      "job"
+    ],
+    "description": "Coordinate exhibition interpretation and visitor studies evaluation. Manage a public humanities fellowship with a community partner."
+  },
+  {
+    "external_id": "water-student-first",
+    "title": "Water Resources Intern",
+    "organization": "Cattail Basin Utility",
+    "location": "Columbus, OH",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Support water treatment research, water sampling and supervised review of hydraulic model inputs. Present a short analysis to the utility engineering team."
+  },
+  {
+    "external_id": "water-student-also",
+    "title": "Drinking Water Intern",
+    "organization": "Osprey Regional Water Lab",
+    "location": "Cincinnati, OH",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Document water sampling methods and assist staff with treatment process observations. Designed for current engineering students."
+  },
+  {
+    "external_id": "water-professional-first",
+    "title": "Water Infrastructure Engineer",
+    "organization": "Ashbrook Municipal Utility",
+    "location": "Columbus, OH",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead water treatment design, hydraulic modeling and utility capital planning for pump and treatment upgrades."
+  },
+  {
+    "external_id": "water-professional-also",
+    "title": "Drinking Water Engineer",
+    "organization": "Birch Marsh Engineering",
+    "location": "Detroit, MI",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead water treatment design reviews for municipal clients. Support utility capital planning for treatment upgrades."
+  },
+  {
+    "external_id": "ai-student-first",
+    "title": "Machine Learning Research Intern",
+    "organization": "Starling Research Lab",
+    "location": "New York, NY",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Run reproducible evaluation of scientific machine learning models. The doctoral research internship provides access to compute, a mentor and protected writing time."
+  },
+  {
+    "external_id": "ai-student-also",
+    "title": "AI Research Internship",
+    "organization": "Cloudspun Computing Center",
+    "location": "Cambridge, MA",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Study scientific foundation models and build a reproducible evaluation suite for small scientific datasets."
+  },
+  {
+    "external_id": "ai-professional-first",
+    "title": "Machine Learning Research Scientist",
+    "organization": "Kestrel Scientific AI",
+    "location": "Seattle, WA",
+    "kinds": [
+      "job"
+    ],
+    "description": "Develop scientific foundation models, lead uncertainty quantification experiments and build model evaluation infrastructure. Collaborate with domain scientists on publications."
+  },
+  {
+    "external_id": "ai-professional-also",
+    "title": "Applied Research Scientist",
+    "organization": "Westmere Research",
+    "location": "Boston, MA",
+    "kinds": [
+      "job"
+    ],
+    "description": "Advance representation learning for noisy sensor data and publish comparative model evaluation infrastructure results with research partners."
+  },
+  {
+    "external_id": "quant-student-first",
+    "title": "Quantitative Research Intern",
+    "organization": "Blue Spruce Markets",
+    "location": "New York, NY",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Conduct market microstructure research, prototype forecasting signals and learn systematic strategy research with a research mentor."
+  },
+  {
+    "external_id": "quant-student-also",
+    "title": "Quantitative Analyst Internship",
+    "organization": "Sable Quay Capital",
+    "location": "Chicago, IL",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Build a small pricing project during a financial engineering internship. Present out-of-sample research results to a quantitative team."
+  },
+  {
+    "external_id": "quant-professional-first",
+    "title": "Systematic Quantitative Researcher",
+    "organization": "Grey Peak Systematic",
+    "location": "New York, NY",
+    "kinds": [
+      "job"
+    ],
+    "description": "Lead alpha research, transaction cost modeling and portfolio construction for systematic strategies. Document out-of-sample robustness and execution assumptions."
+  },
+  {
+    "external_id": "quant-professional-also",
+    "title": "Market Microstructure Researcher",
+    "organization": "Wagtail Trading Research",
+    "location": "Chicago, IL",
+    "kinds": [
+      "job"
+    ],
+    "description": "Run execution research and transaction cost modeling. Work with engineering to deploy empirical findings into the simulation framework."
+  },
+  {
+    "external_id": "hep-student-first",
+    "title": "Particle Physics Graduate Fellowship",
+    "organization": "Helios Accelerator Institute",
+    "location": "Batavia, IL",
+    "kinds": [
+      "fellowship"
+    ],
+    "description": "A graduate student research placement in collider data analysis and detector calibration. Includes a laboratory mentor, collaboration meetings and computing time for dissertation work."
+  },
+  {
+    "external_id": "hep-student-also",
+    "title": "Experimental Particle Physics Internship",
+    "organization": "Hawthorn Collider Lab",
+    "location": "Brookhaven, NY",
+    "kinds": [
+      "internship"
+    ],
+    "description": "Work on detector calibration while attending a detector instrumentation school. Students document calibration constants and uncertainties."
+  },
+  {
+    "external_id": "hep-professional-first",
+    "title": "Experimental Particle Physics Postdoc",
+    "organization": "Flint Ridge Particle Lab",
+    "location": "Batavia, IL",
+    "kinds": [
+      "postdoc"
+    ],
+    "description": "Lead collider physics analysis and contribute to detector reconstruction and trigger development. The work includes collaboration reviews and mentoring."
+  },
+  {
+    "external_id": "hep-professional-also",
+    "title": "Particle Physics Research Scientist",
+    "organization": "Sundew Instrumentation Center",
+    "location": "Geneva, Switzerland",
+    "kinds": [
+      "job"
+    ],
+    "description": "Develop instrumentation and detector reconstruction methods for a new experiment. Share responsibility for on-detector commissioning."
+  },
+  {
+    "external_id": "conditional-practicum",
+    "title": "Elementary Teacher Residency Observer",
+    "organization": "Sample Observation Academy",
+    "location": "US",
+    "kinds": [
+      "training"
+    ],
+    "description": "Join a teacher preparation cohort and attend classroom observation. You may be offered supervised classroom practice if a classroom opens."
+  },
+  {
+    "external_id": "unrelated-cashier",
+    "title": "Seasonal Cashier",
+    "organization": "Maybank Orchard Market",
+    "location": "US",
+    "kinds": [
+      "job"
+    ],
+    "description": "Run a point of sale and replenish shop displays."
+  },
+  {
+    "external_id": "unrelated-dance",
+    "title": "Ballet Company Tour Coordinator",
+    "organization": "Hearth Dance Company",
+    "location": "US",
+    "kinds": [
+      "job"
+    ],
+    "description": "Plan touring schedules, freight and rehearsal spaces for a dance company."
+  },
+  {
+    "external_id": "unrelated-food",
+    "title": "Pastry Production Apprentice",
+    "organization": "Plum Kite Bakery",
+    "location": "US",
+    "kinds": [
+      "apprenticeship"
+    ],
+    "description": "Learn dough preparation and batch timing with a pastry chef."
+  },
+  {
+    "external_id": "unrelated-shipping",
+    "title": "Marine Cargo Scheduler",
+    "organization": "Stone Wharf Freight",
+    "location": "US",
+    "kinds": [
+      "job"
+    ],
+    "description": "Coordinate cargo manifests and shipping windows with port operators."
+  }
+]

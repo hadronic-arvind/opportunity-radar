@@ -17,6 +17,7 @@ if command -v node >/dev/null 2>&1; then
   node --check dashboard/app.js
   node --check radar/desktop/dashboard.js
   node --check radar/desktop/advanced.js
+  node --check radar/desktop/profiles.js
 else
   echo "JavaScript syntax check skipped locally: Node is unavailable (required in CI)."
 fi

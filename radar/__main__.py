@@ -13,7 +13,7 @@ from threading import Event
 from time import monotonic
 
 from . import __version__
-from .store import STATES, Store
+from .store import DEFAULT_WORKSPACE, STATES, Store
 
 
 def _parser():
@@ -22,17 +22,15 @@ def _parser():
     )
     parser.add_argument(
         "--workspace",
-        default=os.environ.get(
-            "RADAR_WORKSPACE",
-            str(Path.home() / ".opportunity-radar" / "workspace.sqlite3"),
-        ),
+        default=os.environ.get("RADAR_WORKSPACE", DEFAULT_WORKSPACE),
         help="Owner-only SQLite workspace path",
     )
     parser.add_argument("--json", action="store_true", help="Print structured output")
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="command", required=True)
+    init = sub.add_parser("init", help="Create a private workspace with starter profiles")
+    init.add_argument("--empty", action="store_true", help="Skip starter profiles")
     for name, help_text in (
-        ("init", "Create an empty private workspace"),
         ("gui", "Open the shared desktop workspace"),
         ("sample", "Add an illustrative offline catalog"),
         ("catalog", "List available public sources"),
@@ -119,6 +117,14 @@ def _parser():
     )
     goal.add_argument("name")
     goal.add_argument("file")
+    profiles = sub.add_parser(
+        "import-profiles", help="Import saved profiles and dashboard preferences from JSON"
+    )
+    profiles.add_argument("file")
+    profile_mode = profiles.add_mutually_exclusive_group()
+    profile_mode.add_argument("--preview", action="store_true", help="Review the changes without importing")
+    profile_mode.add_argument("--expected-revision", help="Apply only if the preview is still current")
+    profiles.add_argument("--replace", action="store_true", help="Remove profiles outside the pack")
     undo = sub.add_parser("undo-goal", help="Undo the latest edit to a goal")
     undo.add_argument("name")
     track = sub.add_parser("track", help="Save, dismiss, or update an application")
@@ -237,9 +243,16 @@ def _collect(store, args):
 def main(argv=None):
     parser = _parser()
     args = parser.parse_args(argv)
-    store = Store(args.workspace)
     try:
         command = args.command
+        if command == "init":
+            starter_profiles = not args.empty
+        else:
+            starter_profiles = args.workspace == DEFAULT_WORKSPACE and command not in {
+                "migrate",
+                "restore",
+            }
+        store = Store(args.workspace, starter_profiles=starter_profiles)
         code = 0
         if command in {"init", "doctor"}:
             with store.transaction() as db:
@@ -343,6 +356,14 @@ def main(argv=None):
 
             store.put_goal(args.name, read_json(args.file, 32000))
             result = {"goal": args.name, "updated": True}
+        elif command == "import-profiles":
+            from .profiles import import_profiles, preview_profiles
+
+            options = {"path": args.file, "replace": args.replace}
+            if args.preview:
+                result = preview_profiles(store, **options)
+            else:
+                result = import_profiles(store, **options, expected_revision=args.expected_revision)
         elif command == "undo-goal":
             store.undo_goal(args.name)
             result = {"goal": args.name, "undone": True}

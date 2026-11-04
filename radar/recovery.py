@@ -13,7 +13,8 @@ from pathlib import Path
 from .collection import _public_url, load_catalog, validate_source
 from .locking import exclusive_work
 from .matching import tokens
-from .store import APPLICATION_ID, SCHEMA, SCHEMA_VERSION, safe_url
+from .profiles import clear_pristine_starters
+from .store import APPLICATION_ID, SCHEMA, SCHEMA_V1, SCHEMA_VERSION, safe_url, upgrade_schema
 
 LEGACY_VERSIONS = range(3, 8)
 MAX_DATABASE_BYTES = 4 * 1024**3
@@ -114,15 +115,20 @@ def _version(connection):
     )
 
 
-@lru_cache(maxsize=1)
-def _expected_schema():
+@lru_cache(maxsize=2)
+def _expected_schema(version):
     with closing(sqlite3.connect(":memory:")) as connection:
-        connection.executescript(SCHEMA)
+        connection.executescript(SCHEMA_V1 if version == 1 else SCHEMA)
         return _schema(connection)
 
 
 def _check_snapshot(source):
-    if _version(source) != (APPLICATION_ID, SCHEMA_VERSION) or _schema(source) != _expected_schema():
+    app, version = _version(source)
+    if (
+        app != APPLICATION_ID
+        or version not in {1, SCHEMA_VERSION}
+        or _schema(source) != _expected_schema(version)
+    ):
         raise ValueError("Snapshot schema does not match this Opportunity Radar version")
     if source.execute("PRAGMA quick_check").fetchone()[0] != "ok":
         raise ValueError("Snapshot failed SQLite integrity verification")
@@ -165,6 +171,10 @@ def restore(store, snapshot):
             _copy_database(source, staged)
             staged.execute("PRAGMA trusted_schema = OFF")
             _check_snapshot(staged)
+            if _version(staged)[1] == 1:
+                with staged:
+                    staged.execute("BEGIN IMMEDIATE")
+                    upgrade_schema(staged)
             with closing(store.connect()) as destination:
                 _copy_database(staged, destination)
     return {"restored": True}
@@ -402,7 +412,12 @@ def migrate(store, legacy_db, config_dir=None):
             if previous is not None:
                 return {**json.loads(previous[0]), "already_migrated": True}
             if any(target.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone()
-                   for table in ("sources", "goals", "listings")):
+                   for table in ("sources", "listings")):
+                raise ValueError("Import into a new, empty workspace")
+            if (
+                target.execute("SELECT 1 FROM goals LIMIT 1").fetchone()
+                and not clear_pristine_starters(store, target)
+            ):
                 raise ValueError("Import into a new, empty workspace")
             _archive(target, "configuration", config)
             for entry in profiles:

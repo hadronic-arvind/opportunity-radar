@@ -196,6 +196,30 @@ class RecoveryTests(unittest.TestCase):
             migrate(self.store, legacy, config)
         self.assertEqual(self.store.inspect(listing)["note"], "Original decision")
 
+    def test_migration_can_replace_pristine_starters(self):
+        from radar.feed import get_feed, set_preferences
+
+        store = Store(self.store.path, starter_profiles=True)
+        legacy, config = self._legacy()
+        starters = store.goals()
+        self.assertEqual(len(starters), 6)
+        set_preferences(store, starters[0]["name"])
+        with self.assertRaisesRegex(ValueError, "empty"):
+            migrate(store, legacy, config)
+        self.assertEqual(store.goals(), starters)
+
+        set_preferences(store, None)
+        name = starters[0]["name"]
+        store.put_goal(name, {"prefer": ["my own topic"]})
+        with self.assertRaisesRegex(ValueError, "empty"):
+            migrate(store, legacy, config)
+        self.assertEqual(store.goals()[0]["rules"]["prefer"], ["my own topic"])
+
+        store.undo_goal(name)
+        self.assertEqual(migrate(store, legacy, config)["active_goal"], "Local library")
+        self.assertEqual(get_feed(store)["goal"], "Local library")
+        self.assertEqual([profile["name"] for profile in store.goals()], ["Local library"])
+
     def test_sqlite_page_exhaustion_rolls_back_migration(self):
         class OutOfSpaceStore(Store):
             def ingest(self, source_id, rows, state, message, conn=None):

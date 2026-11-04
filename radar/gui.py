@@ -1027,7 +1027,7 @@ def main(store):
             controls = ttk.Frame(frame)
             controls.pack(fill="x", pady=(8, 0))
 
-            def update_view(name):
+            def update_view(name, *, select_goal=True):
                 names = tuple(item["name"] for item in store.goals())
                 picker.configure(values=names)
                 actual_name = next(
@@ -1036,7 +1036,7 @@ def main(store):
                 )
                 fill(actual_name)
                 self.refresh_goals()
-                if picker.get():
+                if select_goal and picker.get():
                     self.goal.set(f"Goal: {picker.get()}")
                 self.schedule_search(reset=True)
                 if self.selected:
@@ -1084,7 +1084,46 @@ def main(store):
                 update_view(name)
                 error.set("Last goal edit undone.")
 
+            def import_pack():
+                from .profiles import import_profiles, preview_profiles
+
+                path = filedialog.askopenfilename(
+                    parent=window,
+                    title="Choose a profile pack",
+                    filetypes=[("JSON", "*.json"), ("All files", "*")],
+                )
+                if not path:
+                    return
+                try:
+                    preview = preview_profiles(store, path=path)
+                    names = [profile["name"] for profile in preview["profiles"]]
+                    detail = ", ".join(names[:6])
+                    if len(names) > 6:
+                        detail += f", and {len(names) - 6} more"
+                    if not messagebox.askyesno(
+                        "Import profiles",
+                        f"Import {detail}?\n\n"
+                        f"{len(preview['conflicts'])} saved profiles with matching names will be updated.",
+                        parent=window,
+                    ):
+                        return
+                    result = import_profiles(store, path=path, expected_revision=preview["revision"])
+                except (ValueError, OSError, sqlite3.Error) as exc:
+                    error.set(str(exc))
+                    return
+                update_view(
+                    result.get("active_profile") or names[0],
+                    select_goal=result.get("active_profile") is not None,
+                )
+                if "active_profile" in result and result["active_profile"] is None:
+                    self.goal.set(NO_GOAL)
+                    self.change_goal()
+                error.set(f"Imported {len(names)} profiles.")
+
             ttk.Button(controls, text="Undo last edit", command=undo).pack(side="left")
+            ttk.Button(controls, text="Import profiles…", command=import_pack).pack(
+                side="left", padx=(8, 0)
+            )
             ttk.Button(
                 controls, text="Save goal", style="Accent.TButton", command=save
             ).pack(side="right")

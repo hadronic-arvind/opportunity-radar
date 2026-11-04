@@ -198,6 +198,13 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
             reply(id, result: existing != nil)
         case "pickPath":
             pickPath(id, args: args)
+        case "copyText":
+            guard let value = args["text"] as? String, value.utf8.count <= 8192
+            else { reply(id, error: "The text is too large to copy."); return }
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            let copied = pasteboard.setString(value, forType: .string)
+            reply(id, result: copied, error: copied ? nil : "The text could not be copied.")
         case "openExternal":
             guard let address = args["url"] as? String, let url = Self.externalURL(address)
             else { reply(id, error: "Choose a public HTTPS link."); return }

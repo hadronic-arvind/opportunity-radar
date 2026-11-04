@@ -18,9 +18,10 @@ from .matching import assess, nearby_roots, normalize_rules, tokens, variants
 
 STATES = ("new", "reviewed", "skip", "apply", "applied")
 RECEIPT_STATES = {"complete", "partial", "failed", "timed_out", "cancelled", "imported"}
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 APPLICATION_ID = 0x52414452
-SCHEMA = """
+DEFAULT_WORKSPACE = Path.home() / ".opportunity-radar" / "workspace.sqlite3"
+SCHEMA_V1 = """
 CREATE TABLE IF NOT EXISTS listings (
     id TEXT PRIMARY KEY, identity TEXT UNIQUE NOT NULL, first_seen TEXT NOT NULL
 );
@@ -66,6 +67,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS inventory USING fts5(
     tokenize='unicode61 remove_diacritics 2'
 );
 """
+PREFERENCES_SCHEMA = """
+CREATE TABLE dashboard_preferences (
+    id INTEGER PRIMARY KEY CHECK (id=1), goal TEXT
+);
+"""
+SCHEMA = SCHEMA_V1 + PREFERENCES_SCHEMA
+
+
+def upgrade_schema(db):
+    """Upgrade a v1 workspace within the caller's transaction."""
+    db.execute(PREFERENCES_SCHEMA)
+    db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
 def now():
@@ -201,13 +214,17 @@ def _goal_expression(rules):
         for phrase in rules.get(key, []):
             parts.update(dict.fromkeys(f'"{term}"' for term in variants(phrase)))
             if key != "require" and (roots := nearby_roots(phrase)):
-                parts["(" + " AND ".join(f'"{root}"*' for root in roots) + ")"] = None
+                terms = [
+                    f'"{root}"*' if len(root) >= 4 else f'"{root}"' for root in roots
+                ]
+                parts["(" + " AND ".join(terms) + ")"] = None
     return " OR ".join(parts)
 
 
 class Store:
-    def __init__(self, path):
+    def __init__(self, path, *, starter_profiles=False):
         self.path = Path(path).expanduser().absolute()
+        self.starter_profiles = starter_profiles
 
     def connect(self):
         self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -232,7 +249,7 @@ class Store:
             conn.execute("PRAGMA trusted_schema = OFF")
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             app = conn.execute("PRAGMA application_id").fetchone()[0]
-            if version == app == 0:
+            if version == app == 0 or (app == APPLICATION_ID and version == 1):
                 with conn:
                     conn.execute("BEGIN IMMEDIATE")
                     version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -247,9 +264,16 @@ class Store:
                         for statement in SCHEMA.split(";"):
                             if statement.strip():
                                 conn.execute(statement)
+                        if self.starter_profiles:
+                            from .profiles import install_starter_profiles
+
+                            install_starter_profiles(self, conn)
                         conn.execute(f"PRAGMA application_id = {APPLICATION_ID}")
                         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
                         version, app = SCHEMA_VERSION, APPLICATION_ID
+                    elif app == APPLICATION_ID and version == 1:
+                        upgrade_schema(conn)
+                        version = SCHEMA_VERSION
             if app != APPLICATION_ID or version != SCHEMA_VERSION:
                 raise ValueError("Unsupported workspace schema")
             return conn
@@ -534,12 +558,14 @@ class Store:
             (*values, listing_id),
         )
 
-    def goals(self):
-        with closing(self.connect()) as db:
-            return [
-                {"name": row["name"], "rules": json.loads(row["rules"])}
-                for row in db.execute("SELECT * FROM goals ORDER BY name")
-            ]
+    def goals(self, conn=None):
+        if conn is None:
+            with closing(self.connect()) as db:
+                return self.goals(db)
+        return [
+            {"name": row["name"], "rules": json.loads(row["rules"])}
+            for row in conn.execute("SELECT * FROM goals ORDER BY name")
+        ]
 
     def put_goal(self, name, rules, conn=None):
         if not isinstance(name, str) or not name.strip() or len(name) > 100:
@@ -573,9 +599,19 @@ class Store:
                 db.execute("DELETE FROM goals WHERE name=?", (name,))
             else:
                 db.execute(
-                    "UPDATE goals SET rules=? WHERE name=?", (row["previous"], name)
+                    "INSERT INTO goals VALUES (?,?) "
+                    "ON CONFLICT(name) DO UPDATE SET rules=excluded.rules",
+                    (row["name"], row["previous"]),
                 )
             db.execute("DELETE FROM goal_history WHERE id=?", (row["id"],))
+
+    def remove_goal(self, name, conn):
+        conn.execute(
+            "INSERT INTO goal_history(name,previous) "
+            "SELECT name,rules FROM goals WHERE name=?",
+            (name,),
+        )
+        conn.execute("DELETE FROM goals WHERE name=?", (name,))
 
     def track(self, id, status=None, saved=None, note=None, conn=None):
         if status is not None and status not in STATES:

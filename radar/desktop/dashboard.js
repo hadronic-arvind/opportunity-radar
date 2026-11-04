@@ -167,7 +167,8 @@
       state.loading = false;
       byId("layout").classList.add("single");
       rail.replaceChildren();
-      if (window.renderTools) window.renderTools(feed, {call,el,notice,openLegacy,nativeFiles:!!bridge});
+      if (window.renderTools) window.renderTools(feed, {call,el,notice,openLegacy,nativeFiles:!!bridge,
+        openProfiles:() => openProfiles()});
       else feed.replaceChildren(empty("Tools", "Use the full workspace to manage your sources.", button("Open full workspace","primary",openLegacy)));
       return;
     }
@@ -360,12 +361,14 @@
 
   function renderRail(data) {
     const saved = data?.summary?.saved;
+    const hasProfiles = !!data?.goals?.length;
     rail.replaceChildren(
       el("section",{class:"side-card"},el("span",{class:"eyebrow"},"Feed settings"),
         el("h3",{},data?.goal || "Find your direction"),
         el("p",{},data?.goal ? "Your selected goal helps order opportunities using evidence in the listing."
-          : "Add a few interests to get recommendations. You can switch back to recent listings any time."),
-        button(data?.goal ? "Edit feed" : "Set interests","secondary",tune,"sliders")),
+          : hasProfiles ? "Choose a profile to get recommendations. You can switch back to recent listings any time."
+            : "Add a few interests to get recommendations. You can switch back to recent listings any time."),
+        button(data?.goal ? "Edit feed" : hasProfiles ? "Choose profile" : "Set interests","secondary",tune,"sliders")),
       el("section",{class:"side-card"},el("span",{class:"eyebrow"},"Your shortlist"),
         el("h3",{},saved === undefined ? "Saved opportunities" : `${saved.toLocaleString()} saved`),
         el("p",{},"Keep good finds close. Decide when you’re ready."),
@@ -553,9 +556,29 @@
     showDrawer("Tune feed",[
       el("h2",{},"Make it yours"),
       el("p",{class:"muted"},"Choose the work you want to see. Your preferences stay on this device."),
-      preference,disclosure("Create a quick goal",quick),
+      preference,
+      el("div",{class:"profile-entry"},el("h3",{},"Bring in profiles"),
+        el("p",{class:"caption"},"Start from a profile file or use AI to draft profiles from your materials."),
+        button("Import profiles…","secondary",() => openProfiles(tune))),
+      disclosure("Create a quick goal",quick),
       data?.goals?.length ? disclosure("Edit an existing goal",editGoalForm(data.goals,data.goal)) : null
     ]);
+  }
+
+  function openProfiles(onBack) {
+    ++drawerVersion;
+    openingId = null;
+    const version = drawerVersion;
+    showDrawer("Import profiles",window.renderProfileImport({el,button,call,onBack,onComplete:(count) => {
+      if (drawer.open && version === drawerVersion) {
+        drawer.close();
+        if (state.view === "tools") navigate("for-you");
+        else load({preserve:true});
+      } else if (state.view === "for-you") {
+        load({preserve:true});
+      }
+      notice(`Imported ${count} ${count === 1 ? "profile" : "profiles"}.`);
+    }}));
   }
 
   function editGoalForm(goals, current) {

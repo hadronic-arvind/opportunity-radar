@@ -30,8 +30,12 @@ The terminal and collector are supported on macOS and Linux.
 Use `python3 -m radar --help` for all commands.
 
 The workspace defaults to `~/.opportunity-radar/workspace.sqlite3`.
+A new default workspace comes with six example profiles for medicine, AI and ML research, and clean energy, with student and professional versions in each field.
+Choose one under **For You → Tune feed**, or keep **Recently collected** selected while exploring.
+Existing workspaces keep their own profiles.
 Set `RADAR_WORKSPACE` or pass `--workspace PATH` before the command to use a separate workspace.
-Use an empty workspace for an offline demo, an upgrade rehearsal, or development.
+Run `python3 -m radar --workspace PATH init` to create a separate workspace with the starter profiles.
+Use `init --empty` to create a blank workspace for an upgrade rehearsal or development.
 
 ## Find and decide
 
@@ -61,6 +65,47 @@ python3 -m radar set-goal Methods goal.json
 python3 -m radar search --scope recommended --goal Methods
 python3 -m radar undo-goal Methods
 ```
+
+### Import profiles from AI-generated JSON
+
+In the desktop, choose **Import profiles**, then paste JSON or open a local JSON file and preview the import.
+The dialog includes a prompt you can use with an AI assistant and the files you choose to share with it.
+Opportunity Radar reads the finished JSON locally.
+For example, a research profile pack could look like this:
+
+```json
+{
+  "version": 1,
+  "profiles": [
+    {
+      "name": "Research methods",
+      "rules": {
+        "objective": "Find research roles that develop numerical methods",
+        "prefer": ["scientific computing", "numerical methods"],
+        "require": [],
+        "avoid": ["sales targets"],
+        "explore": ["research fellowship"]
+      }
+    }
+  ],
+  "active_profile": "Research methods"
+}
+```
+
+The pack can contain 1 to 100 profiles in up to 256 KiB of UTF-8 JSON.
+Use unique profile names up to 100 characters.
+Keep the objective at 2,000 characters or fewer and each rule list to at most 30 phrases of up to 120 characters.
+Optional `facts` maps up to 50 self-reported eligibility facts to boolean values.
+Set `active_profile` to a name from the pack, set it to `null` for the recent feed, or omit it to retain the current dashboard preference where possible.
+
+```sh
+python3 -m radar import-profiles profiles.json --preview
+python3 -m radar import-profiles profiles.json
+```
+
+Import updates profiles with matching names and adds new ones.
+Select **Remove existing profiles outside this file or draft**, or use `--replace`, to remove profiles absent from the pack.
+Profile imports leave the collection and tracking decisions intact.
 
 Keep files containing private goals outside the repository.
 Pass `--json` before a command for structured output.

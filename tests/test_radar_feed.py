@@ -100,6 +100,10 @@ class DashboardFeedTests(unittest.TestCase):
                 ("summary", json.dumps({"active_goal": "Migrated"})),
             )
         self.assertEqual(feed.get_feed(self.store)["goal"], "Migrated")
+        path = self.path.with_name(self.path.name + ".dashboard.json")
+        path.write_text(json.dumps({"goal": None}), encoding="utf-8")
+        path.chmod(0o600)
+        self.assertEqual(feed.get_feed(self.store)["mode"], "recent")
         self.assertEqual(
             feed.set_preferences(self.store, "FIRST CHOICE"), {"goal": "First choice"}
         )
@@ -109,8 +113,8 @@ class DashboardFeedTests(unittest.TestCase):
         )
         feed.set_preferences(self.store, None)
         self.assertEqual(feed.get_feed(Store(self.path))["mode"], "recent")
-        path = self.path.with_name(self.path.name + ".dashboard.json")
-        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        path.unlink()
+        self.assertEqual(feed.get_feed(Store(self.path))["mode"], "recent")
         with self.assertRaisesRegex(ValueError, "Unknown goal"):
             feed.set_preferences(self.store, "unknown")
 

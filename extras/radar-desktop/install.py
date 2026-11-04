@@ -26,6 +26,7 @@ BRIDGE = PROJECT / "radar" / "desktop_bridge.py"
 # Bundle public inputs explicitly so private workspace files and extra checkout
 # modules cannot be copied into the signed application.
 RUNTIME_FILES = (
+    "examples/profile-packs/career-pathways.json",
     "radar/__init__.py",
     "radar/__main__.py",
     "radar/app.py",
@@ -37,12 +38,14 @@ RUNTIME_FILES = (
     "radar/gui.py",
     "radar/locking.py",
     "radar/matching.py",
+    "radar/profiles.py",
     "radar/recovery.py",
     "radar/store.py",
     "radar/desktop/advanced.js",
     "radar/desktop/dashboard.css",
     "radar/desktop/dashboard.js",
     "radar/desktop/index.html",
+    "radar/desktop/profiles.js",
     "radar/desktop/tools.css",
     "monitor/__init__.py",
     "monitor/dates.py",

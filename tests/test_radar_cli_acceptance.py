@@ -38,7 +38,7 @@ class TerminalAcceptanceTests(unittest.TestCase):
         return str(path)
 
     def test_offline_journey_persists_and_recovers_through_normal_commands(self):
-        self.assertEqual(self._radar("init")["indexed"], 0)
+        self.assertEqual(self._radar("init", "--empty")["indexed"], 0)
         self.assertEqual(self._radar("search"), [])
         self.assertEqual(self._radar("collect")["receipts"], [])
         self.assertEqual(self._radar("sample")["seen"], 8)
@@ -71,6 +71,26 @@ class TerminalAcceptanceTests(unittest.TestCase):
                          ("apply", True, "Private note"))
         self.assertEqual(self._radar("goals")[0]["name"], "Research")
         self.assertEqual(self._radar("doctor")["check"], "ok")
+
+    def test_new_workspace_has_starter_profiles_without_selecting_one(self):
+        self.assertEqual(self._radar("init")["indexed"], 0)
+        dashboard = self._radar("feed")
+        names = {profile["name"] for profile in dashboard["goals"]}
+        self.assertEqual(names, {
+            f"{domain} - {stage}"
+            for domain in ("Medicine", "AI and ML research", "Clean energy")
+            for stage in ("student", "professional")
+        })
+        self.assertIsNone(dashboard["goal"])
+        self.assertEqual(dashboard["items"], [])
+        self.assertEqual(self._radar("sources"), [])
+
+        name = "Medicine - student"
+        self._radar("feed-preferences", "--goal", name)
+        self.assertEqual(self._radar("feed")["goal"], name)
+        self._radar("undo-goal", name)
+        self._radar("init")
+        self.assertEqual({profile["name"] for profile in self._radar("goals")}, names - {name})
 
     def test_untrusted_text_and_authority_use_public_cli_path(self):
         items = self._document("items.json", [{

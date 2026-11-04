@@ -41,15 +41,13 @@ class BundledRuntimeTests(unittest.TestCase):
             workspace = directory / "sample.sqlite3"
             env = {**os.environ, "RADAR_WORKSPACE": str(workspace)}
             env.pop("PYTHONPATH", None)
-            for request in (
-                {"op": "sample", "args": {}},
-                {"op": "feed", "args": {"view": "for-you"}},
-            ):
+
+            def request(op, **args):
                 process = subprocess.run(
                     [sys.executable, "-B", "-s", "-m", "radar.desktop_bridge"],
                     cwd=runtime,
                     env=env,
-                    input=json.dumps(request) + "\n",
+                    input=json.dumps({"op": op, "args": args}) + "\n",
                     text=True,
                     capture_output=True,
                     check=True,
@@ -57,7 +55,34 @@ class BundledRuntimeTests(unittest.TestCase):
                 )
                 output = json.loads(process.stdout)
                 self.assertTrue(output["ok"], output)
-            self.assertGreater(len(output["result"]["items"]), 0)
+                return output["result"]
+
+            request("sample")
+            self.assertGreater(len(request("feed", view="for-you")["items"]), 0)
+            path = directory / "Profiles with spaces.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "active_profile": "Scientific computing",
+                        "profiles": [
+                            {
+                                "name": "Scientific computing",
+                                "rules": {"prefer": ["research"]},
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            preview = request("preview_profiles", path=str(path))
+            self.assertEqual(request("goals"), [])
+            request(
+                "import_profiles", path=str(path), expected_revision=preview["revision"]
+            )
+            self.assertEqual(
+                request("feed", view="for-you")["goal"], "Scientific computing"
+            )
             self.assertTrue(workspace.is_file())
 
 

@@ -75,8 +75,8 @@ function section(title, description) {
     return content;
 }
 
-function fileControls(call, notice, openLegacy, nativeFiles) {
-    const content = section("Workspace files", "Back up or recover your local workspace, or bring in listings from a file.");
+function fileControls(call, notice, openLegacy, nativeFiles, openProfiles) {
+    const content = section("Workspace files", "Back up or recover your workspace, or bring in profiles and listings.");
     const list = itemList();
     const confirmation = make("div", "", "tools-confirm");
     confirmation.hidden = true;
@@ -86,6 +86,11 @@ function fileControls(call, notice, openLegacy, nativeFiles) {
     function lock(value) {
         busy = value;
         buttons.forEach((control) => { control.disabled = value; });
+    }
+
+    if (openProfiles) {
+        list.append(row("Import profiles", "Review and add feed profiles from a JSON file or an AI draft.",
+            [button("Import profiles…", openProfiles)]));
     }
 
     async function complete(operation, args, message) {
@@ -192,7 +197,7 @@ function fileControls(call, notice, openLegacy, nativeFiles) {
     return content;
 }
 
-function renderTools(root, {call, notice, openLegacy, nativeFiles}) {
+function renderTools(root, {call, notice, openLegacy, nativeFiles, openProfiles}) {
     const view = make("div", "", "tools-view");
     const tabs = make("nav", "", "tools-tabs");
     tabs.setAttribute("aria-label", "Workspace tools");
@@ -219,7 +224,7 @@ function renderTools(root, {call, notice, openLegacy, nativeFiles}) {
             tab.setAttribute("aria-pressed", String(name === active));
         }
         if (active === "data") {
-            panel.replaceChildren(fileControls(call, notice, openLegacy, nativeFiles));
+            panel.replaceChildren(fileControls(call, notice, openLegacy, nativeFiles, openProfiles));
             return;
         }
         if (problem) {

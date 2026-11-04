@@ -1,0 +1,114 @@
+{
+  "Medicine - student": {
+    "first": "medicine-student-first",
+    "also": "medicine-student-also"
+  },
+  "Medicine - professional": {
+    "first": "medicine-professional-first",
+    "also": "medicine-professional-also"
+  },
+  "Cybersecurity - student": {
+    "first": "cyber-student-first",
+    "also": "cyber-student-also"
+  },
+  "Cybersecurity - professional": {
+    "first": "cyber-professional-first",
+    "also": "cyber-professional-also"
+  },
+  "Epidemiology - student": {
+    "first": "epidemiology-student-first",
+    "also": "epidemiology-student-also"
+  },
+  "Epidemiology - professional": {
+    "first": "epidemiology-professional-first",
+    "also": "epidemiology-professional-also"
+  },
+  "Clean energy - student": {
+    "first": "energy-student-first",
+    "also": "energy-student-also"
+  },
+  "Clean energy - professional": {
+    "first": "energy-professional-first",
+    "also": "energy-professional-also"
+  },
+  "Accessibility design - student": {
+    "first": "design-student-first",
+    "also": "design-student-also"
+  },
+  "Accessibility design - professional": {
+    "first": "design-professional-first",
+    "also": "design-professional-also"
+  },
+  "Robotics - student": {
+    "first": "robotics-student-first",
+    "also": "robotics-student-also"
+  },
+  "Robotics - professional": {
+    "first": "robotics-professional-first",
+    "also": "robotics-professional-also"
+  },
+  "Accounting and audit - student": {
+    "first": "audit-student-first",
+    "also": "audit-student-also"
+  },
+  "Accounting and audit - professional": {
+    "first": "audit-professional-first",
+    "also": "audit-professional-also"
+  },
+  "Public interest law - student": {
+    "first": "law-student-first",
+    "also": "law-student-also"
+  },
+  "Public interest law - professional": {
+    "first": "law-professional-first",
+    "also": "law-professional-also"
+  },
+  "K-12 education - student": {
+    "first": "education-student-first",
+    "also": "education-student-also"
+  },
+  "K-12 education - professional": {
+    "first": "education-professional-first",
+    "also": "education-professional-also"
+  },
+  "Museum education - student": {
+    "first": "museum-student-first",
+    "also": "museum-student-also"
+  },
+  "Museum education - professional": {
+    "first": "museum-professional-first",
+    "also": "museum-professional-also"
+  },
+  "Water infrastructure - student": {
+    "first": "water-student-first",
+    "also": "water-student-also"
+  },
+  "Water infrastructure - professional": {
+    "first": "water-professional-first",
+    "also": "water-professional-also"
+  },
+  "AI and ML research - student": {
+    "first": "ai-student-first",
+    "also": "ai-student-also"
+  },
+  "AI and ML research - professional": {
+    "first": "ai-professional-first",
+    "also": "ai-professional-also"
+  },
+  "Quantitative finance - student": {
+    "first": "quant-student-first",
+    "also": "quant-student-also"
+  },
+  "Quantitative finance - professional": {
+    "first": "quant-professional-first",
+    "also": "quant-professional-also"
+  },
+  "Experimental particle physics - student": {
+    "first": "hep-student-first",
+    "also": "hep-student-also"
+  },
+  "Experimental particle physics - professional": {
+    "first": "hep-professional-first",
+    "also": "hep-professional-also"
+  }
+}

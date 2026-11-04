@@ -1,0 +1,697 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "name": "Medicine - student",
+      "rules": {
+        "objective": "Third-year US medical student seeking mentored clinical and translational research, visiting electives and supervised internal medicine exposure before residency. Open to a funded research year with approval from the home school.",
+        "prefer": [
+          "medical student research",
+          "away rotation",
+          "clinical elective",
+          "translational medicine",
+          "clinical outcomes research",
+          "medical research scholars"
+        ],
+        "require": [],
+        "avoid": [
+          "independent clinical practice",
+          "unrestricted medical license",
+          "board certified physician",
+          "residency completion"
+        ],
+        "explore": [
+          "clinical quality improvement elective",
+          "visiting student elective",
+          "research year",
+          "student to service loan repayment",
+          "internal medicine residency"
+        ]
+      }
+    },
+    {
+      "name": "Medicine - professional",
+      "rules": {
+        "objective": "Practicing US internal medicine physician seeking academic general medicine or hospitalist roles combining clinical care with protected time for teaching, quality improvement or outcomes research.",
+        "prefer": [
+          "academic hospitalist",
+          "internal medicine physician",
+          "academic general medicine",
+          "clinical faculty",
+          "resident supervision",
+          "protected research time"
+        ],
+        "require": [],
+        "avoid": [
+          "visiting medical students",
+          "medical student research fellow",
+          "preclinical student",
+          "physician recruitment sales",
+          "students to service loan repayment"
+        ],
+        "explore": [
+          "clinical informatics fellowship",
+          "hospital medicine fellowship",
+          "NHSC loan repayment",
+          "faculty development in medical education"
+        ]
+      }
+    },
+    {
+      "name": "Cybersecurity - student",
+      "rules": {
+        "objective": "Undergraduate cybersecurity student seeking supervised defensive security work and funded training in detection, digital forensics or incident triage.",
+        "prefer": [
+          "security operations intern",
+          "cybersecurity internship",
+          "digital forensics intern",
+          "incident triage",
+          "detection lab"
+        ],
+        "require": [],
+        "avoid": [
+          "active top secret clearance",
+          "senior incident commander",
+          "seven years of incident response"
+        ],
+        "explore": [
+          "cybercorps scholarship",
+          "blue team exercise",
+          "student security research",
+          "capture the flag"
+        ]
+      }
+    },
+    {
+      "name": "Cybersecurity - professional",
+      "rules": {
+        "objective": "Experienced security analyst seeking incident response and detection engineering, ideally with an established security operations team and responsibility for post-incident improvements.",
+        "prefer": [
+          "detection engineer",
+          "incident response analyst",
+          "security operations center",
+          "endpoint detection",
+          "threat hunting",
+          "incident response playbooks"
+        ],
+        "require": [],
+        "avoid": [
+          "security operations intern",
+          "commission only sales",
+          "active top secret clearance"
+        ],
+        "explore": [
+          "digital forensics examiner",
+          "cloud security response",
+          "purple team exercise"
+        ]
+      }
+    },
+    {
+      "name": "Epidemiology - student",
+      "rules": {
+        "objective": "MPH epidemiology student seeking a supervised practicum or summer placement in local public health surveillance and applied biostatistics.",
+        "prefer": [
+          "epidemiology practicum",
+          "public health internship",
+          "surveillance intern",
+          "applied biostatistics",
+          "disease surveillance"
+        ],
+        "require": [],
+        "avoid": [
+          "doctoral degree required",
+          "active unrestricted medical license",
+          "senior epidemiologist"
+        ],
+        "explore": [
+          "health department placement",
+          "environmental public health internship",
+          "applied public health training"
+        ]
+      }
+    },
+    {
+      "name": "Epidemiology - professional",
+      "rules": {
+        "objective": "Doctoral epidemiologist seeking field epidemiology and public health agency work focused on outbreak investigation, surveillance design or evaluation.",
+        "prefer": [
+          "field epidemiologist",
+          "epidemiologist ii",
+          "outbreak investigation",
+          "surveillance system evaluation",
+          "epidemic intelligence service"
+        ],
+        "require": [],
+        "avoid": [
+          "epidemiology practicum",
+          "surveillance intern",
+          "pharmaceutical sales"
+        ],
+        "explore": [
+          "applied epidemiology fellowship",
+          "public health preparedness",
+          "occupational epidemiology"
+        ]
+      }
+    },
+    {
+      "name": "Clean energy - student",
+      "rules": {
+        "objective": "Graduate energy systems student looking for research internships and applied fellowships in grid decarbonization, building efficiency or battery storage.",
+        "prefer": [
+          "energy systems intern",
+          "grid modeling intern",
+          "building energy modeling",
+          "battery storage research",
+          "clean energy fellowship"
+        ],
+        "require": [],
+        "avoid": [
+          "utility program director",
+          "journey electrician",
+          "senior power systems engineer"
+        ],
+        "explore": [
+          "climate corps fellow",
+          "community decarbonization",
+          "energy burden analysis",
+          "power systems research internship"
+        ]
+      }
+    },
+    {
+      "name": "Clean energy - professional",
+      "rules": {
+        "objective": "Energy systems engineer seeking implementation roles in utility planning, distributed energy integration or measurement and verification of building efficiency.",
+        "prefer": [
+          "distributed energy engineer",
+          "grid interconnection engineer",
+          "utility program engineer",
+          "measurement and verification",
+          "distribution planning"
+        ],
+        "require": [],
+        "avoid": [
+          "energy systems intern",
+          "grid modeling intern",
+          "door to door solar sales"
+        ],
+        "explore": [
+          "demand flexibility",
+          "virtual power plant integration",
+          "building electrification engineer"
+        ]
+      }
+    },
+    {
+      "name": "Accessibility design - student",
+      "rules": {
+        "objective": "Design student seeking an internship in accessible interfaces, inclusive user research and usability testing with a mentor and a bounded portfolio project.",
+        "prefer": [
+          "accessibility design intern",
+          "ux research intern",
+          "usability testing",
+          "inclusive design",
+          "accessible prototyping"
+        ],
+        "require": [
+          "usability testing"
+        ],
+        "avoid": [
+          "principal product designer",
+          "sole designer",
+          "commission only"
+        ],
+        "explore": [
+          "participatory design workshop",
+          "design research fellowship",
+          "assistive technology testing"
+        ]
+      }
+    },
+    {
+      "name": "Accessibility design - professional",
+      "rules": {
+        "objective": "Product designer seeking responsibility for accessibility improvements in mature digital services, including design systems and research with disabled users.",
+        "prefer": [
+          "digital accessibility specialist",
+          "accessibility product designer",
+          "accessible design systems",
+          "accessibility conformance",
+          "WCAG testing"
+        ],
+        "require": [],
+        "avoid": [
+          "accessibility design intern",
+          "ux research intern",
+          "graphic production only"
+        ],
+        "explore": [
+          "assistive technology research",
+          "section 508",
+          "service design for public benefits"
+        ]
+      }
+    },
+    {
+      "name": "Robotics - student",
+      "rules": {
+        "objective": "Mechanical engineering student seeking supervised robotics work in mechatronics, sensor integration and prototype testing.",
+        "prefer": [
+          "robotics engineering intern",
+          "mechatronics intern",
+          "robotics prototype",
+          "sensor integration",
+          "test fixture design"
+        ],
+        "require": [],
+        "avoid": [
+          "principal robotics engineer",
+          "engineering manager",
+          "field service dispatch"
+        ],
+        "explore": [
+          "robotics student competition",
+          "controls laboratory internship",
+          "robotics research placement"
+        ]
+      }
+    },
+    {
+      "name": "Robotics - professional",
+      "rules": {
+        "objective": "Robotics engineer seeking responsibility for reliable controls, hardware integration and production testing on real electromechanical systems.",
+        "prefer": [
+          "robotics controls engineer",
+          "robotics integration engineer",
+          "motion control",
+          "functional safety",
+          "hardware in the loop"
+        ],
+        "require": [],
+        "avoid": [
+          "robotics engineering intern",
+          "mechatronics intern",
+          "pure sales role"
+        ],
+        "explore": [
+          "manufacturing automation engineer",
+          "robot reliability engineer",
+          "robotic workcell validation"
+        ]
+      }
+    },
+    {
+      "name": "Accounting and audit - student",
+      "rules": {
+        "objective": "Accounting student seeking a structured audit internship and exposure to financial statement testing, public-sector assurance or internal controls.",
+        "prefer": [
+          "audit intern",
+          "assurance internship",
+          "financial statement testing",
+          "audit workpapers",
+          "internal control testing"
+        ],
+        "require": [],
+        "avoid": [
+          "active cpa license required",
+          "audit engagement manager",
+          "tax sales"
+        ],
+        "explore": [
+          "government accountability internship",
+          "public sector audit internship",
+          "accounting rotational program"
+        ]
+      }
+    },
+    {
+      "name": "Accounting and audit - professional",
+      "rules": {
+        "objective": "Licensed CPA with assurance experience seeking senior audit or risk roles, with ownership of engagement planning and internal controls rather than sales.",
+        "prefer": [
+          "senior auditor",
+          "audit manager",
+          "audit planning",
+          "internal controls assessment",
+          "financial reporting controls"
+        ],
+        "require": [],
+        "avoid": [
+          "audit intern",
+          "assurance internship",
+          "commission only"
+        ],
+        "explore": [
+          "government performance audit",
+          "risk advisory manager",
+          "forensic accounting"
+        ]
+      }
+    },
+    {
+      "name": "Public interest law - student",
+      "rules": {
+        "objective": "Second-year JD student seeking compensated public interest summer work in legal aid, civil rights or government, with research and writing supervised by an attorney.",
+        "prefer": [
+          "public interest law intern",
+          "summer law intern",
+          "legal aid clinic",
+          "legal research and writing",
+          "civil rights internship"
+        ],
+        "require": [],
+        "avoid": [
+          "active bar admission required",
+          "senior staff attorney",
+          "partner book of business"
+        ],
+        "explore": [
+          "government legal externship",
+          "housing justice clinic",
+          "appellate internship"
+        ]
+      }
+    },
+    {
+      "name": "Public interest law - professional",
+      "rules": {
+        "objective": "Bar-admitted public interest lawyer seeking direct civil legal services, impact litigation or a project fellowship with a host legal aid organization.",
+        "prefer": [
+          "legal aid staff attorney",
+          "housing justice attorney",
+          "impact litigation counsel",
+          "civil legal services",
+          "tenant representation"
+        ],
+        "require": [],
+        "avoid": [
+          "summer law intern",
+          "public interest law intern",
+          "commission only"
+        ],
+        "explore": [
+          "equal justice works fellowship",
+          "civil rights staff attorney",
+          "public benefits advocacy"
+        ]
+      }
+    },
+    {
+      "name": "K-12 education - student",
+      "rules": {
+        "objective": "Teacher preparation student seeking supervised elementary classroom practice through a teacher residency, student teaching or a curriculum development placement.",
+        "prefer": [
+          "elementary teacher residency",
+          "student teaching placement",
+          "supervised classroom practice",
+          "elementary curriculum internship"
+        ],
+        "require": [
+          "supervised classroom practice"
+        ],
+        "avoid": [
+          "school principal",
+          "district curriculum director",
+          "five years of licensed teaching"
+        ],
+        "explore": [
+          "mentor teacher",
+          "teacher preparation cohort",
+          "classroom observation"
+        ]
+      }
+    },
+    {
+      "name": "K-12 education - professional",
+      "rules": {
+        "objective": "Experienced licensed K-12 teacher seeking curriculum design and teacher support, with interest in assessment development and evidence-based coaching.",
+        "prefer": [
+          "instructional coordinator",
+          "curriculum specialist",
+          "instructional coach",
+          "assessment development",
+          "teacher professional development"
+        ],
+        "require": [],
+        "avoid": [
+          "student teaching placement",
+          "elementary teacher residency",
+          "textbook sales"
+        ],
+        "explore": [
+          "curriculum implementation",
+          "district assessment coordinator",
+          "instructional materials adoption"
+        ]
+      }
+    },
+    {
+      "name": "Museum education - student",
+      "rules": {
+        "objective": "Museum studies student seeking supervised interpretive work in public history, including object-based learning, visitor programs and outreach.",
+        "prefer": [
+          "museum education intern",
+          "visitor experience internship",
+          "object based learning",
+          "public history internship",
+          "museum interpretation"
+        ],
+        "require": [
+          "object based learning"
+        ],
+        "avoid": [
+          "director of interpretation",
+          "senior museum educator",
+          "chief curator"
+        ],
+        "explore": [
+          "community history fellowship",
+          "family program internship",
+          "museum outreach internship"
+        ]
+      }
+    },
+    {
+      "name": "Museum education - professional",
+      "rules": {
+        "objective": "Public humanities educator seeking to lead interpretation, community partnerships and evaluation of museum learning programs.",
+        "prefer": [
+          "museum education manager",
+          "interpretive program manager",
+          "senior museum educator",
+          "visitor studies evaluation",
+          "community interpretation"
+        ],
+        "require": [],
+        "avoid": [
+          "museum education intern",
+          "visitor experience internship",
+          "art auction sales"
+        ],
+        "explore": [
+          "public humanities fellowship",
+          "exhibition interpretation lead",
+          "museum program director"
+        ]
+      }
+    },
+    {
+      "name": "Water infrastructure - student",
+      "rules": {
+        "objective": "Civil and environmental engineering student seeking a water utility or research internship covering drinking water treatment, sampling or hydraulic modeling.",
+        "prefer": [
+          "water resources intern",
+          "drinking water intern",
+          "water treatment research",
+          "hydraulic modeling intern",
+          "water sampling"
+        ],
+        "require": [],
+        "avoid": [
+          "professional engineer license required",
+          "chief plant operator",
+          "ten years of utility experience"
+        ],
+        "explore": [
+          "water infrastructure fellowship",
+          "utility engineering internship",
+          "environmental engineering co op"
+        ]
+      }
+    },
+    {
+      "name": "Water infrastructure - professional",
+      "rules": {
+        "objective": "Civil or environmental engineer seeking municipal drinking water or wastewater infrastructure design, preferably with treatment upgrades, hydraulic models and public owner coordination.",
+        "prefer": [
+          "water infrastructure engineer",
+          "drinking water engineer",
+          "water treatment design",
+          "hydraulic modeling",
+          "utility capital planning"
+        ],
+        "require": [],
+        "avoid": [
+          "water resources intern",
+          "drinking water intern",
+          "residential plumbing sales"
+        ],
+        "explore": [
+          "wastewater process engineering",
+          "water reuse engineer",
+          "municipal utility engineering"
+        ]
+      }
+    },
+    {
+      "name": "AI and ML research - student",
+      "rules": {
+        "objective": "Doctoral student seeking applied machine learning research internships and fellowships that emphasize experiment design, reproducible evaluation and scientific applications.",
+        "prefer": [
+          "machine learning research intern",
+          "ai research internship",
+          "scientific machine learning",
+          "reproducible evaluation",
+          "doctoral research internship"
+        ],
+        "require": [
+          "research internship"
+        ],
+        "avoid": [
+          "research director",
+          "principal research scientist",
+          "annotation only"
+        ],
+        "explore": [
+          "machine learning research fellowship",
+          "model evaluation internship",
+          "scientific foundation models"
+        ]
+      }
+    },
+    {
+      "name": "AI and ML research - professional",
+      "rules": {
+        "objective": "Research scientist seeking hands-on modeling and empirical evaluation with publications or deployable research, particularly for scientific datasets and uncertainty-aware systems.",
+        "prefer": [
+          "machine learning research scientist",
+          "applied research scientist",
+          "uncertainty quantification",
+          "model evaluation infrastructure",
+          "scientific foundation models"
+        ],
+        "require": [],
+        "avoid": [
+          "machine learning research intern",
+          "ai research internship",
+          "prompt writing only"
+        ],
+        "explore": [
+          "research engineer scientific ml",
+          "responsible deployment research",
+          "representation learning"
+        ]
+      }
+    },
+    {
+      "name": "Quantitative finance - student",
+      "rules": {
+        "objective": "Mathematics or physics graduate student seeking quantitative research internships in systematic strategies, market microstructure and statistical inference.",
+        "prefer": [
+          "quantitative research intern",
+          "quantitative analyst internship",
+          "market microstructure research",
+          "statistical arbitrage internship",
+          "systematic strategy research"
+        ],
+        "require": [],
+        "avoid": [
+          "portfolio manager",
+          "registered investment adviser required",
+          "commission only"
+        ],
+        "explore": [
+          "quantitative trading internship",
+          "financial engineering internship",
+          "derivatives modeling intern"
+        ]
+      }
+    },
+    {
+      "name": "Quantitative finance - professional",
+      "rules": {
+        "objective": "Experienced quantitative researcher seeking ownership of signals, empirical market research and portfolio-aware evaluation of systematic strategies.",
+        "prefer": [
+          "systematic quantitative researcher",
+          "quantitative researcher",
+          "transaction cost modeling",
+          "portfolio construction",
+          "alpha research"
+        ],
+        "require": [],
+        "avoid": [
+          "quantitative research intern",
+          "quantitative analyst internship",
+          "commission only financial adviser"
+        ],
+        "explore": [
+          "market microstructure researcher",
+          "model risk quant",
+          "execution research"
+        ]
+      }
+    },
+    {
+      "name": "Experimental particle physics - student",
+      "rules": {
+        "objective": "Experimental high-energy physics PhD student seeking lab placements and dissertation fellowships in collider analysis, detector development, or scientific computing for experiments.",
+        "prefer": [
+          "particle physics graduate fellowship",
+          "experimental particle physics internship",
+          "collider data analysis",
+          "detector calibration",
+          "graduate student research placement"
+        ],
+        "require": [],
+        "avoid": [
+          "completed phd required",
+          "postdoctoral research associate",
+          "tenure track faculty"
+        ],
+        "explore": [
+          "detector instrumentation school",
+          "scientific computing fellowship",
+          "accelerator physics summer school",
+          "physics outreach fellowship"
+        ]
+      }
+    },
+    {
+      "name": "Experimental particle physics - professional",
+      "rules": {
+        "objective": "PhD-trained experimental particle physicist seeking a postdoctoral or research staff position in collider analyses, detector reconstruction and hardware development.",
+        "prefer": [
+          "experimental particle physics postdoc",
+          "particle physics research scientist",
+          "collider physics analysis",
+          "detector reconstruction",
+          "trigger development"
+        ],
+        "require": [],
+        "avoid": [
+          "undergraduate research placement",
+          "experimental particle physics internship",
+          "particle physics graduate fellowship"
+        ],
+        "explore": [
+          "experimental physics research fellowship",
+          "accelerator instrumentation scientist",
+          "research software engineer for physics"
+        ]
+      }
+    }
+  ],
+  "active_profile": "Medicine - student"
+}

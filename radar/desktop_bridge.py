@@ -6,13 +6,13 @@ import os
 import signal
 import sqlite3
 import sys
-from pathlib import Path
 from threading import Event, Thread
 
 from . import app, feed
 from .collection import load_catalog
+from .profiles import import_profiles, preview_profiles
 from .recovery import backup, migrate, restore
-from .store import Store
+from .store import DEFAULT_WORKSPACE, Store
 
 MAX_REQUEST = 2 * 1024 * 1024
 MAX_RESPONSE = 8 * 1024 * 1024
@@ -111,6 +111,8 @@ def _dispatch(store, request):
         "goals": store.goals,
         "set_goal": lambda **args: _set_goal(store, **args),
         "undo_goal": lambda **args: _undo_goal(store, **args),
+        "preview_profiles": lambda **args: preview_profiles(store, **args),
+        "import_profiles": lambda **args: import_profiles(store, **args),
         "sources": lambda: _sources(store),
         "add_source": lambda **args: _add_source(store, **args),
         "addSource": lambda **args: _add_source(store, **args),
@@ -141,10 +143,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="radar.desktop_bridge")
     parser.add_argument(
         "--workspace",
-        default=os.environ.get(
-            "RADAR_WORKSPACE",
-            str(Path.home() / ".opportunity-radar" / "workspace.sqlite3"),
-        ),
+        default=os.environ.get("RADAR_WORKSPACE", DEFAULT_WORKSPACE),
     )
     args = parser.parse_args(argv)
     try:
@@ -153,7 +152,16 @@ def main(argv=None):
             raise ValueError("Desktop request is too large")
         if os.environ.get("RADAR_DESKTOP_WATCH_OWNER") == "1":
             Thread(target=_watch_owner, args=(sys.stdin.fileno(),), daemon=True).start()
-        result = _dispatch(Store(args.workspace), json.loads(line))
+        request = json.loads(line)
+        starter_profiles = (
+            args.workspace == DEFAULT_WORKSPACE
+            and isinstance(request, dict)
+            and request.get("op") not in ("migrate", "restore")
+        )
+        result = _dispatch(
+            Store(args.workspace, starter_profiles=starter_profiles),
+            request,
+        )
         output = json.dumps({"ok": True, "result": result}, ensure_ascii=False)
         if len(output.encode("utf-8")) > MAX_RESPONSE:
             raise ValueError("Desktop result is too large")

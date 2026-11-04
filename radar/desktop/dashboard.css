@@ -556,6 +556,63 @@ kbd {
   gap:9px;
 }
 
+.profile-entry,.profile-import,.profile-list {
+  display:grid;
+  gap:10px;
+}
+
+.profile-entry {
+  justify-items:start;
+  padding:13px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:9px;
+}
+
+.profile-option {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  font-size:13px;
+}
+
+.profile-option input {
+  margin:0;
+}
+
+.profile-json {
+  font-family:monospace;
+  resize:vertical;
+}
+
+.profile-status:empty {
+  margin:0;
+}
+
+.profile-effects {
+  display:grid;
+  gap:6px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:9px;
+}
+
+.profile-rules {
+  display:grid;
+  grid-template-columns:minmax(6rem, max-content) 1fr;
+  gap:8px 12px;
+  margin-bottom:0;
+  font-size:13px;
+}
+
+.profile-rules dt {
+  font-weight:650;
+}
+
+.profile-rules dd {
+  margin:0;
+}
+
 .results-search {
   margin:14px 0;
 }

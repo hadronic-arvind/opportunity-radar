@@ -89,6 +89,10 @@ SUFFIXES = (
     "s",
     "e",
 )
+SHORT_FUNCTION_WORDS = frozenset(
+    "a an and are as at be but by did do for had has if in is may nor of on or "
+    "our per so the to up via was we who yet you".split()
+)
 
 
 def _root(word):
@@ -103,7 +107,11 @@ def _root(word):
 @lru_cache(maxsize=512)
 def nearby_roots(term):
     """Allow inflections and reordering of multiple meaningful words in one passage."""
-    words = tuple(dict.fromkeys(_root(word) for word in tokens(term) if len(word) >= 4))
+    words = tuple(
+        dict.fromkeys(
+            _root(word) for word in tokens(term) if word not in SHORT_FUNCTION_WORDS
+        )
+    )
     return (
         words if 2 <= len(words) <= 6 and all(word.isascii() for word in words) else ()
     )
