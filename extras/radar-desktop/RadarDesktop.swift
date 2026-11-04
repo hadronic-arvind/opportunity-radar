@@ -8,7 +8,6 @@ private let maximumRequestBytes = 2 * 1024 * 1024
 private let maximumResponseBytes = 8 * 1024 * 1024
 
 private struct DesktopConfiguration: Decodable {
-    let projectRoot: String
     let python: String
 }
 
@@ -30,6 +29,7 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
     private var window: NSWindow!
     private var web: WKWebView!
     private var configuration: DesktopConfiguration!
+    private var runtime: URL!
     private var interface: URL!
     private var requests: [String: Request] = [:]
     private var panel: NSSavePanel?
@@ -39,18 +39,19 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            guard let resource = Bundle.main.url(forResource: "desktop", withExtension: "json")
+            guard let resources = Bundle.main.resourceURL,
+                let resource = Bundle.main.url(forResource: "desktop", withExtension: "json")
             else { throw CocoaError(.fileNoSuchFile) }
             configuration = try JSONDecoder().decode(
                 DesktopConfiguration.self, from: Data(contentsOf: resource)
             )
-            interface = URL(fileURLWithPath: configuration.projectRoot)
-                .appendingPathComponent("radar/desktop/index.html").standardizedFileURL
+            runtime = resources.appendingPathComponent("runtime", isDirectory: true)
+            interface = runtime.appendingPathComponent("radar/desktop/index.html").standardizedFileURL
             guard FileManager.default.isReadableFile(atPath: interface.path),
                 FileManager.default.isExecutableFile(atPath: configuration.python)
             else { throw CocoaError(.fileNoSuchFile) }
         } catch {
-            failStartup("The Opportunity Radar checkout or its Python runtime is unavailable.")
+            failStartup("The installed interface or its Python runtime is unavailable.")
             return
         }
 
@@ -267,11 +268,10 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
     }
 
     private func openLegacy(_ id: String) {
-        let project = URL(fileURLWithPath: configuration.projectRoot)
-        let script = project.appendingPathComponent("scripts/open_radar.sh")
+        let script = runtime.appendingPathComponent("scripts/open_radar.sh")
         let process = Process()
         process.executableURL = script
-        process.currentDirectoryURL = project
+        process.currentDirectoryURL = runtime
         process.environment = childEnvironment()
         process.arguments = []
         process.standardInput = FileHandle.nullDevice
@@ -288,7 +288,7 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
     private func childEnvironment() -> [String: String] {
         var result = [
             "HOME": NSHomeDirectory(), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-            "LC_CTYPE": "UTF-8", "PYTHONUTF8": "1"
+            "LC_CTYPE": "UTF-8", "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1"
         ]
         for key in ["RADAR_WORKSPACE", "TMPDIR"] {
             if let value = environment[key] { result[key] = value }
@@ -308,7 +308,7 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
         let output = Pipe()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: configuration.python)
-        process.currentDirectoryURL = URL(fileURLWithPath: configuration.projectRoot)
+        process.currentDirectoryURL = runtime
         process.arguments = ["-B", "-s", "-m", "radar.desktop_bridge"]
         var childEnv = childEnvironment()
         childEnv["RADAR_DESKTOP_WATCH_OWNER"] = "1"
@@ -400,7 +400,14 @@ private final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate,
         if smoke && id == "native-smoke" {
             guard error == nil, let info = result as? [String: Any], info["ready"] as? Bool == true
             else { failStartup("The desktop bridge failed its readiness check."); return }
+            launch("native-smoke-feed", op: "feed", args: ["view": "for-you"])
+            return
+        }
+        if smoke && id == "native-smoke-feed" {
+            guard error == nil, let info = result as? [String: Any], let items = info["items"] as? [Any]
+            else { failStartup("The desktop bridge could not read its workspace."); return }
             print("Radar desktop loaded its local interface and verified its workspace bridge.")
+            print("Verified feed cards: " + String(items.count))
             exit(EXIT_SUCCESS)
         }
         guard !terminating else { return }

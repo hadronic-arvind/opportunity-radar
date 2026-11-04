@@ -1,7 +1,11 @@
 """Safety checks for updating the existing Finder shortcut."""
 
 import importlib.util
+import json
+import os
 import plistlib
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,6 +23,42 @@ def app(path, identifier):
     info.parent.mkdir(parents=True)
     info.write_bytes(plistlib.dumps({"CFBundleIdentifier": identifier}))
     return path
+
+
+class BundledRuntimeTests(unittest.TestCase):
+    def test_public_payload_runs_without_the_checkout_on_its_import_path(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            runtime = directory / "Independent app resources"
+            INSTALL.copy_runtime(runtime)
+            packaged = {
+                str(path.relative_to(runtime))
+                for path in runtime.rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(packaged, set(INSTALL.RUNTIME_FILES))
+            self.assertTrue(os.access(runtime / "scripts/open_radar.sh", os.X_OK))
+            workspace = directory / "sample.sqlite3"
+            env = {**os.environ, "RADAR_WORKSPACE": str(workspace)}
+            env.pop("PYTHONPATH", None)
+            for request in (
+                {"op": "sample", "args": {}},
+                {"op": "feed", "args": {"view": "for-you"}},
+            ):
+                process = subprocess.run(
+                    [sys.executable, "-B", "-s", "-m", "radar.desktop_bridge"],
+                    cwd=runtime,
+                    env=env,
+                    input=json.dumps(request) + "\n",
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    timeout=15,
+                )
+                output = json.loads(process.stdout)
+                self.assertTrue(output["ok"], output)
+            self.assertGreater(len(output["result"]["items"]), 0)
+            self.assertTrue(workspace.is_file())
 
 
 class DesktopShortcutTests(unittest.TestCase):

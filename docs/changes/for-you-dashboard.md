@@ -9,7 +9,7 @@ No viewing behavior is used as a recommendation signal.
 
 The design review used current [Apple sidebar guidance](https://developer.apple.com/design/human-interface-guidelines/sidebars?changes=_11) and [TikTok feed controls](https://newsroom.tiktok.com/more-ways-to-discover-new-content-and-creators-you-love?lang=en).
 The feed uses explicit preferences, visible reasons and reversible feedback, and ends each page with a deliberate next action.
-The macOS shell renders local checkout assets through WebKit and sends local operations to the existing Python workspace.
+The macOS shell renders local assets through WebKit and sends local operations to the existing Python workspace.
 The terminal remains available, and the Tk workspace is retained for other platforms and detailed operations during the transition.
 
 Verification starts with the existing desktop launch and checks the new landing view, sparse and no-goal states, recommendations, save and hide with undo, source evidence, navigation, resize, keyboard control, and the existing Desktop icon.
@@ -33,4 +33,5 @@ Ranking quality and market coverage remain bounded by the matching engine and co
 Run `./scripts/dev_check.sh` and `./scripts/check.sh` for lint and regression coverage.
 Build the native macOS bundle with `python3 extras/radar-desktop/install.py build`, then launch it with `./scripts/open_radar_desktop.sh`.
 The installer places the signed bundle under Applications, outside the Desktop checkout where Finder metadata can invalidate a newly signed bundle.
+The dashboard and its Python code are included in the signed bundle so Finder launch needs no access to the checkout.
 The optional `link` action retargets an existing owned Radar shortcut and refuses unrelated targets.

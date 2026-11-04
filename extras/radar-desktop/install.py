@@ -23,6 +23,50 @@ ICON_NAME = "OpportunityRadar.icns"
 SWIFT_SOURCE = Path(__file__).with_name("RadarDesktop.swift")
 INTERFACE = PROJECT / "radar" / "desktop" / "index.html"
 BRIDGE = PROJECT / "radar" / "desktop_bridge.py"
+# Bundle public inputs explicitly so private workspace files and extra checkout
+# modules cannot be copied into the signed application.
+RUNTIME_FILES = (
+    "radar/__init__.py",
+    "radar/__main__.py",
+    "radar/app.py",
+    "radar/brief.py",
+    "radar/catalog.json",
+    "radar/collection.py",
+    "radar/desktop_bridge.py",
+    "radar/feed.py",
+    "radar/gui.py",
+    "radar/locking.py",
+    "radar/matching.py",
+    "radar/recovery.py",
+    "radar/store.py",
+    "radar/desktop/advanced.js",
+    "radar/desktop/dashboard.css",
+    "radar/desktop/dashboard.js",
+    "radar/desktop/index.html",
+    "radar/desktop/tools.css",
+    "monitor/__init__.py",
+    "monitor/dates.py",
+    "monitor/employer_feeds.py",
+    "monitor/fetchers.py",
+    "monitor/models.py",
+    "monitor/public_feeds.py",
+    "monitor/text.py",
+    "scripts/open_radar.sh",
+)
+
+
+def copy_runtime(destination):
+    for name in RUNTIME_FILES:
+        source = PROJECT / name
+        if source.resolve() != source or not source.is_file():
+            raise RuntimeError(
+                f"Missing or linked public desktop runtime input: {name}"
+            )
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        if name == "scripts/open_radar.sh":
+            target.chmod(0o700)
 
 
 def bundle_id(app):
@@ -130,7 +174,8 @@ def build(app, python, legacy_app):
         with (contents / "Info.plist").open("wb") as file:
             plistlib.dump(plist, file)
         with (resources / "desktop.json").open("w", encoding="utf-8") as file:
-            json.dump({"projectRoot": str(PROJECT), "python": str(python)}, file)
+            json.dump({"python": str(python)}, file)
+        copy_runtime(resources / "runtime")
         write_icon(resources / ICON_NAME, legacy_app)
         subprocess.run(
             [

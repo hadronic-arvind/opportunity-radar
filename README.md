@@ -20,7 +20,8 @@ python3 extras/radar-desktop/install.py build
 
 The macOS dashboard requires Apple Command Line Tools to build the local app bundle.
 It opens directly to For You, with separate views for Explore, Saved, Applications, and Tools.
-The app uses the current checkout, so rebuild the bundle if you move the checkout or change Python installations.
+The signed bundle contains its dashboard and local workspace code.
+Rebuild it after updating the checkout or changing Python installations.
 To point an existing Opportunity Radar Desktop shortcut at the new bundle, run `python3 extras/radar-desktop/install.py link` after building.
 
 The classic desktop workspace is available on macOS and Linux via `./scripts/open_radar.sh` or `python3 -m radar gui` with Python and Tk 8.6 or newer.
