@@ -80,7 +80,11 @@ jobs:
           plutil -lint "$RUNNER_TEMP/opportunity-radar.plist"
       - name: Validate shell scripts
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-      - name: Build optional native app
+      - name: Build For You desktop app
+        run: |
+          python3 extras/radar-desktop/install.py build --app "$RUNNER_TEMP/Opportunity Radar Feed.app"
+          codesign --verify --deep --strict "$RUNNER_TEMP/Opportunity Radar Feed.app"
+      - name: Build legacy native app
         run: |
           python3 extras/macos-app/install.py \
             --destination "$RUNNER_TEMP/Opportunity Radar.app"

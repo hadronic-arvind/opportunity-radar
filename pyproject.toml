@@ -1,6 +1,6 @@
 [project]
 name = "opportunity-radar"
-version = "1.0.0"
+version = "1.1.0"
 description = "A local workspace for finding, comparing, and tracking opportunities"
 readme = "README.md"
 license = {file = "LICENSE"}

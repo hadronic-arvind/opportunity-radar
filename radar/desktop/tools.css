@@ -1,0 +1,118 @@
+.tools-view {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+.tools-tabs,
+.tools-actions,
+.tools-run {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+.tools-tabs {
+    border-bottom: 1px solid var(--line, #e1e6ed);
+    padding-bottom: .75rem;
+}
+.tools-view .button {
+    min-height: 36px;
+    white-space: nowrap;
+}
+.tools-tabs [aria-pressed="true"] {
+    background: var(--soft, #eef0ff);
+    color: var(--accent-ink, #2f3ba7);
+    font-weight: 700;
+}
+.tools-panel {
+    min-width: 0;
+}
+.tools-section {
+    padding: clamp(1rem, 2.8vw, 1.5rem);
+    border: 1px solid var(--line, #e1e6ed);
+    border-radius: 16px;
+    background: var(--white, white);
+}
+.tools-section > h2,
+.tools-row h3,
+.tools-confirm h3 {
+    margin: 0;
+}
+.tools-section > h2 {
+    font-size: 1.15rem;
+    letter-spacing: -.025em;
+}
+.tools-section > .tools-meta {
+    margin-bottom: 1rem;
+}
+.tools-meta,
+.tools-note,
+.tools-empty {
+    color: var(--muted, #5b6679);
+    font-size: .88rem;
+    line-height: 1.55;
+    margin: .2rem 0;
+}
+.tools-note:empty,
+.tools-run:empty,
+.tools-meta:empty {
+    display: none;
+}
+.tools-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.tools-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .55rem 1rem;
+    padding: .75rem 0;
+    border-top: 1px solid var(--line, #e1e6ed);
+}
+.tools-row:first-child {
+    border-top: 0;
+}
+.tools-row-text {
+    min-width: min(100%, 220px);
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+.tools-row h3 {
+    font-size: .97rem;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    line-height: 1.35;
+}
+.tools-view input[type="search"] {
+    min-width: 0;
+    flex: 1 1 11rem;
+    padding: .55rem .65rem;
+    border-radius: 8px;
+    border: 1px solid var(--line, #e1e6ed);
+    background: var(--white, white);
+    color: inherit;
+    font: inherit;
+}
+.tools-check {
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+    min-height: 36px;
+    color: var(--muted, #5b6679);
+    font-size: .88rem;
+}
+.tools-run,
+.tools-confirm {
+    padding: .75rem;
+    margin-block: .5rem;
+    background: var(--soft, #eef0ff);
+    border-radius: 8px;
+}
+.tools-confirm .button + .button {
+    margin-inline-start: .5rem;
+}

@@ -79,6 +79,32 @@ def _parser():
         search.add_argument("--kind")
         search.add_argument("--limit", type=int, default=50)
         search.add_argument("--offset", type=int, default=0)
+    from .feed import PAGE_SIZE, VIEWS
+
+    dashboard = sub.add_parser(
+        "feed", help="Read the same feed as the desktop dashboard"
+    )
+    dashboard.add_argument("query", nargs="?", default="")
+    dashboard.add_argument("--view", choices=VIEWS, default="for-you")
+    dashboard.add_argument("--goal", help="Choose a goal for this feed request only")
+    dashboard.add_argument("--kind")
+    dashboard.add_argument("--limit", type=int, default=PAGE_SIZE)
+    dashboard.add_argument("--offset", type=int, default=0)
+    preferences = sub.add_parser(
+        "feed-preferences", help="Choose the default dashboard feed"
+    )
+    choice = preferences.add_mutually_exclusive_group(required=True)
+    choice.add_argument("--goal", help="Personalize with a saved goal")
+    choice.add_argument("--recent", action="store_true", help="Use the recent feed")
+    hide = sub.add_parser("hide", help="Hide a listing from the feed")
+    hide.add_argument("id")
+    unhide = sub.add_parser("unhide", help="Restore a hidden listing")
+    unhide.add_argument("id")
+    unhide.add_argument(
+        "--status",
+        choices=tuple(state for state in STATES if state != "skip"),
+    )
+    unhide.add_argument("--token", help="Validate the undo token returned by hide")
     inspect = sub.add_parser("inspect", help="Read listing evidence and history")
     inspect.add_argument("id")
     inspect.add_argument("--goal")
@@ -289,6 +315,25 @@ def main(argv=None):
                     [_csv_cell(item[field]) for field in fields] for item in result
                 )
                 return 0
+        elif command in {"feed", "feed-preferences", "hide", "unhide"}:
+            from . import feed
+
+            if command == "feed":
+                result = feed.get_feed(
+                    store,
+                    args.view,
+                    args.query,
+                    args.goal,
+                    args.kind,
+                    args.offset,
+                    args.limit,
+                )
+            elif command == "feed-preferences":
+                result = feed.set_preferences(store, args.goal)
+            elif command == "hide":
+                result = feed.hide(store, args.id)
+            else:
+                result = feed.undo_hide(store, args.id, args.status, args.token)
         elif command == "inspect":
             result = store.inspect(args.id, args.goal)
         elif command == "goals":

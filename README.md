@@ -14,13 +14,17 @@ The app has no Python package dependencies.
 git clone https://github.com/hadronic-arvind/opportunity-radar.git
 cd opportunity-radar
 python3 -m radar init
-./scripts/open_radar.sh
+python3 extras/radar-desktop/install.py build
+./scripts/open_radar_desktop.sh
 ```
 
-The desktop requires a graphical session and Python with Tk 8.6 or newer.
-The launcher can use an existing Python or Miniconda environment with Tk.
-Set `RADAR_PYTHON` to another suitable interpreter, or launch with that interpreter directly using `python3 -m radar gui`.
-The macOS system Python can have Tk 8.5 and should be used for terminal commands only.
+The macOS dashboard requires Apple Command Line Tools to build the local app bundle.
+It opens directly to For You, with separate views for Explore, Saved, Applications, and Tools.
+The app uses the current checkout, so rebuild the bundle if you move the checkout or change Python installations.
+To point an existing Opportunity Radar Desktop shortcut at the new bundle, run `python3 extras/radar-desktop/install.py link` after building.
+
+The classic desktop workspace is available on macOS and Linux via `./scripts/open_radar.sh` or `python3 -m radar gui` with Python and Tk 8.6 or newer.
+Set `RADAR_PYTHON` if that launcher needs a specific Python interpreter.
 The terminal and collector are supported on macOS and Linux.
 Use `python3 -m radar --help` for all commands.
 
@@ -30,7 +34,7 @@ Use an empty workspace for an offline demo, an upgrade rehearsal, or development
 
 ## Find and decide
 
-Choose **Load example listings** in the desktop, or run the following offline journey.
+On an empty desktop dashboard, choose **Try the sample**, or run the following offline journey.
 
 ```sh
 python3 -m radar sample
@@ -42,6 +46,8 @@ python3 -m radar search --scope tracked
 ```
 
 The examples are fictional.
+Use `python3 -m radar feed` to see the same For You page in the terminal.
+Save opportunities to compare them later, or hide them and restore them from Saved → View hidden.
 You can explore everything without a profile, or create named goals to see recommendations.
 A goal can hold an objective and separate preferred, required, avoided, and exploratory listing phrases.
 The first preferred phrase carries extra weight.

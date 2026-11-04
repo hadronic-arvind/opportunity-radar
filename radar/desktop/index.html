@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src file:; style-src file:; img-src file: data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Opportunity Radar</title>
+<link rel="stylesheet" href="dashboard.css">
+<script defer src="advanced.js"></script>
+<script defer src="dashboard.js"></script>
+<link rel="stylesheet" href="tools.css">
+</head>
+<body>
+<a href="#feed" class="skip-link">Skip to opportunities</a>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div>Opportunity<span>RADAR</span></div></div>
+    <nav id="nav" aria-label="Workspace"></nav>
+    <div class="side-foot"><span class="online-dot"></span> Private workspace</div>
+  </aside>
+  <main id="main">
+    <header class="topbar">
+      <span id="breadcrumb">Discover <span aria-hidden="true">/</span> For You</span>
+      <button id="search-shortcut" class="quiet shortcut">Search <kbd>⌘ K</kbd></button>
+    </header>
+    <div class="layout" id="layout">
+      <section id="feed" aria-label="Opportunities" tabindex="-1"></section>
+      <aside id="context" aria-label="Your radar"></aside>
+    </div>
+  </main>
+</div>
+<dialog id="drawer"><div id="drawer-content"></div></dialog>
+<div id="status" role="status" aria-live="polite" class="toast" hidden></div>
+</body>
+</html>
