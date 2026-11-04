@@ -8,10 +8,12 @@ from .coverage import (
     AUTOMATIC_PRESET,
     MANUAL_PRESET,
     coverage_preset_payload,
+    effective_source_packs,
     target_defaults_for_preset,
     validate_coverage_preset,
 )
 from .profile import initialize_local_configuration
+from .text import normalize_opportunity_type
 
 
 def comma_values(value: str) -> List[str]:
@@ -49,12 +51,17 @@ def source_selection(pack_ids: Sequence[str]) -> int:
     return source_selection_counts(pack_ids)["enabled_sources"]
 
 
-def source_selection_counts(pack_ids: Sequence[str]) -> Dict[str, int]:
-    chosen = set(validate_pack_ids(pack_ids))
+def source_selection_counts(
+    pack_ids: Sequence[str], profile: Optional[Dict[str, Any]] = None, preset: str = MANUAL_PRESET,
+) -> Dict[str, int]:
+    chosen = set(effective_source_packs(profile or {}, validate_pack_ids(pack_ids), preset))
     counts = {"enabled_sources": 0, "listing_feeds": 0, "manual_pages": 0}
     for source in load_sources(include_disabled=True):
         source_packs = {str(value) for value in source.get("packs", [])}
         if not chosen.intersection(source_packs):
+            continue
+        if not source.get("auto_enable", True):
+            counts["manual_pages"] += int(source.get("kind") == "watch_page")
             continue
         counts["enabled_sources"] += 1
         if source.get("kind") != "watch_page":
@@ -132,55 +139,34 @@ def write_local_configuration(
 
 
 def interactive_values() -> Dict[str, Any]:
-    packs = list(available_packs().values())
-    sources = load_sources(include_disabled=True)
-    print("Choose source packs by number or id, separated by commas:")
-    for index, pack in enumerate(packs, 1):
-        suffix = " (default)" if pack.get("default") else ""
-        members = [source for source in sources if pack["id"] in source.get("packs", [])]
-        feeds = sum(source.get("kind") != "watch_page" for source in members)
-        print(
-            "  {:>2}. {}{} - {} feeds, {} manual pages - {}".format(
-                index,
-                pack["id"],
-                suffix,
-                feeds,
-                len(members) - feeds,
-                pack.get("description", ""),
-            )
-        )
-    raw = input("Packs [{}]: ".format(",".join(default_pack_ids()))).strip()
-    tokens = comma_values(raw) if raw else default_pack_ids()
-    selected = []
-    for token in tokens:
-        if token.isdigit() and 1 <= int(token) <= len(packs):
-            selected.append(str(packs[int(token) - 1]["id"]))
-        else:
-            selected.append(token)
-    print("Choose a coverage preset:")
-    print("   0. automatic (recommended) - Search employers across industries and match their jobs to your goals")
-    for index, preset in enumerate(coverage_preset_payload(), 1):
-        print("  {:>2}. {} - {}".format(index, preset["id"], preset["description"]))
-    print("   m. manual - Use only the source packs selected above")
-    raw_preset = input("Coverage preset [automatic]: ").strip().casefold()
-    if raw_preset.isdigit() and 1 <= int(raw_preset) <= len(coverage_preset_payload()):
-        coverage_preset = str(coverage_preset_payload()[int(raw_preset) - 1]["id"])
-    elif raw_preset == "m":
-        coverage_preset = MANUAL_PRESET
-    else:
-        coverage_preset = raw_preset or AUTOMATIC_PRESET
+    print("Set up your private opportunity search. Press Enter to skip any preference.")
+    opportunity_types = comma_values(input(
+        "What are you looking for? (jobs, internships, fellowships, grants, hackathons): "
+    ))
+    include_terms = comma_values(input("Roles you want to do (separate with commas): "))
+    domains = comma_values(input("Fields or topics you want to explore: "))
+    locations = comma_values(input("Preferred locations: "))
+    preset = input("Coverage [automatic] (enter ? to see choices): ").strip().casefold()
+    if preset == "?":
+        print("automatic - Start across industries and add sources relevant to your goals")
+        print("manual - Use only the packs you select")
+        for option in coverage_preset_payload():
+            print("{} - {}".format(option["id"], option["description"]))
+        preset = input("Coverage [automatic]: ").strip().casefold()
+    preset = validate_coverage_preset(preset or AUTOMATIC_PRESET)
+    selected = default_pack_ids()
+    if preset == MANUAL_PRESET:
+        for pack in available_packs().values():
+            print("{} - {}".format(pack["id"], pack.get("name", pack["id"])))
+        raw = input("Packs [{}]: ".format(", ".join(selected)))
+        selected = comma_values(raw) or selected
     return {
-        "pack_ids": validate_pack_ids(selected),
-        "coverage_preset": validate_coverage_preset(coverage_preset),
-        "include_terms": comma_values(input("Roles, skills, or domains to favor (optional): ")),
-        "exclude_terms": comma_values(input("Terms to exclude (optional): ")),
-        "locations": comma_values(input("Preferred locations or remote (optional): ")),
-        "organizations": comma_values(input("Preferred organizations (optional): ")),
-        "default_document": input("Default resume/CV label [General]: ").strip() or "General",
-        "timeframes": comma_values(
-            input("Target seasons or cycles, separated by commas (optional): ")
-        ),
-        "target": "",
+        "pack_ids": selected,
+        "coverage_preset": preset,
+        "include_terms": include_terms,
+        "domains": domains,
+        "locations": locations,
+        "opportunity_types": opportunity_types,
     }
 
 
@@ -195,10 +181,11 @@ def initialize(
     timeframes: Sequence[str] = (),
     coverage_preset: str = MANUAL_PRESET,
     force: bool = False,
+    opportunity_types: Sequence[str] = (),
+    domains: Sequence[str] = (),
 ) -> Dict[str, Any]:
     selected = validate_pack_ids(pack_ids)
     preset = validate_coverage_preset(coverage_preset)
-    source_counts = source_selection_counts(selected)
     profile = build_profile(
         selected,
         include_terms,
@@ -209,6 +196,14 @@ def initialize(
         target,
         timeframes,
     )
+    kinds = []
+    for value in opportunity_types:
+        kind = normalize_opportunity_type(value)
+        if not kind:
+            raise ValueError("Unrecognized opportunity type: {}".format(value))
+        kinds.append(kind)
+    profile["targets"]["opportunity_types"] = list(dict.fromkeys(kinds))
+    profile["targets"]["domains"] = list(domains)
     defaults = target_defaults_for_preset(preset)
     for key, values in defaults.items():
         existing = profile["targets"].get(key, [])
@@ -227,7 +222,7 @@ def initialize(
     return {
         "packs": selected,
         "coverage_preset": preset,
-        **source_counts,
+        **source_selection_counts(selected, profile, preset),
         "profile": profile_path.name,
         "sources": sources_path.name,
     }

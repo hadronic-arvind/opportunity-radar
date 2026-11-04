@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from monitor.employer_feeds import fetch_workday, workday_board
-from monitor.fetchers import ResponseTooLargeError, fetch_source
+from monitor.fetchers import CollectionDeadlineExceeded, ResponseTooLargeError, fetch_source
 from monitor.source_registry import build_custom_source, detect_source, validate_source
 from monitor.profile import ProfileValidationError
 
@@ -102,7 +102,38 @@ class WorkdayTests(unittest.TestCase):
         self.assertEqual(summary.external_id, full.external_id)
         self.assertEqual(summary.description, "")
         self.assertEqual(summary.metadata["description_availability"], "title_only")
+        self.assertEqual(summary.metadata["detail_status"], "failed")
         self.assertEqual(full.metadata["description_availability"], "full")
+        self.assertEqual(full.metadata["detail_status"], "current")
+
+    def test_detail_budget_rotates_without_reducing_search_coverage(self):
+        jobs = payload(3, "/job/R1", "/job/R2", "/job/R3")
+        with (
+            patch("monitor.employer_feeds.DETAIL_REQUEST_LIMIT", 1),
+            patch("monitor.employer_feeds._request", side_effect=[jobs, detail(), jobs, detail()]) as request,
+        ):
+            first = fetch_workday(SOURCE)
+            second = fetch_workday(dict(SOURCE, _detail_offset=first.next_detail_offset))
+        self.assertEqual(request.call_count, 4)
+        self.assertEqual([item.metadata["detail_status"] for item in first.opportunities],
+                         ["current", "deferred", "deferred"])
+        self.assertEqual([item.metadata["detail_status"] for item in second.opportunities],
+                         ["deferred", "current", "deferred"])
+        self.assertEqual(second.next_detail_offset, 2)
+
+    def test_collection_deadline_during_optional_detail_keeps_the_complete_board(self):
+        jobs = payload(3, "/job/R1", "/job/R2", "/job/R3")
+        with patch(
+            "monitor.employer_feeds._request",
+            side_effect=[jobs, CollectionDeadlineExceeded("Collection budget elapsed")],
+        ) as request:
+            result = fetch_workday(SOURCE)
+        self.assertTrue(result.complete_snapshot)
+        self.assertEqual(request.call_count, 2)
+        self.assertEqual(
+            [item.metadata["detail_status"] for item in result.opportunities],
+            ["failed", "deferred", "deferred"],
+        )
 
     def test_incomplete_duplicate_and_changing_pages_fail_closed(self):
         pages = [

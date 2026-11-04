@@ -6,16 +6,52 @@ The scorer uses listing evidence and user preferences; employer domain and pack 
 Manual coverage and explicit source disabling remain available for users who want a narrower scan.
 Custom private sources keep their existing enable/disable behavior.
 
+## Publisher feeds, programs, and events
+
+Automatic and named profiles also include multi-employer discovery.
+The two Arbeitnow feeds cover recent listings in Europe and the UK from employers across sectors.
+The EURAXESS directory contributes links to recent job and funding opportunities across international research institutions.
+Automatic and named profiles add the events and funding packs when those opportunity types are in the profile.
+
+The following public sources were verified using their production adapters on November 4, 2026.
+Counts are observations from that run.
+
+| Source | Records observed | Evidence |
+| --- | ---: | --- |
+| [Arbeitnow Europe](https://www.arbeitnow.com/) | 300 | Recent job records from the [publisher's public API](https://www.arbeitnow.com/blog/job-board-api). |
+| [Arbeitnow UK](https://www.arbeitnow.co.uk/) | 100 | Recent job records from the UK feed. |
+| [EURAXESS](https://euraxess.ec.europa.eu/jobs/search) | 30 | Listing links from the first three result pages. |
+| [University of Kent](https://jobs.kent.ac.uk/RSS/) | 7 | Recent employer-published jobs in RSS. |
+| [Major League Hacking](https://www.mlh.com/events) | 90 | Season events with published dates and attendance details. |
+| [National Research Council Canada](https://www.nrc.canada.ca/en/corporate/careers/postdoctoral-fellowship-program) | 12 | Employer-published postdoctoral fellowship links. |
+| [Grants.gov](https://www.grants.gov/api/common/search2) | 7 | Posted federal funding notices returned by the Individuals filter. |
+
+Add a public publisher feed or program page with `python3 -m monitor sources add --name NAME --url HTTPS_URL`.
+Automatic source detection recognizes supported career boards, common RSS and Atom addresses, and structured listing information on ordinary HTML pages.
+When a career page links to one recognized public hiring board, Add Source tests and saves that board with the original career page as attribution.
+When the page links to several boards, the setup output lists them so you can paste the one you want.
+Use `--kind syndication` for an RSS or Atom URL that automatic detection cannot identify.
+Use `--kind json_ld` to require Schema.org listing markup in JSON-LD or Microdata.
+Use `--opportunity-type` when the source has a known default for otherwise ambiguous entries.
+
+The source URL receives public requests only, with no local search terms or profile details.
+Coverage is partial when a source presents a rolling window, a directory, or a single publisher page.
+A listing leaving a partial feed does not establish that it closed.
+Publication dates, application windows, and event dates are stored separately when the source supplies them.
+Directory links can help locate an opportunity and carry less evidence than an individual listing.
+
 ## Cost and limits
 
-The catalog contains 401 resources, including 213 feeds in the shared cross-industry set.
+The shared cross-industry set includes more than 200 employer feeds.
 The unconfigured starter still enables five feeds.
-New feeds use a 24-hour cadence; existing source cadences remain unchanged.
-Collection is sequential, with the existing timeout, response-size, and 5,000-listing per-source limits.
-A failed fetch never removes prior listings.
-The first broad scan and an explicit Scan all take longer than a due-only refresh.
-This is a curated set of supported public employer boards, not a claim to cover every company or every opening worldwide.
-Manual directories and unsupported endpoints are excluded from the shared pack.
+The publisher feeds above use a 12- or 24-hour cadence.
+Collection remains sequential and caps request time, response size, and listings per source.
+A failed fetch preserves prior listings.
+An explicit full scan can take longer than a due-only refresh.
+Each source covers its own public catalog or publication window.
+Manual directories and unsupported endpoints are excluded from the shared employer pack.
+Apprenticeship coverage still depends on participating employers and feeds.
+The [U.S. Department of Labor's apprenticeship finder](https://www.apprenticeship.gov/apprenticeship-job-finder) remains a manual directory.
 
 ## Verified additions
 

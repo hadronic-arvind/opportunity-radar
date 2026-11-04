@@ -15,8 +15,11 @@
   const ID_PATTERN = /^[a-f0-9]{24}$/;
   const STATUS_VALUES = new Set(["new", "reviewed", "apply", "applied", "skip"]);
   const THEME_VALUES = new Set(["system", "light", "dark"]);
-  const VIEW_VALUES = new Set(["discover", "applications"]);
-  const SORT_VALUES = new Set(["fit", "newest", "deadline", "organization"]);
+  const VIEW_VALUES = new Set(["discover", "applications", "coverage"]);
+  const SORT_VALUES = new Set(["fit", "newest", "found", "deadline", "organization"]);
+  const DEADLINE_VALUES = new Set(["all", "week", "month", "rolling", "unlisted"]);
+  const DISCOVERY_FACETS = ["kind", "deadline", "activity", "benefit"];
+  const FACT_FACET_GROUPS = [["activity", "activities"], ["benefit", "benefits"]];
   const PROFILE_PAGE_VALUES = new Set(["basics", "sources", "advanced"]);
   const PROFILE_MANAGEMENT_OPERATIONS = new Set([
     "activate", "create", "duplicate", "rename", "delete", "import",
@@ -25,7 +28,13 @@
   const TYPE_LABELS = {
     apprenticeship: "Apprenticeship",
     co_op: "Co-op",
+    competition: "Competition",
+    conference: "Conference",
+    course: "Course",
+    event: "Event",
     fellowship: "Fellowship",
+    grant: "Grant",
+    hackathon: "Hackathon",
     internship: "Internship",
     job: "Job",
     opportunity: "Opportunity",
@@ -35,6 +44,7 @@
     residency: "Residency",
     scholarship: "Scholarship",
     training: "Training",
+    volunteer: "Volunteering",
   };
   const NON_EMPLOYMENT_COMMITMENTS = new Set([
     "high", "low", "medium", "standard", "very high", "very low",
@@ -63,6 +73,13 @@
     ["program", "Other programs"],
     ["apprenticeship", "Apprenticeships"],
     ["co_op", "Co-ops"],
+    ["hackathon", "Hackathons"],
+    ["competition", "Competitions"],
+    ["conference", "Conferences"],
+    ["event", "Events"],
+    ["grant", "Grants"],
+    ["course", "Courses"],
+    ["volunteer", "Volunteering"],
   ];
   const WORK_ARRANGEMENT_OPTIONS = [
     ["onsite", "On-site"],
@@ -159,7 +176,7 @@
     ]).filter(([id, label]) => id && label).slice(0, 64)
     : PACK_OPTIONS;
   const coveragePresetOptions = [
-    ["automatic", "Automatic across industries", "Search employers across industries, then match individual jobs to your goals. Your goals also add specialist sources."],
+    ["automatic", "Automatic across industries", "Search organizations across industries and add specialist sources for your goals."],
     ...(Array.isArray(settings.coverage_presets) ? settings.coverage_presets : []).map((preset) => [
       String(preset && preset.id || "").trim(),
       String(preset && (preset.name || preset.id) || "").trim(),
@@ -204,16 +221,17 @@
   const educationOptions = (Array.isArray(taxonomy.education_fields) ? taxonomy.education_fields : [])
     .map((entry) => String(entry[1] || "").trim()).filter(Boolean);
   const restoredView = loadTransientView();
-  const byId = new Map((data.opportunities || []).map((item) => [String(item.id), item]));
-  const searchIndex = new Map(
-    (data.opportunities || []).map((item) => [String(item.id), buildSearchFields(item)])
-  );
+  const viewMemory = restoredView.controls;
+  const byId = new Map([
+    ...(data.catalog || []),
+    ...(data.opportunities || []),
+  ].map((item) => [String(item.id), item]));
+  const opportunityRows = Array.from(byId.values());
+  const searchIndex = new Map();
+  const duplicateIndex = new Map();
   const state = {
     view: restoredView.view,
-    filter: restoredView.filter,
-    query: restoredView.query,
-    sort: restoredView.sort,
-    page: restoredView.page,
+    ...viewMemory[restoredView.view],
     visibleItems: [],
     busy: false,
     busyLabel: "",
@@ -299,19 +317,31 @@
     });
   }
 
+  function viewControls(value = {}) {
+    return {
+      filter: boundedInlineText(value.filter, 40) || "all",
+      query: boundedInlineText(value.query, 240),
+      sort: SORT_VALUES.has(value.sort) ? value.sort : "fit",
+      kind: boundedInlineText(value.kind, 40) || "all",
+      deadline: DEADLINE_VALUES.has(value.deadline) ? value.deadline : "all",
+      activity: boundedInlineText(value.activity, 80) || "all",
+      benefit: boundedInlineText(value.benefit, 80) || "all",
+      page: Number.isInteger(value.page) ? Math.max(1, value.page) : 1,
+    };
+  }
+
   function loadTransientView() {
-    const fallback = {view: "discover", filter: "all", query: "", sort: "fit", page: 1};
+    const fallback = {view: "discover", controls: {discover: viewControls(), applications: viewControls()}};
     try {
       const parsed = JSON.parse(sessionStorage.getItem(TRANSIENT_VIEW_KEY) || "{}");
       sessionStorage.removeItem(TRANSIENT_VIEW_KEY);
       if (!parsed || typeof parsed !== "object") return fallback;
-      return {
-        view: VIEW_VALUES.has(parsed.view) ? parsed.view : fallback.view,
-        filter: typeof parsed.filter === "string" ? parsed.filter.slice(0, 40) : fallback.filter,
-        query: typeof parsed.query === "string" ? parsed.query.slice(0, 240) : fallback.query,
-        sort: SORT_VALUES.has(parsed.sort) ? parsed.sort : fallback.sort,
-        page: Number.isInteger(parsed.page) ? Math.max(1, parsed.page) : fallback.page,
-      };
+      const view = VIEW_VALUES.has(parsed.view) ? parsed.view : fallback.view;
+      const stored = parsed.controls || {[view]: parsed};
+      return {view, controls: {
+        discover: viewControls(stored.discover || {}),
+        applications: viewControls(stored.applications || {}),
+      }};
     } catch (_error) {
       return fallback;
     }
@@ -319,12 +349,10 @@
 
   function saveTransientView() {
     try {
+      if (state.view !== "coverage") viewMemory[state.view] = viewControls(state);
       sessionStorage.setItem(TRANSIENT_VIEW_KEY, JSON.stringify({
         view: state.view,
-        filter: state.filter,
-        query: state.query,
-        sort: state.sort,
-        page: state.page,
+        controls: viewMemory,
       }));
     } catch (_error) {
       // View restoration is a convenience and never blocks a scan.
@@ -348,6 +376,7 @@
   }
 
   function buildSearchFields(item) {
+    const facts = item.facts || {};
     return {
       organization: normalizeSearchText(item.organization),
       title: normalizeSearchText(item.title),
@@ -355,10 +384,16 @@
       metadata: normalizeSearchText([
         item.category,
         item.opportunity_type,
+        typeLabel(item),
         item.commitment,
         item.recommended_resume,
+        facts.context,
+        ...[facts.activities, facts.benefits, facts.requirements,
+          facetEntries(facts, "activities"), facetEntries(facts, "benefits")].flatMap((entries) => (
+          Array.isArray(entries) ? entries.map((entry) => entry && entry.label) : []
+        )),
       ].join(" ")),
-      description: normalizeSearchText(item.description),
+      description: normalizeSearchText([item.description, item.eligibility].join(" ")),
     };
   }
 
@@ -1371,7 +1406,7 @@
     );
     basics.appendChild(focus.section);
 
-    const sourceCoverage = profileSection("Source coverage", "Choose how the app builds the pool of official job and program sources.");
+    const sourceCoverage = profileSection("Source coverage", "Choose where the app looks for your opportunities.");
     sourceCoverage.grid.append(
       profileSelectField(
         "Coverage preset",
@@ -1381,7 +1416,7 @@
         {
           wide: true,
           disabled,
-          help: "Automatic searches employers across industries and matches their jobs to your goals. Named presets keep that broad employer coverage. Manual uses only checked packs.",
+          help: "Automatic searches across industries and adds specialist sources for your goals. Named presets offer a starting set of interests. Manual checks the packs you select.",
           onChange: (value) => {
             profileDraft = collectProfileForm();
             profileDraft.coverage_preset = value;
@@ -1411,25 +1446,25 @@
       profileCountryField("Citizenship / nationality", "candidate.citizenships", candidate.citizenships, disabled),
       profileCountryField("Permanent residency", "candidate.permanent_residencies", candidate.permanent_residencies, disabled),
       profileBooleanField("I am a U.S. national (including noncitizen nationals)", "candidate.us_national", candidate.us_national, disabled),
-      profileTagField("Demonstrated skills", "candidate.skills", candidate.skills, {wide: true, disabled, placeholder: "Python"})
+      profileTagField("Demonstrated skills", "candidate.skills", candidate.skills, {wide: true, disabled, placeholder: "e.g. Grant writing, microscopy, Python"})
     );
     person.section.appendChild(element("p", "profile-help", "Choose all citizenships and permanent residencies. Leave residency empty if you have none. Birthplace and study location do not establish citizenship. Enable the filter to hide explicit mismatches; incomplete or ambiguous requirements remain flagged for review."));
     basics.appendChild(person.section);
 
-    const goals = profileSection("What you want", "Use broad interests here. Detailed matching keywords live in the next section.");
+    const goals = profileSection("What do you want to find?", "Start with the kinds of opportunities, roles, or fields you want to explore.");
     goals.grid.append(
       profileChoiceField("Opportunity types", "targets.opportunity_types", targets.opportunity_types, OPPORTUNITY_TYPE_OPTIONS, true, disabled, true),
-      profileTagField("Role families", "targets.role_families", targets.role_families, {wide: true, disabled, placeholder: "Machine learning research"}),
-      profileTagField("Domains", "targets.domains", targets.domains, {wide: true, disabled, placeholder: "Scientific computing", help: "Removing a domain also retires positive advanced rules tied only to that domain."}),
-      profileTagField("Supporting skills", "targets.supporting_skills", targets.supporting_skills, {wide: true, disabled, placeholder: "C++"}),
+      profileTagField("Roles or work you want", "targets.role_families", targets.role_families, {wide: true, disabled, placeholder: "e.g. Policy analyst, research technician"}),
+      profileTagField("Fields and topics", "targets.domains", targets.domains, {wide: true, disabled, placeholder: "e.g. Environmental justice, public health", help: "Removing a topic also retires positive advanced rules tied only to that topic."}),
+      profileTagField("Skills you want to use", "targets.supporting_skills", targets.supporting_skills, {wide: true, disabled, placeholder: "e.g. Interviewing, statistics, welding"}),
       profileTagField("Locations", "targets.locations", targets.locations, {wide: true, disabled, placeholder: "City, state, or country", suggestions: locationOptions, requireSuggestion: true, help: "Choose a suggestion at city, state, or country level. Country and state choices include matching cities below them."}),
       profileBooleanField("Only show listings in my selected locations", "targets.strict_locations", targets.strict_locations, disabled),
       profileChoiceField("Work arrangements", "targets.work_arrangements", targets.work_arrangements, WORK_ARRANGEMENT_OPTIONS, true, disabled, true),
       profileChoiceField("Remote preference", "targets.remote_preference", targets.remote_preference, REMOTE_PREFERENCE_OPTIONS, false, disabled, true),
       profileTagField("Exclude", "targets.exclusions", targets.exclusions, {wide: true, disabled, placeholder: "Sales internship", help: "Listings matching these phrases can be penalized or removed."}),
-      profileTagField("Priority organizations", "priority_organizations", profileDraft.priority_organizations, {wide: true, disabled, placeholder: "NASA"})
+      profileTagField("Priority organizations", "priority_organizations", profileDraft.priority_organizations, {wide: true, disabled, placeholder: "e.g. A local hospital or research institute"})
     );
-    basics.appendChild(goals.section);
+    basics.prepend(goals.section);
 
     const defaultDocument = profileSection("Application document", "Name the default document to use when no specialized route matches.");
     defaultDocument.grid.appendChild(profileTextField("Default document", "documents.default", documents.default, {wide: true, placeholder: "General", maxLength: 120, disabled}));
@@ -1439,7 +1474,7 @@
     scoring.grid.append(
       profileTextField("Starting score", "matching.base_score", matching.base_score, {type: "number", min: 0, max: 100, disabled}),
       profileTextField("Priority organization bonus", "matching.priority_organization_bonus", matching.priority_organization_bonus, {type: "number", min: -100, max: 100, disabled}),
-      profileRangeField("Minimum score to display", "matching.minimum_display_score", matching.minimum_display_score, {min: 0, max: 100, step: 1, defaultValue: 40, help: "Listings below this score stay out of Discover.", disabled}),
+      profileRangeField("Minimum score to display", "matching.minimum_display_score", matching.minimum_display_score, {min: 0, max: 100, step: 1, defaultValue: 40, help: "Listings below this score stay out of For you. You can still look for them in All collected.", disabled}),
       profileTextField("Priority threshold", "matching.tier_thresholds.priority", thresholds.priority, {type: "number", min: 0, max: 100, disabled}),
       profileTextField("Strong threshold", "matching.tier_thresholds.strong", thresholds.strong, {type: "number", min: 0, max: 100, disabled}),
       profileTextField("Watch threshold", "matching.tier_thresholds.watch", thresholds.watch, {type: "number", min: 0, max: 100, disabled}),
@@ -1468,11 +1503,14 @@
   function renderProfileEditor() {
     const card = document.getElementById("profile-card");
     card.hidden = !profileDraft;
+    const quick = document.getElementById("quick-profile-button");
+    quick.hidden = !profileDraft;
     if (!profileDraft) return;
     renderProfileCatalog();
     const isEmpty = !profileHasContent(profileDraft);
     const button = document.getElementById("edit-profile-button");
     button.textContent = isEmpty ? "Set up profile" : "Edit profile";
+    quick.textContent = isEmpty ? "Set up profile" : "Search profile";
     document.getElementById("profile-summary-title").textContent = isEmpty
       ? "Make matches personal"
       : activeProfileName();
@@ -1921,7 +1959,9 @@
       return;
     }
     if (!hasNativeBridge()) {
-      showToast(mode === "all" ? "Terminal: python3 -m monitor scan --force" : "Terminal: python3 -m monitor scan");
+      document.getElementById("scan-help-command").textContent = mode === "all"
+        ? "python3 -m monitor scan --force" : "python3 -m monitor scan";
+      showDashboardDialog(document.getElementById("scan-help-dialog"), document.getElementById("scan-help-close"));
       return;
     }
     startNativeAction(
@@ -1960,6 +2000,7 @@
       }
       state.pendingMutation = {request, id, previousExists, previous, change: Object.assign({}, change), focus};
       state.workflow[id] = Object.assign({}, previous, change);
+      renderCounts();
       renderAll(focus);
       return;
     }
@@ -1967,6 +2008,7 @@
     const next = Object.assign({}, previous, change);
     state.workflow[id] = next;
     persistWorkflow();
+    renderCounts();
     renderAll();
   }
 
@@ -2047,14 +2089,14 @@
   }
 
   function normalizedType(item) {
-    const value = normalizeSearchText(item.opportunity_type || "opportunity")
+    const value = normalizeSearchText(item.facts && item.facts.kind || item.opportunity_type || "opportunity")
       .replace(/[\s-]+/g, "_");
     return value === "full_time" ? "job" : value;
   }
 
   function typeLabel(item) {
     const value = normalizedType(item);
-    if (TYPE_LABELS[value]) return TYPE_LABELS[value];
+    if (Object.prototype.hasOwnProperty.call(TYPE_LABELS, value)) return TYPE_LABELS[value];
     return value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
   }
 
@@ -2120,7 +2162,10 @@
 
   function deadlineMeta(item) {
     const deadline = dateEntry(item, "deadline");
-    if (deadline.value) return {prefix: deadline.label || "Deadline", value: deadline.value};
+    if (deadline.value) return {
+      prefix: deadline.value.slice(0, 10) < localCalendarDate() ? "Deadline passed" : deadline.label || "Deadline",
+      value: deadline.value,
+    };
     const labels = {
       date: "Deadline date unavailable",
       "not listed": "Deadline not listed",
@@ -2155,8 +2200,88 @@
     return status === "apply" || status === "applied";
   }
 
-  function isAvailable(item) {
-    return Boolean(item.active) && item.source_enabled !== 0 && item.tier !== "skip";
+  function listingAvailability(item, today = localCalendarDate()) {
+    const facts = item.facts || {};
+    const state = facts.availability;
+    if (["closed", "archived", "resource"].includes(state)) return state;
+    const dates = [item.deadline_at, facts.schedule && facts.schedule.ends_at];
+    if (dates.some((value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value) && value.slice(0, 10) < today)) {
+      return "closed";
+    }
+    return state;
+  }
+
+  function isAvailable(item, today) {
+    return isCollected(item) && item.tier !== "skip"
+      && !["closed", "archived", "resource"].includes(listingAvailability(item, today));
+  }
+
+  function isCollected(item) {
+    return Boolean(item.active) && item.source_enabled !== 0 && item.source_enabled !== false;
+  }
+
+  function isTracked(workflow) {
+    return workflow.status === "skip" || workflow.bookmarked || isApplication(workflow.status);
+  }
+
+  function belongsInView(item, workflow, view, filter, today) {
+    if (view === "applications") {
+      if (filter === "dismissed") return workflow.status === "skip";
+      if (workflow.status === "skip") return false;
+      if (filter === "saved") return workflow.bookmarked;
+      if (filter === "apply" || filter === "applied") return workflow.status === filter;
+      return isTracked(workflow);
+    }
+    if (!isCollected(item) || workflow.status === "skip") return false;
+    if (filter === "collected") return true;
+    if (isApplication(workflow.status)) return false;
+    if (filter === "priority") return isAvailable(item, today) && item.tier === "priority";
+    if (filter === "new") return isAvailable(item, today) && workflow.status === "new";
+    return isAvailable(item, today);
+  }
+
+  function localCalendarDate(offset = 0) {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+      .map((value) => String(value).padStart(2, "0")).join("-");
+  }
+
+  function matchesDeadline(item, filter, today, horizon) {
+    if (!filter || filter === "all") return true;
+    const deadline = dateEntry(item, "deadline");
+    const status = deadline.status.replace(/[ -]+/g, "_");
+    const rolling = ["rolling", "rolling_review", "open_ended", "open_until_filled"].includes(status);
+    if (filter === "rolling") return !deadline.value && rolling;
+    if (filter === "unlisted") return !deadline.value && !rolling;
+    const value = deadline.value.slice(0, 10);
+    return Boolean(value) && value >= today && value <= horizon;
+  }
+
+  function facetEntries(facts, group) {
+    const values = facts && facts.facets && facts.facets[group];
+    return Array.isArray(values) ? values : [];
+  }
+
+  function matchesFactFacet(item, group, value) {
+    return !value || value === "all" || facetEntries(item.facts, group).some((entry) => entry && entry.id === value);
+  }
+
+  function scheduleValue(value) {
+    const raw = boundedInlineText(value, 120);
+    const token = raw.split("/").pop().toLowerCase();
+    const labels = {
+      eventcancelled: "Cancelled",
+      eventcanceled: "Cancelled",
+      eventpostponed: "Postponed",
+      eventrescheduled: "Rescheduled",
+      eventmovedonline: "Moved online",
+      eventscheduled: "Scheduled",
+      onlineeventattendancemode: "Online",
+      offlineeventattendancemode: "In person",
+      mixedeventattendancemode: "Hybrid",
+    };
+    return Object.prototype.hasOwnProperty.call(labels, token) ? labels[token] : raw;
   }
 
   function hasWholeTerm(value, term) {
@@ -2165,7 +2290,7 @@
       const before = position === 0 ? "" : value[position - 1];
       const afterPosition = position + term.length;
       const after = afterPosition >= value.length ? "" : value[afterPosition];
-      if ((!before || !/[a-z0-9]/.test(before)) && (!after || !/[a-z0-9]/.test(after))) {
+      if ((!before || !/[\p{L}\p{N}]/u.test(before)) && (!after || !/[\p{L}\p{N}]/u.test(after))) {
         return true;
       }
       position = value.indexOf(term, position + 1);
@@ -2183,7 +2308,9 @@
 
   function queryRank(item, phrase, terms) {
     if (!phrase) return 0;
-    const fields = searchIndex.get(String(item.id)) || buildSearchFields(item);
+    const id = String(item.id);
+    if (!searchIndex.has(id)) searchIndex.set(id, buildSearchFields(item));
+    const fields = searchIndex.get(id);
     const values = Object.values(fields);
     if (!terms.every((term) => values.some((value) => value.includes(term)))) return -1;
     let rank = 0;
@@ -2208,9 +2335,27 @@
     return rank;
   }
 
+  function discoveryIdentity(item) {
+    if (duplicateIndex.has(item.id)) return duplicateIndex.get(item.id);
+    const raw = safeUrl(item.url);
+    let identity = "";
+    if (raw && item.title && item.organization) {
+      const url = new URL(raw);
+      Array.from(url.searchParams.keys()).forEach((key) => {
+        if (/^(utm_[a-z0-9_]+|gclid|fbclid)$/i.test(key)) url.searchParams.delete(key);
+      });
+      identity = JSON.stringify([normalizeSearchText(item.title), normalizeSearchText(item.organization), url.href]);
+    }
+    duplicateIndex.set(item.id, identity);
+    return identity;
+  }
+
   function compareItems(left, right) {
     if (state.sort === "newest") {
       return compareNewestItems(left, right);
+    }
+    if (state.sort === "found") {
+      return dateSortValue(right, "first_seen", "").localeCompare(dateSortValue(left, "first_seen", ""));
     }
     if (state.sort === "deadline") {
       return dateSortValue(left, "deadline", "9999")
@@ -2234,27 +2379,34 @@
     const phrase = normalizeSearchText(state.query).slice(0, 240);
     const terms = Array.from(new Set(phrase.split(" ").filter(Boolean))).slice(0, 12);
     const ranked = [];
-    (data.opportunities || []).forEach((item) => {
+    const today = localCalendarDate();
+    const horizon = localCalendarDate(state.deadline === "week" ? 7 : 30);
+    opportunityRows.forEach((item) => {
       const workflow = effective(item);
-      if (state.view === "discover" && isApplication(workflow.status)) return;
-      if (state.view === "discover" && !isAvailable(item) && !["saved", "dismissed"].includes(state.filter)) return;
-      if (state.view === "discover" && workflow.status === "skip" && state.filter !== "dismissed") return;
-      if (state.view === "applications" && !isApplication(workflow.status)) return;
-      if (state.filter === "saved" && !workflow.bookmarked) return;
-      if (state.filter === "dismissed" && workflow.status !== "skip") return;
-      if (state.filter === "priority" && item.tier !== "priority") return;
-      if (Object.prototype.hasOwnProperty.call(TYPE_LABELS, state.filter)
-        && normalizedType(item) !== state.filter) return;
-      if (state.filter === "apply" && workflow.status !== "apply") return;
-      if (state.filter === "applied" && workflow.status !== "applied") return;
+      if (!belongsInView(item, workflow, state.view, state.filter, today)) return;
+      if (state.view === "discover") {
+        if (state.kind && state.kind !== "all" && normalizedType(item) !== state.kind) return;
+        if (!matchesDeadline(item, state.deadline, today, horizon)) return;
+        if (!matchesFactFacet(item, "activities", state.activity)) return;
+        if (!matchesFactFacet(item, "benefits", state.benefit)) return;
+      }
       const relevance = queryRank(item, phrase, terms);
       if (relevance >= 0) ranked.push({item, relevance});
     });
     ranked.sort((left, right) => {
-      if (phrase && left.relevance !== right.relevance) return right.relevance - left.relevance;
+      if (phrase && state.sort === "fit" && left.relevance !== right.relevance) {
+        return right.relevance - left.relevance;
+      }
       return compareItems(left.item, right.item);
     });
-    return ranked.map((entry) => entry.item);
+    const seen = new Set();
+    return ranked.filter(({item}) => {
+      if (state.view !== "discover") return true;
+      const identity = discoveryIdentity(item);
+      if (identity && seen.has(identity)) return false;
+      if (identity) seen.add(identity);
+      return true;
+    }).map(({item}) => item);
   }
 
   function addMeta(container, text, className) {
@@ -2336,8 +2488,11 @@
   function appendMatchSummary(article, item) {
     const components = matchComponents(item);
     if (!components.length) {
-      article.appendChild(element("p", "reason", (item.tier === "skip" ? "Outside your current profile. Review fit and requirements for details."
-        : String(settings.default_reason || "Matches your current profile.")).slice(0, 240)));
+      if (item.tier === "skip") {
+        article.appendChild(element("p", "reason", "Outside your current profile."));
+      } else if (item.detail_available !== false) {
+        article.appendChild(element("p", "reason", "Fits the current profile. See the original listing for details."));
+      }
       return;
     }
     const block = element("div", "match-summary");
@@ -2392,22 +2547,131 @@
     }
   }
 
+  function listingEvidence(facts, group) {
+    const legacy = Array.isArray(facts[group]) ? facts[group] : [];
+    const seen = new Set();
+    return [...facetEntries(facts, group), ...legacy].filter((entry) => {
+      if (!entry || !entry.label) return false;
+      const label = normalizeSearchText(entry.label);
+      const evidence = normalizeSearchText(entry.evidence);
+      if (seen.has("label:" + label) || (evidence && seen.has("evidence:" + evidence))) return false;
+      seen.add("label:" + label);
+      if (evidence) seen.add("evidence:" + evidence);
+      return true;
+    });
+  }
+
+  function appendListingDetails(article, item) {
+    const facts = item.facts || {};
+    const description = String(item.description || "").trim();
+    const eligibility = String(item.eligibility || "").trim();
+    const flattened = description.replace(/\s+/g, " ");
+    const preview = flattened.length > 240
+      ? flattened.slice(0, 239).replace(/\s+\S*$/, "") + "…"
+      : flattened;
+    if (preview) article.appendChild(element("p", "listing-preview", preview));
+
+    const details = element("details", "listing-details");
+    details.appendChild(element("summary", "", "Listing details and source"));
+    const content = element("div", "listing-content");
+    if (item.detail_available === false) {
+      content.appendChild(element("p", "", "This catalog entry includes basic listing details. Check the original listing for requirements and next steps."));
+      if (validId(item.id)) content.appendChild(element("code", "", "python3 -m monitor opportunities show " + item.id));
+    } else if (!description && !eligibility) {
+      content.appendChild(element("p", "", "The collected listing has limited detail. Check the original listing for requirements and next steps."));
+    }
+    if (description && description !== preview) {
+      content.appendChild(element("h4", "", "Listing description"));
+      content.appendChild(element("p", "listing-description", description));
+    }
+    if (facts.detail_status === "cached") {
+      content.appendChild(element("p", "listing-attribution", "Some details are from an earlier successful check."));
+    } else if (facts.detail_status === "deferred" || facts.detail_status === "failed") {
+      content.appendChild(element("p", "listing-attribution", "The source listing is available. Its full description has yet to be collected."));
+    }
+    [
+      ["Activities indicated by the listing", listingEvidence(facts, "activities")],
+      ["Compensation and benefits mentioned", listingEvidence(facts, "benefits")],
+      ["Eligibility and requirements mentioned", facts.requirements],
+    ].forEach(([title, entries]) => {
+      if (!Array.isArray(entries) || !entries.some((entry) => entry && entry.label)) return;
+      content.appendChild(element("h4", "", title));
+      const list = element("ul", "listing-evidence");
+      entries.slice(0, 8).forEach((entry) => {
+        if (!entry || !entry.label) return;
+        const row = element("li", "");
+        row.appendChild(element("strong", "", boundedInlineText(entry.label, 120)));
+        const evidence = boundedInlineText(entry.evidence, 420);
+        if (evidence) row.appendChild(element("span", "", evidence));
+        list.appendChild(row);
+      });
+      content.appendChild(list);
+    });
+    const eligibilityAlreadyShown = Array.isArray(facts.requirements)
+      && facts.requirements.some((entry) => entry && entry.evidence === eligibility);
+    if (eligibility && !eligibilityAlreadyShown) {
+      content.appendChild(element("h4", "", "Eligibility text"));
+      content.appendChild(element("p", "listing-description", eligibility));
+    }
+    const schedule = facts.schedule || {};
+    const dates = [
+      ["Starts", schedule.starts_at],
+      ["Ends", schedule.ends_at],
+      ["Applications open", schedule.applications_open_at],
+    ].filter(([, value]) => value);
+    const eventDetails = [
+      ["Attendance", schedule.attendance],
+      ["Status", schedule.event_status],
+      ["Duration", schedule.duration],
+      ["Credential", schedule.credential],
+    ].filter(([, value]) => typeof value === "string" && value);
+    if (dates.length || eventDetails.length) {
+      content.appendChild(element("h4", "", "Schedule and participation"));
+      const metadata = element("div", "meta");
+      dates.forEach(([prefix, value]) => addDateMeta(metadata, {prefix, value}));
+      eventDetails.forEach(([label, value]) => {
+        metadata.appendChild(element("span", "meta-item", label + " · " + scheduleValue(value)));
+      });
+      content.appendChild(metadata);
+    }
+    if (facts.context === "directory") {
+      content.appendChild(element("p", "listing-attribution", "This entry points to a source directory. Check the source page for individual listings."));
+    }
+    const source = facts.source || {};
+    if (source.name) {
+      const sourceUrl = safeUrl(source.url);
+      const provenance = element("p", "listing-attribution", "Collected via ");
+      const publisher = element(sourceUrl ? "a" : "strong", "", boundedInlineText(source.name, 160));
+      if (sourceUrl) {
+        publisher.href = sourceUrl;
+        publisher.target = "_blank";
+        publisher.rel = "noopener noreferrer";
+      }
+      provenance.appendChild(publisher);
+      content.appendChild(provenance);
+    }
+    details.appendChild(content);
+    article.appendChild(details);
+  }
+
   function cardFor(item) {
     const workflow = effective(item);
     const accessibleTitle = String(item.title || "opportunity").slice(0, 120);
     const accessibleOrganization = String(item.organization || "organization").slice(0, 80);
     const actionContext = accessibleTitle + " at " + accessibleOrganization;
+    const participation = ["hackathon", "competition", "conference", "event", "course"].includes(normalizedType(item));
+    const directory = item.facts && item.facts.context === "directory";
     const article = element("article", "opportunity");
     article.dataset.id = item.id;
     const head = element("div", "op-head");
     const titleGroup = element("div");
     titleGroup.appendChild(element("p", "organization", item.organization || "Organization not listed"));
-    titleGroup.appendChild(element("h2", "", item.title || "Untitled opportunity"));
+    titleGroup.appendChild(element("h3", "", item.title || "Untitled opportunity"));
     const tier = ["priority", "strong", "watch", "skip"].includes(item.tier) ? item.tier : "watch";
     const score = element("div", "fit-score " + tier);
     score.setAttribute("role", "img");
     score.setAttribute("aria-label", tier.replace(/^./, (letter) => letter.toUpperCase()) + " fit, score " + Number(item.score || 0) + " out of 100");
-    score.title = "Configured fit score, not acceptance probability";
+    score.title = "Fit with your search profile";
     score.appendChild(element("strong", "", Number(item.score || 0)));
     score.appendChild(element("span", "", tier));
     head.append(titleGroup, score);
@@ -2425,34 +2689,52 @@
     const tags = element("div", "tags");
     addTag(tags, typeLabel(item), "kind");
     addTag(tags, commitmentLabel(item), "commitment");
-    if (!String(item.description || "").trim()) addTag(tags, "Limited listing details", "limited-details");
+    if (item.detail_available === false) addTag(tags, "Catalog preview", "limited-details");
+    else if ((item.facts && item.facts.information === "title_only") || !String(item.description || "").trim()) {
+      addTag(tags, "Limited listing details", "limited-details");
+    }
     if (normalizeSearchText(item.match && item.match.eligibility) === "unknown") {
       addTag(tags, "Eligibility details incomplete", "eligibility");
     }
     if (item.recommended_resume) {
       addTag(tags, String(settings.document_label || "Application track").slice(0, 80) + " · " + item.recommended_resume, "track");
     }
-    if (workflow.status === "apply") addTag(tags, "Preparing application", "stage");
-    if (workflow.status === "applied") addTag(tags, "Applied", "stage");
-    if (!item.active) addTag(tags, "Listing no longer active", "warning");
+    if (directory) addTag(tags, "Directory page", "limited-details");
+    if (item.facts && item.facts.coverage === "partial") addTag(tags, "Rolling source", "limited-details");
+    const availability = listingAvailability(item);
+    if (availability === "closed") addTag(tags, "Closed", "warning");
+    if (availability === "unconfirmed") addTag(tags, "Availability unconfirmed", "limited-details");
+    if (workflow.status === "apply") addTag(tags, participation ? "Planning participation" : "Preparing application", "stage");
+    if (workflow.status === "applied") addTag(tags, participation ? "Registered or applied" : "Applied", "stage");
+    if (!item.active) addTag(tags, "Archived locally", "warning");
     else if (item.source_enabled === 0) addTag(tags, "Source disabled", "warning");
     else if (item.tier === "skip") addTag(tags, "Outside current profile", "warning");
     const warning = Array.isArray(item.warnings) ? item.warnings[0] : "";
     if (warning) addTag(tags, String(warning).slice(0, 120), "warning");
     if (tags.childNodes.length) article.appendChild(tags);
 
+    appendListingDetails(article, item);
     appendMatchSummary(article, item);
     appendMatchAudit(article, item);
-
     const actions = element("div", "card-actions");
-    const official = safeUrl(item.url);
+    const application = safeUrl(item.facts && item.facts.application_url);
+    const official = safeUrl(item.url) || application;
     if (official) {
-      const link = element("a", "official-link", "Open listing");
+      const linkLabel = directory ? "Open source directory" : "Open listing";
+      const link = element("a", "official-link", linkLabel);
       link.href = official;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.dataset.id = item.id;
-      link.setAttribute("aria-label", "Open listing: " + actionContext);
+      link.setAttribute("aria-label", linkLabel + ": " + actionContext);
+      actions.appendChild(link);
+    }
+    if (application && application !== official) {
+      const link = element("a", "card-button", "Application page");
+      link.href = application;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.setAttribute("aria-label", "Open application page: " + actionContext);
       actions.appendChild(link);
     }
     const save = element("button", "card-button" + (workflow.bookmarked ? " selected" : ""), workflow.bookmarked ? "Saved" : "Save");
@@ -2464,11 +2746,12 @@
     actions.appendChild(save);
 
     if (workflow.status === "apply") {
-      const applied = element("button", "card-button selected", "Mark applied");
+      const label = participation ? "Mark registered or applied" : "Mark applied";
+      const applied = element("button", "card-button selected", label);
       applied.type = "button";
       applied.dataset.action = "applied";
       applied.dataset.id = item.id;
-      applied.setAttribute("aria-label", "Mark applied: " + actionContext);
+      applied.setAttribute("aria-label", label + ": " + actionContext);
       actions.appendChild(applied);
     } else if (workflow.status === "applied") {
       const planned = element("button", "card-button", "Move to preparing");
@@ -2477,12 +2760,13 @@
       planned.dataset.id = item.id;
       planned.setAttribute("aria-label", "Move to preparing: " + actionContext);
       actions.appendChild(planned);
-    } else {
-      const plan = element("button", "card-button", "Plan application");
+    } else if (!directory) {
+      const label = participation ? "Plan participation" : "Plan application";
+      const plan = element("button", "card-button", label);
       plan.type = "button";
       plan.dataset.action = "apply";
       plan.dataset.id = item.id;
-      plan.setAttribute("aria-label", "Plan application: " + actionContext);
+      plan.setAttribute("aria-label", label + ": " + actionContext);
       actions.appendChild(plan);
     }
 
@@ -2490,12 +2774,12 @@
     const remove = element(
       "button",
       "card-button" + (isDismissed ? "" : " danger"),
-      isDismissed ? "Restore" : state.view === "applications" ? "Remove from applications" : "Dismiss"
+      isDismissed ? "Restore" : isApplication(workflow.status) ? "Return to discovery" : "Dismiss"
     );
     remove.type = "button";
-    remove.dataset.action = isDismissed || state.view === "applications" ? "new" : "skip";
+    remove.dataset.action = isDismissed || isApplication(workflow.status) ? "new" : "skip";
     remove.dataset.id = item.id;
-    remove.setAttribute("aria-label", (isDismissed ? "Restore listing: " : state.view === "applications" ? "Remove from applications: " : "Dismiss listing: ") + actionContext);
+    remove.setAttribute("aria-label", (isDismissed ? "Restore listing: " : isApplication(workflow.status) ? "Return to discovery: " : "Dismiss listing: ") + actionContext);
     actions.appendChild(remove);
     actions.querySelectorAll("button[data-action]").forEach((button) => {
       button.setAttribute("aria-disabled", String(state.busy));
@@ -2511,12 +2795,31 @@
     const start = items.length ? (state.page - 1) * PAGE_SIZE + 1 : 0;
     const end = Math.min(items.length, state.page * PAGE_SIZE);
     const rangeLabel = items.length ? start + "-" + end + " of " + countLabel : countLabel;
-    document.getElementById("results-note").textContent = (
-      display.discovery_truncated && state.view === "discover" && state.filter === "all" && !state.query
-        ? rangeLabel + " loaded from " + Number(display.discovery_total || items.length) + ". Showing the highest-fit records."
-        : rangeLabel
-    );
-    document.getElementById("clear-filters").hidden = !state.query && state.filter === "all";
+    document.getElementById("results-note").textContent = rangeLabel;
+    document.getElementById("clear-filters").hidden = !hasRefinements();
+    const note = document.getElementById("snapshot-note");
+    const allCollected = state.filter === "collected";
+    const truncated = state.view === "discover" && (allCollected
+      ? display.catalog_truncated : display.discovery_truncated);
+    const browserTracker = state.view === "applications" && !hasNativeBridge();
+    note.replaceChildren();
+    note.hidden = !truncated && !browserTracker;
+    if (truncated) {
+      const total = Number(allCollected ? display.catalog_total : display.discovery_total);
+      const scope = allCollected ? "collected listings" : "profile matches";
+      const amount = total > 0 ? "The database has " + total + " " + scope + ". " : "";
+      note.append(amount + "This dashboard contains a partial snapshot. Search the full local database with ",
+        element("code", "", 'python3 -m monitor opportunities search "your keywords"'), ".");
+    } else if (browserTracker) {
+      note.append("Changes made in this browser are kept here. To update the local database, use ",
+        element("code", "", "python3 -m monitor bookmark"), " or ",
+        element("code", "", "python3 -m monitor status"), ".");
+    }
+  }
+
+  function hasRefinements() {
+    return Boolean(state.query) || state.filter !== "all"
+      || state.view === "discover" && DISCOVERY_FACETS.some((key) => state[key] !== "all");
   }
 
   function pageCount() {
@@ -2579,6 +2882,7 @@
   }
 
   function renderList() {
+    if (state.view === "coverage") return;
     renderCompanyResources();
     const list = document.getElementById("opportunity-list");
     state.visibleItems = filteredItems();
@@ -2588,33 +2892,47 @@
       list.removeAttribute("role");
       document.getElementById("pagination").hidden = true;
       const empty = element("div", "empty");
-      const firstRun = !(data.opportunities || []).length && !(data.runs || []).length;
+      const firstRun = !opportunityRows.length && !(data.runs || []).length;
+      const refining = hasRefinements();
       const heading = state.view === "applications"
-        ? "No applications here yet."
+        ? "Nothing in this part of your tracker."
         : firstRun
           ? "Ready for your first scan."
-          : state.query || state.filter !== "all"
+          : refining
             ? "Nothing matches this view."
-            : "No opportunities found yet.";
-      const guidance = state.view === "applications"
-        ? " Choose Plan application on a listing to start tracking it."
+            : "No profile matches yet.";
+      const guidance = refining
+        ? "Change your search or clear the filters."
+        : state.view === "applications"
+          ? "Save an opportunity or plan to apply or participate to track it here."
         : firstRun
-          ? " Use Refresh above, or run python3 -m monitor scan in a terminal."
-          : state.query || state.filter !== "all"
-            ? " Try a broader search or clear the filters."
-            : " Review your roles and fields in Edit profile, or check source health before refreshing.";
-      empty.append(element("strong", "", heading));
-      empty.append(document.createTextNode(guidance));
-      if (state.view === "discover") {
-        const action = element("button", "control subtle empty-action",
-          state.query || state.filter !== "all" ? "Clear filters" : firstRun ? "Refresh sources" : "Review profile");
-        action.type = "button";
-        action.addEventListener("click", () => {
-          if (state.query || state.filter !== "all") document.getElementById("clear-filters").click();
-          else if (firstRun) scan("due");
-          else openProfileDialog();
+          ? "Check the sources enabled for your profile to start collecting opportunities."
+          : "Browse All collected to see listings across the sources already checked.";
+      empty.append(element("strong", "", heading), element("p", "", guidance));
+      const action = element("button", "control subtle empty-action",
+        refining ? "Clear filters" : state.view === "applications" ? "Go to Discover"
+          : firstRun ? "Check sources" : "Browse All collected");
+      action.type = "button";
+      action.addEventListener("click", () => {
+        if (refining) document.getElementById("clear-filters").click();
+        else if (state.view === "applications") setView("discover");
+        else if (firstRun) scan("due");
+        else {
+          state.filter = "collected";
+          renderAll();
+        }
+        if (!firstRun || refining) document.getElementById("search").focus({preventScroll: true});
+      });
+      empty.appendChild(action);
+      if (state.view === "discover" && state.filter !== "collected" && state.query) {
+        const expand = element("button", "control subtle empty-action", "Search All collected");
+        expand.type = "button";
+        expand.addEventListener("click", () => {
+          state.filter = "collected";
+          renderAll();
+          document.getElementById("search").focus({preventScroll: true});
         });
-        empty.appendChild(action);
+        empty.appendChild(expand);
       }
       list.appendChild(empty);
       updateListMeta();
@@ -2638,18 +2956,17 @@
   }
 
   function filtersForView() {
-    const types = new Set((data.opportunities || []).filter(isAvailable).map(normalizedType));
     return state.view === "applications"
-      ? [["all", "All"], ["apply", "Preparing"], ["applied", "Applied"], ["saved", "Saved"]]
-      : [["all", "All matches"], ["saved", "Saved"], ["priority", "Priority"],
-        ...OPPORTUNITY_TYPE_OPTIONS.filter(([value]) => types.has(value)), ["dismissed", "Dismissed"]];
+      ? [["all", "All tracked"], ["saved", "Saved"], ["apply", "Preparing"], ["applied", "Applied"], ["dismissed", "Dismissed"]]
+      : [["all", "For you"], ["collected", "All collected"], ["new", "New matches"], ["priority", "Priority matches"]];
   }
 
   function renderFilters() {
     const row = document.getElementById("filter-row");
-    if (!filtersForView().some(([value]) => value === state.filter)) state.filter = "all";
+    const filters = filtersForView();
+    if (!filters.some(([value]) => value === state.filter)) state.filter = "all";
     row.replaceChildren();
-    filtersForView().forEach(([value, label]) => {
+    filters.forEach(([value, label]) => {
       const button = element("button", "filter-button" + (value === state.filter ? " active" : ""), label);
       button.type = "button";
       button.dataset.filter = value;
@@ -2658,8 +2975,31 @@
     });
   }
 
+  function initializeDiscoveryFacets() {
+    const choices = {kind: new Map(), activity: new Map(), benefit: new Map()};
+    opportunityRows.forEach((item) => {
+      if (!isCollected(item)) return;
+      choices.kind.set(normalizedType(item), typeLabel(item));
+      for (const [key, group] of FACT_FACET_GROUPS) {
+        facetEntries(item.facts, group).forEach((entry) => {
+          if (!entry || !entry.id || !entry.label || entry.id === "all") return;
+          choices[key].set(entry.id, entry.label);
+        });
+      }
+    });
+    Object.entries(choices).forEach(([key, values]) => {
+      const select = document.getElementById(key + "-filter");
+      select.disabled = values.size === 0;
+      Array.from(values).sort((left, right) => left[1].localeCompare(right[1])).forEach(([value, label]) => {
+        const option = element("option", "", label);
+        option.value = value;
+        select.appendChild(option);
+      });
+    });
+  }
+
   function renderCounts() {
-    const all = data.opportunities || [];
+    const all = opportunityRows;
     const open = all.filter((item) => isAvailable(item)).length;
     const newest = all.filter((item) => effective(item).status === "new" && isAvailable(item)).length;
     const saved = all.filter((item) => effective(item).bookmarked).length;
@@ -2672,27 +3012,18 @@
         delta + Number(Boolean(effectivePredicate(item))) - Number(Boolean(originalPredicate(item)))
       ), 0));
     };
-    const originalAvailable = (item) => Boolean(item.active) && item.source_enabled !== 0 && item.tier !== "skip";
-    const currentNew = (item) => originalAvailable(item) && effective(item).status === "new";
-    const originalNew = (item) => originalAvailable(item) && String(item.status || "new") === "new";
+    const currentNew = (item) => isAvailable(item) && effective(item).status === "new";
+    const originalNew = (item) => isAvailable(item) && String(item.status || "new") === "new";
     const currentSaved = (item) => effective(item).bookmarked;
     const originalSaved = (item) => Boolean(item.bookmarked);
     const currentApplied = (item) => effective(item).status === "applied";
     const originalApplied = (item) => String(item.status || "new") === "applied";
-    const currentApplication = (item) => isApplication(effective(item).status);
-    const originalApplication = (item) => isApplication(String(item.status || "new"));
     document.getElementById("stat-active").textContent = String(Number.isFinite(Number(counts.active)) ? Number(counts.active) : open);
     document.getElementById("stat-new").textContent = String(adjusted("new", originalNew, currentNew, newest));
     document.getElementById("stat-saved").textContent = String(adjusted("bookmarked", originalSaved, currentSaved, saved));
     document.getElementById("stat-applied").textContent = String(adjusted("applied", originalApplied, currentApplied, applied));
-    const storedApplications = Number.isFinite(Number(counts.applying))
-      && Number.isFinite(Number(counts.applied))
-      ? Number(counts.applying) + Number(counts.applied)
-      : all.filter(originalApplication).length;
     document.getElementById("application-count").textContent = String(
-      Math.max(0, storedApplications + all.reduce((delta, item) => (
-        delta + Number(currentApplication(item)) - Number(originalApplication(item))
-      ), 0))
+      all.filter((item) => belongsInView(item, effective(item), "applications", "all")).length
     );
   }
 
@@ -2712,7 +3043,7 @@
     panel.hidden = !resources.length;
     panel.replaceChildren();
     if (!resources.length) return;
-    panel.appendChild(element("h2", "company-source-heading", "Matching company sources"));
+    panel.appendChild(element("h3", "company-source-heading", "Matching source pages"));
     resources.forEach((resource) => {
       const card = element("div", "company-source-result");
       const name = element(resource.url ? "a" : "strong", "source-resource-name", resource.name);
@@ -2721,11 +3052,12 @@
         name.target = "_blank";
         name.rel = "noopener noreferrer";
       }
-      const note = !resource.auto_enable
-        ? "Openings are not collected yet. Browse the official careers page."
-        : resource.enabled
-          ? "Job collection enabled. Openings that match your profile appear below."
-          : "Job collection available. Enable this source in your profile.";
+      const note = resource.enabled
+        ? resource.source_type === "manual_page" ? "Page changes are monitored. Browse the source directly for opportunities."
+          : "Enabled for collection. Open the source to see its current listings."
+        : resource.auto_enable
+          ? "Available to enable. Open the source to browse its listings now."
+          : "Directory resource. Open the source to browse its listings.";
       card.append(name, element("p", "source-resource-meta", note));
       panel.appendChild(card);
     });
@@ -2768,7 +3100,7 @@
         heading.title = "Open the official " + resource.name + " page";
       }
       const status = resource.enabled
-        ? "Scanned source"
+        ? "Enabled source"
         : resource.auto_enable
           ? "Available source"
           : "Directory resource";
@@ -2782,7 +3114,7 @@
       list.appendChild(card);
     });
     if (!matching.length) {
-      const empty = element("div", "source-resource-empty", "No career resources match that search.");
+      const empty = element("div", "source-resource-empty", "No sources match that search.");
       list.appendChild(empty);
     }
     const count = document.getElementById("source-resource-count");
@@ -2795,8 +3127,8 @@
     const browse = document.getElementById("source-resource-button");
     browse.hidden = sourceResources.length === 0;
     browse.textContent = sourceResources.length
-      ? "Browse " + sourceResources.length + " career resources"
-      : "Browse career resources";
+      ? "Browse " + sourceResources.length + " source pages"
+      : "Browse the source directory";
   }
 
   function openSourceResourceDirectory() {
@@ -2847,7 +3179,7 @@
       copy.appendChild(name);
       const rawCount = Number(source.item_count || 0);
       const count = Number.isFinite(rawCount) ? Math.max(0, rawCount) : 0;
-      const kind = source.kind === "watch_page" ? "manual page" : "listing feed";
+      const kind = source.kind === "watch_page" ? "page-change monitoring" : "listing collection";
       const statusLabel = {ok: "healthy", error: "failed", blocked: "limited", waiting: "waiting"}[status];
       copy.appendChild(element("span", "source-detail", statusLabel + " - " + kind + " - " + count + (count === 1 ? " item" : " items") + " - " + relative(source.last_checked_at)));
       const lastError = String(source.last_error || "").replace(/\s+/g, " ").trim().slice(0, 240);
@@ -2883,7 +3215,7 @@
       : blocked.length
         ? blocked.length + (blocked.length === 1 ? " source is access-limited" : " sources are access-limited")
         : healthy.length && !waiting
-          ? "Sources are current"
+          ? "Latest checks succeeded"
           : healthy.length
             ? healthy.length + " current, " + waiting + " waiting"
             : sources.length
@@ -2893,6 +3225,13 @@
     document.getElementById("source-overview").textContent = sources.length
       ? sources.length + (sources.length === 1 ? " source: " : " sources: ") + healthy.length + " healthy, " + blocked.length + " limited, " + errors.length + " failed, " + waiting + " waiting."
       : "Run your first scan to initialize source health.";
+    const collection = data.collection || {};
+    const collectionNote = document.getElementById("collection-note");
+    const remaining = Number(collection.remaining_due || 0);
+    collectionNote.hidden = !remaining;
+    collectionNote.textContent = remaining > 0
+      ? remaining + (remaining === 1 ? " source is" : " sources are") + " still due. Check sources again to continue."
+      : "";
     const mark = document.getElementById("health-mark");
     mark.className = "health-mark" + (errors.length ? " attention" : blocked.length ? " limited" : healthy.length && !waiting ? " ok" : "");
     document.getElementById("source-details").hidden = sources.length === 0;
@@ -2922,8 +3261,8 @@
 
   function renderAll(preferredFocus) {
     const focus = preferredFocus || focusedListControl();
+    if (state.view === "coverage") return;
     renderFilters();
-    renderCounts();
     renderList();
     if (!focus) return;
     if (restoreListFocus(focus)) return;
@@ -2934,6 +3273,44 @@
     const note = document.getElementById("results-note");
     note.tabIndex = -1;
     note.focus({preventScroll: true});
+  }
+
+  function renderView() {
+    const coverage = state.view === "coverage";
+    const tracker = state.view === "applications";
+    document.getElementById("results").dataset.view = state.view;
+    document.getElementById("coverage-panel").hidden = !coverage;
+    document.getElementById("results-panel").hidden = coverage;
+    document.getElementById("search-sidebar").hidden = tracker;
+    document.getElementById("guidance-card").hidden = coverage;
+    document.getElementById("discover-facets").hidden = tracker;
+    document.getElementById("view-title").textContent = tracker ? "Your tracker" : "Discover opportunities";
+    document.getElementById("view-description").textContent = tracker
+      ? "Return to saved opportunities, plan applications or participation, and track submissions."
+      : "Search for the work or experience you want across organizations and industries.";
+    const search = document.getElementById("search");
+    search.placeholder = tracker ? "Search your tracker" : "e.g. policy research, Seattle, public health";
+    search.value = state.query || "";
+    document.getElementById("sort").value = state.sort || "fit";
+    DISCOVERY_FACETS.forEach((key) => {
+      const select = document.getElementById(key + "-filter");
+      select.value = state[key] || "all";
+      if (!select.value) state[key] = select.value = "all";
+    });
+    document.querySelectorAll(".view-button").forEach((button) => {
+      const active = button.dataset.view === state.view;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
+
+  function setView(view) {
+    if (!VIEW_VALUES.has(view) || state.view === view) return;
+    window.clearTimeout(searchTimer);
+    if (state.view !== "coverage") viewMemory[state.view] = viewControls(state);
+    Object.assign(state, viewMemory[view] || viewControls(), {view});
+    renderView();
+    renderAll();
   }
 
   function setTheme(theme, notifyNative) {
@@ -2991,6 +3368,7 @@
       const mutationFocus = state.pendingMutation && state.pendingMutation.focus;
       if (state.pendingMutation && state.pendingMutation.request === state.pendingRequest) {
         finishPendingMutation(ok);
+        renderCounts();
       }
       if (["scan", "profile", "source"].includes(action) && ok) saveTransientView();
       if (action === "profile" && state.pendingProfileManagement) {
@@ -3058,7 +3436,7 @@
   const title = String(settings.title || "Opportunity Radar").trim().slice(0, 80) || "Opportunity Radar";
   document.title = title;
   document.getElementById("dashboard-title").textContent = title;
-  document.getElementById("dashboard-subtitle").textContent = String(settings.subtitle || "Review matches and track applications from the sources you follow.").trim().slice(0, 240);
+  document.getElementById("dashboard-subtitle").textContent = String(settings.subtitle || "Find work, research, funding, and other opportunities across the sources you follow.").trim().slice(0, 240);
   const timeframes = configuredTimeframes();
   const context = document.getElementById("search-context");
   context.textContent = timeframes.length > 3
@@ -3071,19 +3449,17 @@
     context.setAttribute("aria-label", timeframeLabel);
     context.title = timeframeLabel;
   }
-  document.getElementById("last-scan").textContent = "Updated " + relative(data.generated_at);
+  const finishedScan = (data.runs || []).find((run) => run.finished_at && Number(run.checked_sources) > 0);
+  document.getElementById("last-scan").textContent = finishedScan
+    ? "Last check " + relative(finishedScan.finished_at)
+    : "No completed check yet";
 
   let initialTheme = "system";
   try { initialTheme = localStorage.getItem("opportunity-radar-theme") || "system"; } catch (_error) { /* optional */ }
   setTheme(initialTheme, false);
 
-  document.getElementById("search").value = state.query;
-  document.getElementById("sort").value = state.sort;
-  document.querySelectorAll(".view-button").forEach((button) => {
-    const active = button.dataset.view === state.view;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
+  initializeDiscoveryFacets();
+  renderView();
 
   document.getElementById("theme-select").addEventListener("change", (event) => {
     setTheme(event.target.value, true);
@@ -3098,6 +3474,7 @@
     if (event.target.returnValue === "confirm") scan("all");
   });
   document.getElementById("edit-profile-button").addEventListener("click", openProfileDialog);
+  document.getElementById("quick-profile-button").addEventListener("click", openProfileDialog);
   document.getElementById("profile-select").addEventListener("change", activateProfile);
   document.getElementById("profile-new-button").addEventListener("click", () => openProfileNameDialog("create"));
   document.getElementById("profile-import-button").addEventListener("click", openProfileImportDialog);
@@ -3157,6 +3534,14 @@
     state.page = 1;
     renderList();
   });
+  DISCOVERY_FACETS.forEach((key) => {
+    document.getElementById(key + "-filter").addEventListener("change", (event) => {
+      state[key] = event.target.value;
+      state.page = 1;
+      window.clearTimeout(searchTimer);
+      renderList();
+    });
+  });
   document.getElementById("filter-row").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
     if (!button) return;
@@ -3168,12 +3553,11 @@
     if (replacement) replacement.focus();
   });
   document.getElementById("clear-filters").addEventListener("click", () => {
-    state.filter = "all";
-    state.query = "";
-    state.page = 1;
+    Object.assign(state, viewControls({sort: state.sort}));
     window.clearTimeout(searchTimer);
-    document.getElementById("search").value = "";
+    renderView();
     renderAll();
+    document.getElementById("search").focus({preventScroll: true});
   });
   document.getElementById("source-search").addEventListener("input", (event) => {
     sourceView.query = String(event.target.value || "").trim().slice(0, 120);
@@ -3207,16 +3591,7 @@
   });
   document.querySelector(".view-switcher").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-view]");
-    if (!button || !["discover", "applications"].includes(button.dataset.view)) return;
-    state.view = button.dataset.view;
-    state.filter = "all";
-    state.page = 1;
-    document.querySelectorAll(".view-button").forEach((entry) => {
-      const active = entry === button;
-      entry.classList.toggle("active", active);
-      entry.setAttribute("aria-pressed", String(active));
-    });
-    renderAll();
+    if (button) setView(button.dataset.view);
   });
   document.getElementById("pagination").addEventListener("click", (event) => {
     const pageButton = event.target.closest("button[data-page]");
@@ -3257,5 +3632,6 @@
   renderSources();
   renderSourceResources();
   renderEvents();
+  renderCounts();
   renderAll();
 }());

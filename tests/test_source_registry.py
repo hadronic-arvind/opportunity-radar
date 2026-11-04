@@ -1,4 +1,5 @@
 import contextlib
+import io
 import json
 import os
 import sqlite3
@@ -9,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from monitor import config
+from monitor.cli import main
 from monitor.database import Database
 from monitor.models import Opportunity
 from monitor.profile import ProfileValidationError
@@ -124,7 +126,7 @@ class SourceRegistryTests(unittest.TestCase):
         finally:
             connection.close()
 
-    def test_detects_supported_boards_and_falls_back_to_bounded_html_links(self):
+    def test_detects_supported_boards_feeds_and_public_pages(self):
         cases = (
             (
                 "https://boards.greenhouse.io/acme/jobs/42",
@@ -136,7 +138,10 @@ class SourceRegistryTests(unittest.TestCase):
             ),
             ("https://jobs.lever.co/acme/role", ("lever", {"site": "acme"})),
             ("https://jobs.ashbyhq.com/acme/role", ("ashby", {"board": "acme"})),
-            ("https://careers.example.org/openings", ("html_links", {})),
+            ("https://careers.example.org/openings", ("public_page", {})),
+            ("https://careers.example.org/openings.atom", ("syndication", {})),
+            ("https://www.arbeitnow.com/api/job-board-api", ("arbeitnow", {})),
+            ("https://www.grants.gov/search-grants", ("grants_gov", {})),
         )
         for url, expected in cases:
             with self.subTest(url=url):
@@ -204,7 +209,7 @@ class SourceRegistryTests(unittest.TestCase):
             "Community Fellowships",
             "https://example.org/fellowships",
         )
-        self.assertEqual(links["kind"], "html_links")
+        self.assertEqual(links["kind"], "public_page")
         self.assertEqual(links["pages"], 1)
         self.assertTrue(links["same_domain"])
         self.assertIn("/fellow", links["include"])
@@ -218,6 +223,79 @@ class SourceRegistryTests(unittest.TestCase):
         self.assertFalse(watch["publish_as_opportunity"])
         self.assertEqual(watch["source_type"], "change_monitor")
         self.assertEqual(watch["support_level"], "manual")
+
+    def test_cli_add_resolves_and_persists_public_board_from_company_page(self):
+        page_url = "https://careers.example.org/openings"
+        board_url = "https://job-boards.greenhouse.io/acme"
+        api_url = "https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true"
+        body = b"""
+            <a href="https://boards.greenhouse.io/acme/jobs/42?tracking=one">Role</a>
+            <iframe src="//job-boards.greenhouse.io/embed/job_board?for=acme"></iframe>
+            <script src="https://boards.greenhouse.io/embed/job_board/js?for=acme"></script>
+            <a href="https://jobs.lever.co.bad.example/org">Impostor</a>
+            <iframe src="https://127.0.0.1/private"></iframe>
+            <a href="https://jobs.lever.co@other.example/org">Credentials</a>
+            <script src="https://jobs.ashbyhq.com/unrelated/widget"></script>
+        """
+        jobs = json.dumps({"jobs": [{
+            "id": 42,
+            "title": "Conservation Data Analyst",
+            "absolute_url": board_url + "/jobs/42",
+        }]}).encode()
+        output = io.StringIO()
+        with (
+            patch("monitor.fetchers._request", side_effect=[body, jobs]) as request,
+            contextlib.redirect_stdout(output),
+        ):
+            code = main(["sources", "add", "--name", "Acme", "--url", page_url])
+        self.assertEqual(code, 0)
+        self.assertEqual([call.args[0] for call in request.call_args_list], [page_url, api_url])
+        result = json.loads(output.getvalue())
+        self.assertTrue(result["saved"])
+        self.assertEqual(result["test"]["items"], 1)
+        saved = self._local_payload()["sources"][0]
+        self.assertEqual(saved["kind"], "greenhouse")
+        self.assertEqual(saved["url"], board_url)
+        self.assertEqual(saved["publisher_url"], page_url)
+        self.assertNotIn("default_opportunity_type", saved)
+
+    def test_cli_add_reports_ambiguous_boards_without_following_either(self):
+        page = b"""
+          <a href="https://jobs.lever.co/acme">US openings</a>
+          <script src="https://jobs.ashbyhq.com/acme-uk/embed?version=2"></script>
+        """
+        page_url = "https://careers.example.org/openings"
+        output = io.StringIO()
+        with (
+            patch("monitor.fetchers._request", return_value=page) as request,
+            contextlib.redirect_stderr(output),
+        ):
+            code = main(["sources", "add", "--name", "Acme", "--url", page_url])
+        self.assertEqual(code, 2)
+        request.assert_called_once_with(page_url)
+        message = output.getvalue()
+        self.assertIn("multiple job boards", message)
+        self.assertIn("https://jobs.lever.co/acme", message)
+        self.assertIn("https://jobs.ashbyhq.com/acme-uk", message)
+        self.assertEqual(self._local_payload()["sources"], [])
+
+    def test_cli_add_generic_fallback_reuses_original_page(self):
+        page_url = "https://careers.example.org/openings"
+        page = b'<a href="/job/fellowship">Media and Arts Fellowship</a>'
+        output = io.StringIO()
+        with (
+            patch("monitor.fetchers._request", return_value=page) as request,
+            contextlib.redirect_stdout(output),
+        ):
+            code = main([
+                "sources", "add", "--name", "Arts council", "--url", page_url, "--dry-run",
+            ])
+        self.assertEqual(code, 0)
+        request.assert_called_once_with(page_url)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["source"]["kind"], "public_page")
+        self.assertEqual(result["test"]["items"], 1)
+        self.assertEqual(self._local_payload()["sources"], [])
 
     def test_build_and_validation_reject_malformed_or_unbounded_sources(self):
         invalid_builds = (

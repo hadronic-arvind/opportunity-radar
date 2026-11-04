@@ -151,7 +151,15 @@ def degree_gates(item, stage, completed):
         # A lower degree already earned does not make a PhD an undergraduate student.
         mismatch = (level not in levels if level else highest > max(RANK[v] for v in levels))
         if mismatch:
-            gates.append({"id": "degree_stage", "state": "fail" if highest else "unknown", "evidence": [clause[:240]]})
+            alternative = re.search(
+                r"\b(?:except|unless|or (?:have|will|can|equivalent|recent graduates?|industry experience))\b",
+                clause,
+            )
+            gates.append({
+                "id": "degree_stage",
+                "state": "fail" if highest and not alternative else "unknown",
+                "evidence": [clause[:240]],
+            })
     return gates
 
 

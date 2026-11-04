@@ -5,10 +5,12 @@
 [![CI](https://github.com/hadronic-arvind/opportunity-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/hadronic-arvind/opportunity-radar/actions/workflows/ci.yml)
 [![License: Proprietary](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE)
 
-Opportunity Radar collects opportunities from official sources, compares them with your preferences, and keeps your search in a private local dashboard.
+Opportunity Radar is a private search and application workspace for jobs, internships, apprenticeships, fellowships, grants, research programs, and events.
+It collects public listings, lets you explore across organizations and fields, and helps you review fit and requirements before saving an opportunity.
 
 It runs in short bursts and exits after each scan.
 Nothing polls in the background, and no local web server is opened.
+Every core search, profile, source, and tracking operation is available through the CLI.
 The setup and operation instructions below are for the copyright holder and anyone who has received prior written permission under the [proprietary license](LICENSE).
 
 ## Quick start
@@ -21,11 +23,13 @@ Building the optional macOS app also requires the Apple Command Line Tools (`xco
 git clone https://github.com/hadronic-arvind/opportunity-radar.git
 cd opportunity-radar
 python3 -m monitor init
-./scripts/run_now.sh
+python3 -m monitor scan --progress
 ./scripts/open_dashboard.sh
 ```
 
-`init` creates private, ignored configuration files and lets you choose a target-aware coverage preset, source packs, preferred work, locations, organizations, and a default resume or CV label.
+`init` creates private configuration from your opportunity types, desired roles, subjects, and locations.
+Accept automatic coverage to start across industries, or choose a named preset or manual packs.
+Use `python3 -m monitor init --non-interactive --opportunity-types hackathon,grant --domains "climate science"` for a terminal-only setup.
 Automatic coverage is the default and searches supported employers across industries, then matches individual jobs to your profile.
 Your roles, fields, skills, career stage, and opportunity types also add specialist sources.
 Choosing a named field preset also seeds practical role, domain, and skill targets that remain editable.
@@ -34,6 +38,7 @@ Skip it to use the neutral starter profile and five diverse structured feeds.
 ## Choose an interface
 
 The CLI works immediately and installs no app.
+Set `OPPORTUNITY_RADAR_CLI_ONLY=1` to skip automatic HTML generation while keeping search, profiles, source management, and tracking available.
 
 ```bash
 ./scripts/open_dashboard.sh
@@ -64,14 +69,21 @@ The macOS scheduler checks due sources at 07:30 and 16:30 local time, then exits
 Open Opportunity Radar whenever you want to review the latest dashboard.
 Use Refresh for due sources or Scan all when you deliberately want to ignore source cadences.
 
-Without the app, use `python3 -m monitor scan` for a due-only refresh or `./scripts/run_now.sh` for a full scan.
-`./scripts/open_dashboard.sh` opens immediately and does not wait for the network.
+Run `python3 -m monitor scan --progress` to check due sources and see what remains.
+The first automatic scan caps network collection at 15 seconds to publish useful results early.
+Later automatic scans stop starting sources after 45 seconds of collection, finish the in-flight source, and publish the results so far.
+Repeat it to continue through due sources, add `--source SOURCE_ID` to focus on a specific source, or add `--force` for a deliberate full refresh.
+`./scripts/open_dashboard.sh` opens the last local snapshot immediately.
 
-The Discover view supports field-aware search, sorting, filters, saved items, a compact system/light/dark selector, and 24-item pages.
-Filters include the opportunity types present in your results, including research programs, scholarships, co-ops, and training.
-Expand **Review fit and requirements** on a listing to see compatibility checks and score limits.
-In the native app, Plan application and Mark applied persist the workflow in SQLite.
-In a regular browser, the same controls use bounded local browser storage because a static file cannot safely write to SQLite.
+- **Discover** shows profile matches and lets you search the wider collection, including listings outside your configured fit.
+- **Tracker** keeps saved, planned, applied, and dismissed items available when their source or profile fit changes.
+- **Coverage** shows which sources are enabled, what the last run checked, and which directories are available for manual exploration.
+
+Use the Activity and Benefit filters to find overlapping opportunities, such as research with funding across fellowships, grants, and programs.
+Open a listing to review source passages, known dates, availability, and profile checks.
+An ambiguous requirement stays visible for review.
+The native app and CLI update the same SQLite tracker.
+A standalone browser keeps its convenience actions in local browser storage.
 
 Your profile can be changed at any time from the native app or the CLI.
 
@@ -129,12 +141,15 @@ Saved opportunities and applications remain accessible when your profile changes
 
 ## Sources and customization
 
-The public catalog contains 401 official resources across technology, finance, retail, logistics, media, healthcare, manufacturing, energy, science, education, public interest, and other fields.
-Automatic and named coverage include a shared set of 213 supported structured employer feeds across industries.
+The public catalog spans technology, finance, retail, logistics, media, healthcare, manufacturing, energy, science, education, public interest, and other fields.
+Automatic and named coverage use shared employer feeds across industries and may add relevant multi-employer or specialist sources.
 A healthcare company can have accounting jobs, and an aerospace company can have legal or software jobs: employer industry never excludes a company from this shared set.
 Each job is matched using its own title, department, description, requirements, and your preferences.
 The unconfigured five-source starter stays small; choose Manual coverage to use only selected packs, or explicitly disable individual sources.
-Broader coverage makes the first scan longer; later scans respect each source's cadence, and new feeds are checked at most once per 24 hours unless you choose Scan all.
+Broader coverage fills in across successive refreshes, with source cadence and a bounded collection window.
+Structured public pages and RSS or Atom feeds can supply opportunities outside employment, including academic programs and events.
+An item falling out of a rolling feed remains unconfirmed.
+After 90 days without seeing it again, a successful refresh archives it locally while preserving any tracker state.
 See [Cross-industry source coverage](docs/SOURCE_COVERAGE.md) for the design, additions, and verification details.
 Named presets add bounded target suggestions as well as sources, which gives a new profile useful matches before the user learns the advanced scoring controls.
 Large official directories remain available in the dashboard resource library without being fetched automatically.
@@ -142,6 +157,7 @@ Large official directories remain available in the dashboard resource library wi
 ```bash
 python3 -m monitor sources packs
 python3 -m monitor sources list
+python3 -m monitor sources discover "research fellowship"
 python3 -m monitor sources health
 python3 -m monitor sources test figma_greenhouse
 python3 -m monitor sources add \
@@ -150,18 +166,29 @@ python3 -m monitor sources add \
 ```
 
 Hosted Greenhouse, Lever, and Ashby URLs are recognized automatically.
-Other careers pages use a bounded experimental link extractor unless you explicitly choose a change-only watch page.
+On employer careers pages, automatic detection can follow a single recognized hosted job board.
+Other public pages are checked for structured listing data, then for bounded same-site links.
+Use `--kind syndication` for an RSS or Atom feed, `--kind json_ld` for structured page data, or `--kind watch_page` to monitor a directory for changes.
 New sources are live-tested before saving by default and are written atomically to the private registry.
 Use `sources show`, `enable`, `disable`, and `remove` to manage them later.
 
 The CLI can also search, inspect, and export stored opportunities without opening the dashboard.
 
 ```bash
-python3 -m monitor opportunities list --min-score 65
-python3 -m monitor opportunities search "robotics internship" --json
-python3 -m monitor opportunities list --status apply --csv
+python3 -m monitor opportunities list --matched --available
+python3 -m monitor opportunities search "technical writer" --location "Montréal" --unique
+python3 -m monitor opportunities search "robotics" --type hackathon --sort deadline --json
+python3 -m monitor opportunities list --activity research --benefit funding --available
+python3 -m monitor opportunities list --saved
+python3 -m monitor opportunities list --status apply --include-inactive --csv
 python3 -m monitor opportunities show OPPORTUNITY_ID
+python3 -m monitor bookmark OPPORTUNITY_ID true
+python3 -m monitor status OPPORTUNITY_ID apply
 ```
+
+CLI search reads the full committed collection while a scan is running.
+The dashboard carries bounded search summaries and detailed review data for a smaller set.
+Use `opportunities show` for the complete stored listing and its evidence.
 
 The app and CLI write personal settings to one canonical private location.
 Before scheduler installation that location is the clone, and afterward it is the installed private runtime.
@@ -176,7 +203,9 @@ Official source names in the dashboard are clickable, including manual resources
 ## Privacy and permissions
 
 Opportunity Radar performs read-only requests to configured public HTTPS sources.
-It never signs in, applies, fills a form, or sends application material.
+Applications open on the original provider's site.
+Profiles, fit assessments, and tracking activity stay on the device.
+Change alerts use local macOS notifications.
 
 The generated dashboard, SQLite database, local configuration, logs, seeds, and scheduler files are excluded from Git and use owner-only permissions.
 The dashboard is a self-contained local file with a strict content-security policy and no remote scripts or assets.

@@ -22,19 +22,32 @@ The scheduler installer copies the runtime package, selected configuration/dashb
 2. The process obtains the shared scan and workflow lock.
 3. It registers the effective public and local source configuration.
 4. It imports an optional private curated Markdown seed.
-5. It fetches enabled sources whose individual cadence is due.
-6. It validates and normalizes each successful response.
-7. It applies local matching and document-routing rules.
+5. It selects due sources, prioritizes discovery during the first runs, and checks sources sequentially.
+6. It applies a 15-second network budget to the first automatic scan, with up to 6 seconds per source.
+   Later automatic scans stop starting new sources after a 45-second collection window.
+7. It validates each response and evaluates only new or changed records unless the profile fingerprint changed.
 8. It updates SQLite while preserving first-seen and application state.
 9. It generates one private self-contained dashboard atomically.
-10. It sends change-only notifications when configured, closes every handle, and exits.
+10. It optionally sends local macOS change alerts, closes every handle, and exits.
+
+Targeted and forced scans have no default collection budget.
+The CLI accepts explicit network time and source-count limits for any run.
+An explicit or first-run deadline can defer a source without changing its health or deactivating any listings.
+During a later automatic scan, a source already in flight uses its adapter's own deadline.
+The CLI reports progress on standard error and keeps the final JSON summary on standard output.
+In CLI-only mode, automatic changes update SQLite without rendering HTML.
+The explicit dashboard command still generates an offline snapshot.
 
 There is no resident scanner, polling loop, filesystem watcher, browser automation, model inference, web server, or database server.
 
 ## Collection
 
 Structured Ashby, Greenhouse, Lever, and Jibe adapters use official public listing endpoints.
-They normalize job type from ATS fields and title evidence instead of labeling every record an internship.
+They normalize opportunity kind from structured fields and title evidence.
+Supported public-feed adapters also read RSS, Atom, Schema.org JSON-LD and event microdata.
+Syndicated sources broaden employer coverage with publisher attribution, and recent-only feeds retain records omitted from a later window.
+A successful rolling refresh archives records that have been absent for 90 days, and a resurfacing record restores its original identifier and workflow state.
+Events retain the event schedule separately from any application deadline.
 
 The HTML-link adapter is available for conservative official-page extraction.
 Change-only watch pages require the same new semantic hash in two successful checks before creating an event, which filters one-scan dynamic-page noise without weakening fetch failures.
@@ -47,6 +60,10 @@ The same checks run before every redirect and against the final response URL.
 Timeouts, denied requests, oversized responses, malformed data, and parser failures affect only that source.
 A failed fetch never deactivates its prior listings.
 A source's listing updates, stale-record reconciliation, and success state commit together.
+Only complete snapshots can deactivate listings by omission.
+An unchanged complete snapshot can refresh last-seen timestamps without repeating fit evaluation.
+Workday and SmartRecruiters check a rotating, bounded subset of listing details per source refresh.
+If detail enrichment is deferred or fails, a previously fetched description remains available while the listing itself remains in the search index.
 Scoring or persistence failures roll back that source's entire refresh, including its notification candidates and reported listing counts.
 This also avoids a separate disk commit for every listing.
 A validated empty structured feed is a successful result.
@@ -83,7 +100,13 @@ The structured engine evaluates field-aware evidence, then compatibility gates, 
 Title, organization, and opportunity-type matches carry more evidence strength than broad description text.
 Interest anchors prevent a generic skill mention from turning an unrelated position into a high fit.
 When a profile includes specific interests, broad terms such as fellow, fellowship, research, and data do not earn interest points or establish an anchor on their own.
-Listings without any evidence for the configured interests are hidden even when location, skills, type, or a high starting score would otherwise meet the display threshold.
+Listings without configured interest evidence stay outside the default recommendations.
+All collected search and the full CLI catalog can still surface them.
+Narrow title equivalents for common roles contribute auditable evidence across employer industries.
+The source brief keeps quoted activities, benefits, and requirements separate from the user's fit and eligibility checks.
+A source-backed activity and benefit index supports overlapping facets independently of the listing's primary kind.
+Source refreshes update the facet rows in the same transaction as their listing, and profile changes reuse the index.
+The database fills this index from existing records during the schema upgrade.
 Profiles that deliberately request only broad program labels retain broad discovery.
 Generic academic role labels such as research assistant and research scientist also cannot establish the subject fit of a specific profile.
 Weak description evidence for a specific interest retains its existing score ceiling and can remain in Watch when the configured display threshold allows it.
@@ -109,18 +132,19 @@ The public workflow identifier is a stable 24-character lowercase hexadecimal ha
 
 Source refreshes never overwrite `status`, `status_updated_at`, `applied_at`, or `bookmarked`.
 Opening a previously new listing in the native dashboard advances it to `reviewed`, while later workflow states remain unchanged.
-Inactive opportunities remain available when their status is `apply` or `applied`.
+Inactive opportunities remain available when their status is `apply`, `applied`, or `skip`, or when they are bookmarked.
 Disabled-source history remains in SQLite without appearing in Discover.
-Profile refreshes cover every active opportunity and every inactive opportunity that is saved, planned, or applied.
+Profile refreshes cover active opportunities and the inactive records retained in the tracker.
 They update only derived score, tier, explanation, match metadata, and profile-routed document fields in one transaction.
 Collector metadata, raw hashes, source health, workflow state, and timestamps remain unchanged, and any scoring failure rolls back the whole refresh.
-Inactive discovery records older than 365 days are pruned unless they are saved, planned, or applied.
+Inactive discovery records older than 365 days are pruned unless they are saved, planned, applied, or dismissed.
 Run history retains the most recent 200 records, and source-change history retains the most recent 500 events.
 
 All scan, profile, status, bookmark, and dashboard writes share one file lock.
 Profile writes, onboarding replacements, scans, and installer upgrades share a consistent lifecycle-then-scan lock order, so a runtime upgrade cannot replace a concurrent edit or lose a scan that is still writing.
 Named-profile create, duplicate, rename, activation, deletion, editor saves, and source mutations replace one owner-only JSON store atomically.
-Activation refreshes the database under the same lock, so dashboard and CLI search never observe a profile id with another profile's scores or source state.
+Activation refreshes the database under the same lock.
+CLI listing and detail reads use a read-only SQLite connection against committed results, including during ordinary scans.
 SQLite uses parameter binding and a bounded busy timeout.
 Database and dashboard files use owner-only permissions.
 
@@ -139,10 +163,13 @@ Type filters reflect all supported opportunity types present in available result
 Saved records distinguish closed listings, disabled sources, and changes to profile fit.
 The fit-details disclosure exposes compatibility checks and applied score ceilings.
 Search input is debounced, and each search, filter, or view change resets to the first result page without refetching data.
-The generated dashboard includes at most the 5,000 highest-fit active discovery records while always preserving every planned or applied record.
-When that safety limit is reached, the result summary says so explicitly.
+The generated dashboard includes at most 5,000 detailed discovery records and a further bounded catalog of up to 50,000 summaries across fit tiers.
+The tracker retains saved, planned, applied, and dismissed rows with full details.
+The dashboard shows when a view contains compact summaries or a truncated snapshot.
+The CLI can inspect or search the full committed collection.
 
-The desktop layout keeps the established compact control and type scale, and new profile and coverage selectors reuse the same native-select styling as sorting controls.
+Discover, Tracker, and Coverage maintain separate search state.
+The browser groups conservative duplicates in Discover while keeping the underlying workflow IDs available in the tracker.
 Narrow layouts retain larger touch targets.
 In a regular browser, workflow state has a bounded local-storage fallback and scan controls show the corresponding CLI command.
 In the optional macOS app, SQLite is authoritative.

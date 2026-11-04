@@ -7,10 +7,13 @@ import platform
 import re
 import sqlite3
 import sys
+from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from .config import (
+    automatic_dashboard_enabled,
     load_profile,
     load_source_packs,
     load_sources,
@@ -21,9 +24,17 @@ from .config import (
 )
 from .coverage import AUTOMATIC_PRESET, coverage_preset_ids, target_defaults_for_preset
 from .dashboard import render_dashboard
-from .database import Database
+from .database import Database, SCHEMA_VERSION
 from .fetchers import MAX_HTML_LINK_PAGES, _remote_url_parts, fetch_source
 from .onboarding import comma_values, default_pack_ids, initialize, interactive_values
+from .opportunity_facts import (
+    ACTIVITY_FACETS,
+    BENEFIT_FACETS,
+    listing_availability,
+    opportunity_facts,
+    participation_facets,
+)
+from .opportunity_search import listing_key, search_ranker
 from .pipeline import ensure_profile_lifecycle_idle, exclusive_lock, run_scan
 from .profile import (
     MAX_EDITOR_BYTES,
@@ -38,10 +49,12 @@ from .profile import (
     validate_editor_payload,
 )
 from .scoring import MATCH_FIELDS
+from .text import normalize_opportunity_type
 from .source_registry import (
     SUPPORTED_KINDS,
     add_source,
     build_custom_source,
+    inspect_automatic_source,
     remove_source,
     set_source_enabled,
     source_summary,
@@ -68,6 +81,9 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--source", action="append", default=None, help="Check only an enabled source ID; repeat for multiple sources")
     scan.add_argument("--force", action="store_true", help="Ignore per-source cadence")
     scan.add_argument("--notify", action="store_true", help="Send change-only notifications")
+    scan.add_argument("--max-sources", type=int, help="Maximum source checks in this burst")
+    scan.add_argument("--max-seconds", type=float, help="Network time budget for this refresh")
+    scan.add_argument("--progress", action="store_true", help="Show progress on standard error")
     scan.add_argument("--quiet", action="store_true", help="Suppress JSON output for scheduled runs")
 
     dashboard = subparsers.add_parser("dashboard", help="Rebuild the dashboard from the local database")
@@ -78,6 +94,13 @@ def build_parser() -> argparse.ArgumentParser:
     source_list = source_commands.add_parser("list", help="List configured sources")
     source_list.add_argument("--all", action="store_true", help="Include disabled sources")
     source_list.add_argument("--json", action="store_true", help="Print JSON")
+    source_discover = source_commands.add_parser("discover", help="Search the local source directory")
+    source_discover.add_argument("query", nargs="?", default="")
+    source_discover.add_argument("--pack")
+    source_discover.add_argument("--kind", choices=sorted(SUPPORTED_KINDS))
+    source_discover.add_argument("--enabled", action="store_true")
+    source_discover.add_argument("--limit", type=int, default=40)
+    source_discover.add_argument("--json", action="store_true")
     source_commands.add_parser("packs", help="List available source packs")
     source_commands.add_parser("health", help="Show persisted source health")
     source_test = source_commands.add_parser("test", help="Fetch one source without saving results")
@@ -90,7 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
     source_add.add_argument("--id", default="", help="Optional lowercase source id")
     source_add.add_argument(
         "--kind",
-        choices=["auto", "ashby", "greenhouse", "lever", "workday", "smartrecruiters", "rippling", "workable", "comeet", "sap_public", "html_links", "watch_page"],
+        choices=["auto", *sorted(SUPPORTED_KINDS - {"jibe"})],
         default="auto",
         help="Provider type; auto recognizes hosted ATS URLs",
     )
@@ -99,6 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Provider board/site slug when it cannot be read from the URL",
     )
+    source_add.add_argument("--opportunity-type", default="", help="Default kind for ambiguous source listings")
     source_add.add_argument("--packs", default="", help="Comma-separated source pack ids")
     source_add.add_argument("--cadence-hours", type=int, default=12)
     source_add.add_argument(
@@ -134,7 +158,25 @@ def build_parser() -> argparse.ArgumentParser:
             choices=["new", "reviewed", "apply", "applied", "skip"],
         )
         command.add_argument("--type", dest="opportunity_type")
+        command.add_argument(
+            "--activity", action="append", choices=ACTIVITY_FACETS,
+            help="Filter by what participants do. Repeat to require multiple activities",
+        )
+        command.add_argument(
+            "--benefit", action="append", choices=BENEFIT_FACETS,
+            help="Filter by benefits described by the source. Repeat to require multiple benefits",
+        )
         command.add_argument("--source")
+        command.add_argument("--organization", help="Filter by part of an organization name")
+        command.add_argument("--location", help="Filter by part of a listed location")
+        command.add_argument("--saved", action="store_true", help="Include only bookmarked opportunities, including archived ones")
+        command.add_argument("--matched", action="store_true", help="Include only opportunities visible under your profile")
+        command.add_argument("--available", action="store_true", help="Hide archives, directories, and known closed listings")
+        command.add_argument("--unique", action="store_true", help="Group equivalent listings from multiple sources")
+        command.add_argument(
+            "--sort", choices=["relevance", "fit", "recent", "deadline"], default="relevance"
+        )
+        command.add_argument("--offset", type=int, default=0, help="Skip this many results")
         command.add_argument("--min-score", type=int, default=0)
         command.add_argument("--limit", type=int, default=50)
         command.add_argument("--include-inactive", action="store_true")
@@ -158,10 +200,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--coverage-preset",
         choices=coverage_preset_ids(),
         default=AUTOMATIC_PRESET,
-        help="Automatic, manual, or field-specific STEM source coverage",
+        help="Automatic, manual, or field-specific source coverage",
     )
     initialize_parser.add_argument(
-        "--include", default="", help="Comma-separated roles, skills, or domains to favor"
+        "--include", default="", help="Comma-separated roles or interests to favor"
+    )
+    initialize_parser.add_argument("--domains", default="", help="Comma-separated fields or topics")
+    initialize_parser.add_argument(
+        "--opportunity-types", default="",
+        help="Comma-separated listing kinds, such as job, fellowship, grant, or hackathon",
     )
     initialize_parser.add_argument(
         "--exclude", default="", help="Comma-separated terms to avoid"
@@ -257,7 +304,7 @@ def build_parser() -> argparse.ArgumentParser:
     profile_set.add_argument(
         "--coverage-preset",
         choices=coverage_preset_ids(),
-        help="Automatic, manual, or field-specific STEM source coverage",
+        help="Automatic, manual, or field-specific source coverage",
     )
     profile_set.add_argument("--current-stage", help="Current education or career stage")
     profile_set.add_argument("--expected-graduation", help="Expected graduation month or year")
@@ -298,8 +345,50 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def command_scan(force: bool, notify: bool, quiet: bool = False, source_ids: Optional[List[str]] = None) -> int:
-    result = run_scan(force=force, send_notifications=notify, source_ids=source_ids)
+def _scan_progress(event: Dict[str, Any]) -> None:
+    if event["event"] == "start":
+        print(
+            "{} sources due, up to {} selected for this run".format(
+                event["due_sources"], event["total_sources"],
+            ),
+            file=sys.stderr, flush=True,
+        )
+    elif event["event"] == "source_start":
+        print(
+            "[{}/{}] {}".format(
+                event["checked_sources"] + event.get("deferred_sources", 0) + 1,
+                event["total_sources"],
+                event.get("source_name", event.get("source_id", "Source")),
+            ),
+            file=sys.stderr, flush=True,
+        )
+    elif event["event"] == "render":
+        print("Rebuilding the local dashboard", file=sys.stderr, flush=True)
+    elif event["event"] == "finish":
+        print(
+            "Checked {} sources, with {} still due{}".format(
+                event["checked_sources"], event["remaining_due"],
+                " ({} deferred by the network budget)".format(event["deferred_sources"])
+                if event.get("deferred_sources") else "",
+            ),
+            file=sys.stderr, flush=True,
+        )
+
+
+def command_scan(
+    force: bool, notify: bool, quiet: bool = False,
+    source_ids: Optional[List[str]] = None, *,
+    max_sources: Optional[int] = None, max_seconds: Optional[float] = None,
+    show_progress: bool = False,
+) -> int:
+    options = {}
+    if max_sources is not None:
+        options["max_sources"] = max_sources
+    if max_seconds is not None:
+        options["max_seconds"] = max_seconds
+    if show_progress or (not quiet and sys.stderr.isatty()):
+        options["progress"] = _scan_progress
+    result = run_scan(force=force, send_notifications=notify, source_ids=source_ids, **options)
     if not quiet:
         print(json.dumps(result, indent=2))
     return 0 if result["status"] in {"ok", "partial"} else 1
@@ -575,6 +664,37 @@ def command_doctor() -> int:
 
 def command_sources(args: argparse.Namespace) -> int:
     action = args.source_command or "list"
+    if action == "discover":
+        if not 1 <= args.limit <= 500 or len(args.query) > 240:
+            raise ValueError("Use a query up to 240 characters and --limit from 1 to 500")
+        rank = search_ranker(args.query)
+        matches = []
+        for source in load_sources(include_disabled=not args.enabled):
+            if args.pack and args.pack not in source.get("packs", []):
+                continue
+            if args.kind and args.kind != source.get("kind"):
+                continue
+            taxonomy = " ".join(
+                str(value).replace("_", " ")
+                for key in ("domains", "role_families", "opportunity_types", "career_levels", "regions", "packs")
+                for value in source.get(key, [])
+            )
+            relevance = rank(source["name"], source["id"], taxonomy, source.get("category"), source.get("url"))
+            if relevance >= 0:
+                matches.append((relevance, source))
+        matches.sort(key=lambda entry: (-entry[0], not entry[1].get("enabled", True), entry[1]["name"].casefold()))
+        rows = [entry[1] for entry in matches[:args.limit]]
+        if args.json:
+            print(json.dumps(rows, indent=2, ensure_ascii=False))
+        elif not rows:
+            print("No configured sources found.")
+        else:
+            for source in rows:
+                print("{}  {}  {}  {}".format(
+                    source["id"], "enabled" if source.get("enabled", True) else "disabled",
+                    source["name"], source.get("publisher_url") or source.get("url", ""),
+                ))
+        return 0
     if action == "packs":
         sources = load_sources(include_disabled=True)
         for pack in load_source_packs():
@@ -656,10 +776,14 @@ def command_sources(args: argparse.Namespace) -> int:
                 adapter=args.adapter,
                 packs=comma_values(args.packs) or None,
                 cadence_hours=args.cadence_hours,
+                **({"opportunity_type": args.opportunity_type} if args.opportunity_type else {}),
             )
             live = None
             if not args.skip_test:
-                result = fetch_source(source)
+                if args.kind == "auto" and source["kind"] == "public_page":
+                    source, result = inspect_automatic_source(source, args.opportunity_type)
+                else:
+                    result = fetch_source(source)
                 live = {
                     "status": result.status,
                     "items": len(result.opportunities),
@@ -718,6 +842,8 @@ def command_init(args: argparse.Namespace) -> int:
             "pack_ids": comma_values(args.packs) or default_pack_ids(),
             "coverage_preset": args.coverage_preset,
             "include_terms": comma_values(args.include),
+            "domains": comma_values(args.domains),
+            "opportunity_types": comma_values(args.opportunity_types),
             "exclude_terms": comma_values(args.exclude),
             "locations": comma_values(args.locations),
             "organizations": comma_values(args.organizations),
@@ -1156,24 +1282,57 @@ def _opportunity_database_path() -> Path:
     )
 
 
+@contextmanager
+def _read_opportunity_database(path: Path) -> Iterator[sqlite3.Connection]:
+    uri = path.absolute().as_uri() + "?mode=ro"
+    connection = sqlite3.connect(uri, uri=True, timeout=5)
+    try:
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        if version > SCHEMA_VERSION:
+            raise RuntimeError("Database schema version {} is newer than this build supports".format(version))
+        if version < SCHEMA_VERSION:
+            connection.close()
+            ensure_profile_lifecycle_idle()
+            with exclusive_lock(path.with_name("scan.lock")):
+                ensure_profile_lifecycle_idle()
+                database = Database(path)
+                try:
+                    database.initialize()
+                finally:
+                    database.close()
+            connection = sqlite3.connect(uri, uri=True, timeout=5)
+        connection.row_factory = sqlite3.Row
+        yield connection
+    finally:
+        connection.close()
+
+
 def _opportunity_rows(args: argparse.Namespace) -> List[Dict[str, Any]]:
     limit = int(getattr(args, "limit", 50))
+    offset = int(getattr(args, "offset", 0))
     minimum = int(getattr(args, "min_score", 0))
     if limit < 1 or limit > 500:
         raise ValueError("--limit must be from 1 to 500")
+    if offset < 0 or offset > 1_000_000:
+        raise ValueError("--offset must be from 0 to 1000000")
     if minimum < 0 or minimum > 100:
         raise ValueError("--min-score must be from 0 to 100")
     query = str(getattr(args, "query", "") or "").strip()
-    if len(query) > 240:
+    organization = str(getattr(args, "organization", "") or "").strip()
+    location = str(getattr(args, "location", "") or "").strip()
+    if any(len(value) > 240 for value in (query, organization, location)):
         raise ValueError("Search query must be at most 240 characters")
     path = _opportunity_database_path()
     if not path.is_file():
         return []
     clauses = ["opportunities.score >= ?"]
     values: List[Any] = [minimum]
-    if not getattr(args, "include_inactive", False):
-        clauses.append("opportunities.active=1")
-        clauses.append("sources.enabled=1")
+    if getattr(args, "saved", False):
+        clauses.append("opportunities.bookmarked=1")
+    elif not getattr(args, "include_inactive", False):
+        clauses.extend(("opportunities.active=1", "sources.enabled=1"))
+    if getattr(args, "matched", False):
+        clauses.append("opportunities.tier != 'skip'")
     for attribute, column in (
         ("status", "opportunities.status"),
         ("opportunity_type", "opportunities.opportunity_type"),
@@ -1181,61 +1340,91 @@ def _opportunity_rows(args: argparse.Namespace) -> List[Dict[str, Any]]:
     ):
         value = getattr(args, attribute, None)
         if value:
+            if attribute == "opportunity_type":
+                value = normalize_opportunity_type(value) or value
             clauses.append("{}=?".format(column))
             values.append(str(value))
-    if query:
-        for term in query.split():
-            escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    for group, attribute in (("activities", "activity"), ("benefits", "benefit")):
+        for facet in dict.fromkeys(getattr(args, attribute, None) or []):
             clauses.append(
-                "(opportunities.title LIKE ? ESCAPE '\\' "
-                "OR opportunities.organization LIKE ? ESCAPE '\\' "
-                "OR opportunities.location LIKE ? ESCAPE '\\' "
-                "OR opportunities.description LIKE ? ESCAPE '\\')"
+                "opportunities.id IN (SELECT opportunity_id FROM opportunity_facets "
+                "WHERE facet_group=? AND facet_id=?)"
             )
-            values.extend(["%{}%".format(escaped)] * 4)
-    values.append(limit)
-    ensure_profile_lifecycle_idle()
-    with exclusive_lock(path.with_name("scan.lock")):
-        ensure_profile_lifecycle_idle()
-        profile = load_profile()
-        database = Database(path)
-        try:
-            database.initialize()
-            # Switching profiles refreshes scores eagerly. Rechecking the
-            # fingerprint here also makes direct CLI searches correct after a
-            # safe manual store restore without doing work on normal queries.
-            database.rescore_for_profile(profile)
-            selected = ", ".join("opportunities.{}".format(field) for field in (
-                "id",
-                "score",
-                "tier",
-                "status",
-                "title",
-                "organization",
-                "location",
-                "opportunity_type",
-                "posted_at",
-                "deadline_at",
-                "first_seen_at",
-                "source_id",
-                "active",
-                "bookmarked",
-                "url",
-            ))
-            rows = database.connection.execute(
-                "SELECT {}, sources.name AS source_name FROM opportunities "
-                "JOIN sources ON sources.id=opportunities.source_id WHERE {} "
-                "ORDER BY opportunities.score DESC, "
-                "COALESCE(opportunities.deadline_at, '9999') ASC, "
-                "opportunities.first_seen_at DESC LIMIT ?".format(
-                    selected,
-                    " AND ".join(clauses),
-                ),
-                values,
-            ).fetchall()
+            values.extend((group, facet))
+
+    # Readers use the latest committed snapshot, including during collection.
+    with _read_opportunity_database(path) as connection:
+        if query:
+            connection.create_function("radar_rank", 8, search_ranker(query), deterministic=True)
+            rank = (
+                "radar_rank(opportunities.title, opportunities.organization, "
+                "REPLACE(opportunities.opportunity_type, '_', ' '), opportunities.category, "
+                "opportunities.location, sources.name, opportunities.eligibility, "
+                "opportunities.description)"
+            )
+            clauses.append(rank + " >= 0")
+        else:
+            rank = ""
+        for name, value in (("organization", organization), ("location", location)):
+            if value:
+                function_name = "radar_" + name
+                connection.create_function(function_name, 1, search_ranker(value), deterministic=True)
+                clauses.append("{}(opportunities.{}) >= 0".format(function_name, name))
+
+        if getattr(args, "available", False):
+            today = date.today()
+
+            def available(active, enabled, deadline, metadata):
+                value = json.loads(metadata)
+                collection = value.get("collection", {}) if isinstance(value, dict) else {}
+                schedule = value.get("listing", {}) if isinstance(value, dict) else {}
+                return int(listing_availability(
+                    bool(active and enabled), deadline,
+                    collection if isinstance(collection, dict) else {},
+                    schedule if isinstance(schedule, dict) else {},
+                    today,
+                ) in {"listed", "unconfirmed"})
+
+            connection.create_function("radar_available", 4, available, deterministic=True)
+            clauses.append("radar_available(opportunities.active, sources.enabled, opportunities.deadline_at, opportunities.metadata_json)")
+        orders = {
+            "fit": "",
+            "relevance": rank + " DESC, " if rank else "",
+            "recent": "opportunities.first_seen_at DESC, ",
+            "deadline": "COALESCE(opportunities.deadline_at, '9999') ASC, ",
+        }
+        fields = ", ".join(
+            "opportunities.{}".format(field)
+            for field in OPPORTUNITY_OUTPUT_FIELDS if field != "source_name"
+        )
+        order = (
+            orders[getattr(args, "sort", "relevance")]
+            + "opportunities.score DESC, COALESCE(opportunities.deadline_at, '9999') ASC, "
+            + "opportunities.first_seen_at DESC, opportunities.id"
+        )
+        query_sql = (
+            "SELECT {}, sources.name AS source_name FROM opportunities "
+            "JOIN sources ON sources.id=opportunities.source_id WHERE {} ORDER BY {}"
+        ).format(fields, " AND ".join(clauses), order)
+        if not getattr(args, "unique", False):
+            rows = connection.execute(query_sql + " LIMIT ? OFFSET ?", values + [limit, offset])
             return [dict(row) for row in rows]
-        finally:
-            database.close()
+        seen = set()
+        results = []
+        for row in connection.execute(query_sql, values):
+            key = listing_key(row["url"], row["title"], row["organization"])
+            if key and key in seen:
+                continue
+            if key:
+                seen.add(key)
+            if offset:
+                offset -= 1
+                continue
+            results.append(dict(row))
+            if len(results) == limit:
+                break
+        return results
 
 
 def _print_opportunity_rows(
@@ -1286,18 +1475,15 @@ def command_opportunities(args: argparse.Namespace) -> int:
             if not path.is_file():
                 print("Opportunity not found", file=sys.stderr)
                 return 1
-            database = Database(path)
-            try:
-                database.initialize()
-                row = database.connection.execute(
+            with _read_opportunity_database(path) as connection:
+                row = connection.execute(
                     "SELECT opportunities.*, sources.name AS source_name, "
+                    "sources.url AS source_url, sources.enabled AS source_enabled, "
                     "sources.last_status AS source_status "
                     "FROM opportunities JOIN sources ON sources.id=opportunities.source_id "
                     "WHERE opportunities.id=?",
                     (args.opportunity_id,),
                 ).fetchone()
-            finally:
-                database.close()
             if row is None:
                 print("Opportunity not found", file=sys.stderr)
                 return 1
@@ -1306,19 +1492,51 @@ def command_opportunities(args: argparse.Namespace) -> int:
                 value = payload.pop(field, None)
                 if value is not None:
                     payload[field.removesuffix("_json")] = json.loads(value)
+            facts = opportunity_facts(payload)
+            facts["facets"] = participation_facets(payload)
+            payload["facts"] = facts
             if args.json:
                 print(json.dumps(payload, indent=2, ensure_ascii=False))
             else:
                 print("{} at {}".format(payload["title"], payload["organization"]))
                 print("ID: {}".format(payload["id"]))
                 print("Fit: {} ({})".format(payload["score"], payload["tier"]))
-                print("Status: {}".format(payload["status"]))
+                print("Type: {}".format(facts["kind"].replace("_", " ")))
+                print("Status: {}{}".format(
+                    payload["status"],
+                    "" if payload["active"] and payload["source_enabled"] else " (archived)",
+                ))
                 print("Location: {}".format(payload["location"] or "Not listed"))
                 print("Deadline: {}".format(payload["deadline_at"] or "Not listed"))
                 print("Source: {} ({})".format(payload["source_name"], payload["source_status"]))
+                if facts.get("publisher_url"):
+                    print("Publisher: {}".format(facts["publisher_url"]))
                 print("URL: {}".format(payload["url"]))
+                print("Listing information: {}".format(facts["information"].replace("_", " ")))
+                print("Availability: {}".format(facts["availability"]))
+                for group, label in (("activities", "Activities"), ("benefits", "Offers")):
+                    entries = facts["facets"][group]
+                    if entries:
+                        print("{}: {}".format(label, ", ".join(entry["label"] for entry in entries)))
+                for key, value in facts.get("schedule", {}).items():
+                    print("{}: {}".format(key.replace("_", " ").capitalize(), value))
+                match = payload.get("metadata", {}).get("match", {})
+                if isinstance(match, dict) and match.get("eligibility"):
+                    print("Profile checks: {}".format(match["eligibility"]))
+                    for gate in match.get("gates", []):
+                        evidence = "; ".join(str(value) for value in gate.get("evidence", []))
+                        print("  {} - {}{}".format(
+                            str(gate.get("id", "check")).replace("_", " "),
+                            gate.get("state", "unknown"), " (" + evidence + ")" if evidence else "",
+                        ))
+                for label, entries in (("Fit evidence", payload["reasons"]), ("Review", payload["warnings"])):
+                    for entry in entries:
+                        print("{}: {}".format(label, entry))
+                for group in ("activities", "benefits", "requirements"):
+                    for entry in facts[group]:
+                        print("{} evidence - {}: {}".format(group.capitalize(), entry["label"], entry["evidence"]))
                 if payload["description"]:
-                    print("\n{}".format(payload["description"][:4000]))
+                    print("\n{}".format(payload["description"]))
             return 0
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as error:
         print(str(error), file=sys.stderr)
@@ -1345,7 +1563,8 @@ def _command_workflow(opportunity_id: str, value: object, kind: str, quiet: bool
                 changed = database.set_bookmarked(opportunity_id, bool(value))
             if changed:
                 database.rescore_for_profile(profile)
-                render_dashboard(database.dashboard_payload(), profile=profile)
+                if automatic_dashboard_enabled():
+                    render_dashboard(database.dashboard_payload(), profile=profile)
         finally:
             database.close()
     if not quiet:
@@ -1365,7 +1584,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "scan":
-            return command_scan(args.force, args.notify, args.quiet, args.source)
+            return command_scan(
+                args.force, args.notify, args.quiet, args.source,
+                max_sources=args.max_sources, max_seconds=args.max_seconds,
+                show_progress=args.progress,
+            )
         if args.command == "dashboard":
             return command_dashboard(args.quiet)
         if args.command == "doctor":

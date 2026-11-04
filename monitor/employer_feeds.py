@@ -6,9 +6,10 @@ import json
 import re
 import time
 import urllib.parse
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .fetchers import (
+    CollectionDeadlineExceeded,
     MAX_JIBE_TOTAL_BYTES,
     MAX_JIBE_WALL_SECONDS,
     ResponseTooLargeError,
@@ -23,6 +24,41 @@ from .models import FetchResult, MAX_OPPORTUNITIES_PER_SOURCE, Opportunity
 from .text import canonical_url, clean_text, stable_hash
 
 WORKDAY_HOST_RE = re.compile(r"^([a-zA-Z0-9_-]+)\.wd[0-9]+\.myworkdayjobs\.com$")
+DETAIL_REQUEST_LIMIT = 12
+DETAIL_WALL_SECONDS = 6
+
+
+def _enrich_jobs(
+    identifiers: List[str],
+    source: Dict[str, Any],
+    deadline: float,
+    load: Callable[[str, float], Dict[str, Any]],
+) -> Tuple[Dict[str, Optional[Dict[str, Any]]], int]:
+    """Spend a bounded detail budget and resume at the next position on a later scan."""
+    if not identifiers:
+        return {}, 0
+    offset = int(source.get("_detail_offset", 0)) % len(identifiers)
+    detail_deadline = min(deadline, time.monotonic() + DETAIL_WALL_SECONDS)
+    results: Dict[str, Optional[Dict[str, Any]]] = {}
+    for _ in range(min(DETAIL_REQUEST_LIMIT, len(identifiers))):
+        if time.monotonic() >= detail_deadline:
+            break
+        identifier = identifiers[offset]
+        offset = (offset + 1) % len(identifiers)
+        try:
+            results[identifier] = load(identifier, detail_deadline)
+        except (CollectionDeadlineExceeded, ResponseTooLargeError):
+            results[identifier] = None
+            break
+        except (OSError, ValueError):
+            results[identifier] = None
+    return results, offset
+
+
+def _detail_status(details: Dict[str, Optional[Dict[str, Any]]], identifier: str) -> str:
+    if identifier not in details:
+        return "deferred"
+    return "failed" if details[identifier] is None else "current"
 
 
 def workday_board(url: str) -> Tuple[str, str]:
@@ -53,9 +89,9 @@ def fetch_workday(source: Dict[str, Any]) -> FetchResult:
     digest = hashlib.sha256()
     total_bytes = 0
 
-    def request(url: str, search: Any = None) -> Dict[str, Any]:
+    def request(url: str, search: Any = None, *, detail_deadline: Optional[float] = None) -> Dict[str, Any]:
         nonlocal total_bytes
-        kwargs: Dict[str, Any] = {"deadline": deadline}
+        kwargs: Dict[str, Any] = {"deadline": detail_deadline or deadline}
         if search is not None:
             kwargs["json_body"] = search
         body = _request(url, **kwargs)
@@ -127,23 +163,24 @@ def fetch_workday(source: Dict[str, Any]) -> FetchResult:
         if not total:
             break
 
+    def load_detail(identifier: str, detail_deadline: float) -> Dict[str, Any]:
+        details = request(base + identifier, detail_deadline=detail_deadline)
+        info = details.get("jobPostingInfo")
+        if not isinstance(info, dict):
+            raise ValueError("Workday jobPostingInfo must be an object")
+        for key in ("jobDescription", "title", "location", "timeType"):
+            if info.get(key) is not None and not isinstance(info[key], str):
+                raise ValueError("Workday job detail {} must be text".format(key))
+        return info
+
+    details, next_offset = _enrich_jobs(
+        [job["externalPath"] for job in jobs], source, deadline, load_detail
+    )
     items = []
     detailed = 0
-    detail_unavailable = False
     for job in jobs:
-        info: Dict[str, Any] = {}
-        # Search is complete before optional detail enrichment starts. Preserve
-        # the complete set even when one detail fails or the budget expires.
-        if not detail_unavailable and time.monotonic() < deadline - 1:
-            try:
-                details = request(base + job["externalPath"])
-                info = details.get("jobPostingInfo", {})
-                if not isinstance(info, dict):
-                    raise ValueError("Workday jobPostingInfo must be an object")
-            except ResponseTooLargeError:
-                detail_unavailable = True
-            except (OSError, ValueError, TimeoutError):
-                info = {}
+        path = job["externalPath"]
+        info = details.get(path) or {}
         description = clean_text(info.get("jobDescription"))
         detailed += bool(description)
         title = clean_text(info.get("title") or job["title"])
@@ -181,6 +218,7 @@ def fetch_workday(source: Dict[str, Any]) -> FetchResult:
                     source,
                     ats="workday",
                     dates=dates,
+                    detail_status=_detail_status(details, path),
                     description_availability="full" if description else "title_only",
                 ),
             )
@@ -189,6 +227,7 @@ def fetch_workday(source: Dict[str, Any]) -> FetchResult:
         items,
         digest.hexdigest(),
         message="{} Workday jobs; {} full descriptions".format(len(items), detailed),
+        next_detail_offset=next_offset,
     )
 
 
@@ -202,9 +241,9 @@ def fetch_smartrecruiters(source: Dict[str, Any]) -> FetchResult:
     digest = hashlib.sha256()
     total_bytes = 0
 
-    def request(url: str) -> Dict[str, Any]:
+    def request(url: str, detail_deadline: Optional[float] = None) -> Dict[str, Any]:
         nonlocal total_bytes
-        body = _request(url, deadline=deadline)
+        body = _request(url, deadline=detail_deadline or deadline)
         total_bytes += len(body)
         if total_bytes > MAX_JIBE_TOTAL_BYTES:
             raise ResponseTooLargeError(
@@ -255,15 +294,21 @@ def fetch_smartrecruiters(source: Dict[str, Any]) -> FetchResult:
         if total == 0:
             break
 
+    def load_detail(identifier: str, detail_deadline: float) -> Dict[str, Any]:
+        detail = request(base + "/" + identifier, detail_deadline)
+        ad = detail.get("jobAd")
+        if ad is not None and not isinstance(ad, dict):
+            raise ValueError("SmartRecruiters jobAd must be an object")
+        return detail
+
+    details, next_offset = _enrich_jobs(
+        [str(job["id"]) for job in jobs], source, deadline, load_detail
+    )
     items = []
     for job in jobs:
-        details = {}
-        if time.monotonic() < deadline - 1 and total_bytes < MAX_JIBE_TOTAL_BYTES:
-            try:
-                details = request(base + "/" + str(job["id"]))
-            except (OSError, ValueError, TimeoutError):
-                details = {}
-        ad = details.get("jobAd")
+        identifier = str(job["id"])
+        detail = details.get(identifier) or {}
+        ad = detail.get("jobAd")
         sections = ad.get("sections", {}) if isinstance(ad, dict) else {}
         description = (
             clean_text(
@@ -321,12 +366,14 @@ def fetch_smartrecruiters(source: Dict[str, Any]) -> FetchResult:
                     source,
                     ats="smartrecruiters",
                     dates=dates,
+                    detail_status=_detail_status(details, identifier),
                     description_availability="full" if description else "title_only",
                 ),
             )
         )
     return FetchResult(
-        items, digest.hexdigest(), message="{} SmartRecruiters jobs".format(len(items))
+        items, digest.hexdigest(), message="{} SmartRecruiters jobs".format(len(items)),
+        next_detail_offset=next_offset,
     )
 
 
