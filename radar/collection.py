@@ -485,6 +485,9 @@ def _run_worker(request, deadline, cancel, owner_fd):
             worker.kill()
         if output is None:
             output, _ = worker.communicate()
+    # A terminal interrupt can stop both the caller and child during communicate.
+    if stopped is None and cancel is not None and cancel.is_set():
+        stopped = ("cancelled", "Collection cancelled.")
     return output, stopped
 
 

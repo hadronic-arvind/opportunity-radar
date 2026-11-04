@@ -1,14 +1,17 @@
 """Offline contract and subprocess failure checks for public collection."""
 
+import io
 import json
 import os
+from contextlib import redirect_stdout
 from pathlib import Path
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
+from threading import Event
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 from radar import collection
@@ -303,6 +306,33 @@ class CollectorProcessTests(unittest.TestCase):
                 if parent.poll() is None:
                     parent.kill()
                     parent.wait(timeout=3)
+
+    def test_cli_cancellation_receipt_wins_worker_exit_race(self):
+        from radar.__main__ import main
+        from radar.store import Store
+
+        event = Event()
+        worker = Mock()
+        worker.poll.return_value = 0
+
+        def interrupt_and_return(*args, **kwargs):
+            event.set()
+            return b'{"external_id":"seen","title":"Observed listing"}\n', None
+
+        worker.communicate.side_effect = interrupt_and_return
+        with TemporaryDirectory() as temp:
+            workspace = Path(temp) / "workspace.sqlite3"
+            Store(workspace).add_source({**self.source, "enabled": True})
+            output = io.StringIO()
+            with (
+                patch("radar.__main__.Event", return_value=event),
+                patch.object(collection.subprocess, "Popen", return_value=worker),
+                redirect_stdout(output),
+            ):
+                code = main(["--workspace", str(workspace), "--json", "collect"])
+        receipt = json.loads(output.getvalue())["receipts"][0]
+        self.assertEqual(code, 130)
+        self.assertEqual((receipt["state"], receipt["seen"]), ("cancelled", 1))
 
     def test_cancel_before_launch_and_invalid_budgets(self):
         with patch.object(collection.subprocess, "Popen") as popen:
