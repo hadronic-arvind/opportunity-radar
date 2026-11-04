@@ -5,6 +5,7 @@ import unicodedata
 from functools import lru_cache
 
 from .brief import fragments
+from .locations import assess_location, normalize_location
 
 ALIASES = (
     (
@@ -148,9 +149,9 @@ def _near(words, roots):
 
 
 def normalize_rules(rules):
-    if not isinstance(rules, dict) or rules.keys() - {*RULE_KEYS, "objective", "facts"}:
+    if not isinstance(rules, dict) or rules.keys() - {*RULE_KEYS, "objective", "facts", "location"}:
         raise ValueError(
-            "Rules accept objective, prefer, require, avoid, explore and facts"
+            "Rules accept objective, prefer, require, avoid, explore, facts and location"
         )
     objective = rules.get("objective", "")
     if not isinstance(objective, str) or len(objective) > 2000:
@@ -183,6 +184,9 @@ def normalize_rules(rules):
         raise ValueError("facts must map up to 50 self-reported facts to true or false")
     if facts:
         result["facts"] = facts
+    location = normalize_location(rules.get("location"))
+    if location:
+        result["location"] = location
     return result
 
 
@@ -315,6 +319,18 @@ def assess(observations, rules):
                 blocked = True
             details.append(detail)
     assessment = eligibility(observations, rules.get("facts", {}))
+    location = rules.get("location")
+    location_result = assess_location(observations, location) if location else None
+    if location_result:
+        location_state = location_result["state"]
+        if location_state == "match":
+            score += 12
+        location_only = not any(rules.get(key) for key in ("prefer", "require", "explore"))
+        location_allowed = location_state == "match" or (
+            location_state == "unknown" and location["include_unknown"]
+        )
+        positive = positive or (location_only and location_allowed)
+        blocked = blocked or (location["policy"] == "require" and not location_allowed)
     return {
         "score": score,
         "recommended": positive
@@ -322,4 +338,5 @@ def assess(observations, rules):
         and assessment["state"] != "does not meet recorded condition",
         "rules": details,
         "eligibility": assessment,
+        **({"location": location_result} if location_result else {}),
     }

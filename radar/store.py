@@ -14,11 +14,12 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from .brief import evidence_brief
+from .locations import index_listing_places, location_predicate, normalize_location, observed_places, workplace_mode
 from .matching import assess, nearby_roots, normalize_rules, tokens, variants
 
 STATES = ("new", "reviewed", "skip", "apply", "applied")
 RECEIPT_STATES = {"complete", "partial", "failed", "timed_out", "cancelled", "imported"}
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 APPLICATION_ID = 0x52414452
 DEFAULT_WORKSPACE = Path.home() / ".opportunity-radar" / "workspace.sqlite3"
 SCHEMA_V1 = """
@@ -72,12 +73,61 @@ CREATE TABLE dashboard_preferences (
     id INTEGER PRIMARY KEY CHECK (id=1), goal TEXT
 );
 """
-SCHEMA = SCHEMA_V1 + PREFERENCES_SCHEMA
+SCHEMA_V2 = SCHEMA_V1 + PREFERENCES_SCHEMA
+LOCATION_SCHEMA = """
+CREATE TABLE listing_places (
+    listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    mode TEXT NOT NULL, place TEXT NOT NULL,
+    PRIMARY KEY(listing_id, mode, place)
+) WITHOUT ROWID;
+"""
+REVISION_INDEX = """
+CREATE INDEX observation_history_listing_order ON observation_history(listing_id,id DESC);
+"""
+DISCOVERY_SCHEMA = """
+CREATE TABLE saved_searches (
+    name TEXT PRIMARY KEY COLLATE NOCASE,
+    criteria TEXT NOT NULL,
+    reviewed_through INTEGER NOT NULL DEFAULT 0 CHECK (reviewed_through >= 0)
+);
+"""
 
 
-def upgrade_schema(db):
-    """Upgrade a v1 workspace within the caller's transaction."""
-    db.execute(PREFERENCES_SCHEMA)
+def schema(version):
+    if version == 1:
+        return SCHEMA_V1
+    if version == 2:
+        return SCHEMA_V2
+    from .planning import APPLICATION_PLANS_SCHEMA
+
+    return SCHEMA_V2 + LOCATION_SCHEMA + REVISION_INDEX + DISCOVERY_SCHEMA + APPLICATION_PLANS_SCHEMA
+
+
+SCHEMA = schema(SCHEMA_VERSION)
+
+
+def upgrade_schema(db, version):
+    """Upgrade derived indexes and metadata inside the caller's transaction."""
+    from .planning import APPLICATION_PLANS_SCHEMA
+
+    if version == 1:
+        db.execute(PREFERENCES_SCHEMA)
+    for statement in (LOCATION_SCHEMA, REVISION_INDEX, DISCOVERY_SCHEMA, APPLICATION_PLANS_SCHEMA):
+        db.execute(statement)
+    rows = db.execute(
+        "SELECT listing_id,json_extract(data,'$.location'),"
+        "json_extract(data,'$.evidence.workplace_type') FROM observations"
+    )
+    db.executemany(
+        "INSERT OR IGNORE INTO listing_places VALUES (?,?,?)",
+        (
+            (id, mode, place)
+            for id, location, arrangement in rows
+            for mode, place in observed_places(
+                location if isinstance(location, str) else "", workplace_mode(arrangement)
+            )
+        ),
+    )
     db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
@@ -249,7 +299,7 @@ class Store:
             conn.execute("PRAGMA trusted_schema = OFF")
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             app = conn.execute("PRAGMA application_id").fetchone()[0]
-            if version == app == 0 or (app == APPLICATION_ID and version == 1):
+            if version == app == 0 or (app == APPLICATION_ID and version in (1, 2)):
                 with conn:
                     conn.execute("BEGIN IMMEDIATE")
                     version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -271,8 +321,8 @@ class Store:
                         conn.execute(f"PRAGMA application_id = {APPLICATION_ID}")
                         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
                         version, app = SCHEMA_VERSION, APPLICATION_ID
-                    elif app == APPLICATION_ID and version == 1:
-                        upgrade_schema(conn)
+                    elif app == APPLICATION_ID and version in (1, 2):
+                        upgrade_schema(conn, version)
                         version = SCHEMA_VERSION
             if app != APPLICATION_ID or version != SCHEMA_VERSION:
                 raise ValueError("Unsupported workspace schema")
@@ -557,6 +607,12 @@ class Store:
             "INSERT INTO inventory(rowid,listing_id,title,organization,location,kinds,body) SELECT rowid,id,?,?,?,?,? FROM listings WHERE id=?",
             (*values, listing_id),
         )
+        index_listing_places(
+            db, listing_id, (
+                (row["location"], workplace_mode(row["evidence"].get("workplace_type")))
+                for row in rows
+            )
+        )
 
     def goals(self, conn=None):
         if conn is None:
@@ -755,7 +811,7 @@ class Store:
                 details.append(self._summary(db, row, rules, detail=True))
             return details
 
-    def search(self, query="", goal=None, scope="all", kind=None, limit=50, offset=0):
+    def search(self, query="", goal=None, scope="all", kind=None, limit=50, offset=0, location=None):
         if (
             scope not in {"all", "recommended", "tracked"}
             or not 1 <= limit <= 200
@@ -766,6 +822,7 @@ class Store:
             )
         if len(query) > 2000:
             raise ValueError("Query exceeds 2,000 characters")
+        location = normalize_location(location, default_policy="require")
         with closing(self.connect()) as db, db:
             db.execute("BEGIN")
             rules = self._goal(db, goal)
@@ -774,11 +831,12 @@ class Store:
                 return []
             if scope == "recommended":
                 goal_terms = _goal_expression(rules or {})
-                if not goal_terms:
+                if goal_terms:
+                    expression = (
+                        f"({expression}) AND ({goal_terms})" if expression else goal_terms
+                    )
+                elif not (rules or {}).get("location"):
                     return []
-                expression = (
-                    f"({expression}) AND ({goal_terms})" if expression else goal_terms
-                )
             values = []
             join = ""
             sort = "l.rowid DESC"
@@ -798,6 +856,12 @@ class Store:
                     WHERE o.listing_id=l.id AND k.value=?
                 )""")
                 values.append(kind)
+            goal_location = (rules or {}).get("location", {}) if scope == "recommended" else {}
+            for criteria in (location, goal_location if goal_location.get("policy") == "require" else {}):
+                if criteria:
+                    predicate, params = location_predicate(criteria)
+                    predicates.append(predicate)
+                    values.extend(params)
             where = " AND ".join(predicates) or "1"
             sql = f"""
                 SELECT l.*,d.status,d.saved,d.note,d.status_updated_at,d.applied_at

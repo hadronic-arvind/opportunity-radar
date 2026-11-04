@@ -16,6 +16,20 @@ from . import __version__
 from .store import DEFAULT_WORKSPACE, STATES, Store
 
 
+def _location_arguments(parser):
+    parser.add_argument("--place", action="append", default=[], help="Country, region or city (repeat to match any)")
+    parser.add_argument("--work-mode", action="append", default=[], choices=("remote", "hybrid", "onsite"))
+    parser.add_argument("--include-unknown-location", action="store_true")
+
+
+def _location_filter(args):
+    if args.place or args.work_mode:
+        return {"places": args.place, "modes": args.work_mode, "include_unknown": args.include_unknown_location}
+    if args.include_unknown_location:
+        raise ValueError("Choose a place or work arrangement before including unknown locations")
+    return None
+
+
 def _parser():
     parser = argparse.ArgumentParser(
         prog="python3 -m radar", description="Local opportunity decision workspace"
@@ -77,6 +91,7 @@ def _parser():
         search.add_argument("--kind")
         search.add_argument("--limit", type=int, default=50)
         search.add_argument("--offset", type=int, default=0)
+        _location_arguments(search)
     from .feed import PAGE_SIZE, VIEWS
 
     dashboard = sub.add_parser(
@@ -88,6 +103,31 @@ def _parser():
     dashboard.add_argument("--kind")
     dashboard.add_argument("--limit", type=int, default=PAGE_SIZE)
     dashboard.add_argument("--offset", type=int, default=0)
+    dashboard.add_argument("--saved-search", help="Run a named Explore search")
+    dashboard.add_argument("--new-only", action="store_true", help="Show arrivals since this search was saved or reviewed")
+    _location_arguments(dashboard)
+    places = sub.add_parser("locations", help="Find canonical countries, regions and cities")
+    places.add_argument("query")
+    places.add_argument("--limit", type=int, default=12)
+    sub.add_parser("saved-searches", help="List saved Explore searches")
+    saved = sub.add_parser("save-search", help="Save an Explore search")
+    saved.add_argument("name")
+    saved.add_argument("query", nargs="?", default="")
+    saved.add_argument("--kind")
+    _location_arguments(saved)
+    remove = sub.add_parser("remove-search", help="Remove a saved Explore search")
+    remove.add_argument("name")
+    review = sub.add_parser("review-search", help="Mark a saved search batch reviewed")
+    review.add_argument("name")
+    review.add_argument("cursor", type=int, help="Review cursor returned by the feed")
+    review.add_argument("expected_cursor", type=int, help="Previous reviewed_through for the saved search")
+    capture = sub.add_parser("capture", help="Add a manually entered opportunity to Saved")
+    capture.add_argument("title")
+    capture.add_argument("--url", default="")
+    capture.add_argument("--organization", default="")
+    capture.add_argument("--location", default="")
+    capture.add_argument("--deadline", default="", help="Deadline in YYYY-MM-DD")
+    capture.add_argument("--kind", default="opportunity")
     preferences = sub.add_parser(
         "feed-preferences", help="Choose the default dashboard feed"
     )
@@ -106,6 +146,20 @@ def _parser():
     inspect = sub.add_parser("inspect", help="Read listing evidence and history")
     inspect.add_argument("id")
     inspect.add_argument("--goal")
+    for command, description in (
+        ("listing-revisions", "Read changes between captures of a listing"),
+        ("related", "Find related listings from the local collection"),
+        ("cost-evidence", "Read pay, costs and funding evidence for a listing"),
+    ):
+        sub.add_parser(command, help=description).add_argument("id")
+    agenda = sub.add_parser("application-agenda", help="Review deadlines and follow-ups for saved and tracked opportunities")
+    agenda.add_argument("--limit", type=int, default=30)
+    agenda.add_argument("--offset", type=int, default=0)
+    calendar = sub.add_parser("application-calendar", help="Export dated application tasks to iCalendar")
+    calendar.add_argument("file", nargs="?", help="New .ics file; omit to get the calendar text")
+    plan = sub.add_parser("application-plan", help="Read or update a listing’s private next action and checklist")
+    plan.add_argument("id")
+    plan.add_argument("--file", help="JSON object with next_action, follow_up, and checklist")
     comparison = sub.add_parser(
         "compare",
         help="Inspect two to six listings side by side in the desktop, or together here",
@@ -310,7 +364,8 @@ def main(argv=None):
             result, code = _collect(store, args)
         elif command in {"search", "export"}:
             result = store.search(
-                args.query, args.goal, args.scope, args.kind, args.limit, args.offset
+                args.query, args.goal, args.scope, args.kind, args.limit, args.offset,
+                location=_location_filter(args),
             )
             if command == "export":
                 fields = (
@@ -332,14 +387,29 @@ def main(argv=None):
             from . import feed
 
             if command == "feed":
+                location = _location_filter(args)
+                query, view, kind, cursor = args.query, args.view, args.kind, None
+                if args.saved_search:
+                    from .discovery import get_search
+
+                    if query or kind or location or args.goal or view not in {"for-you", "explore"}:
+                        raise ValueError("Run a saved search on its own or use ad hoc filters")
+                    saved = get_search(store, args.saved_search)
+                    criteria = saved["criteria"]
+                    query, view, kind, location = criteria["query"], "explore", criteria["kind"], criteria.get("location")
+                    cursor = saved["reviewed_through"] if args.new_only else None
+                elif args.new_only:
+                    raise ValueError("Choose a saved search before showing new matches")
                 result = feed.get_feed(
                     store,
-                    args.view,
-                    args.query,
+                    view,
+                    query,
                     args.goal,
-                    args.kind,
+                    kind,
                     args.offset,
                     args.limit,
+                    location=location,
+                    after_rowid=cursor,
                 )
             elif command == "feed-preferences":
                 result = feed.set_preferences(store, args.goal)
@@ -347,6 +417,51 @@ def main(argv=None):
                 result = feed.hide(store, args.id)
             else:
                 result = feed.undo_hide(store, args.id, args.status, args.token)
+        elif command in {"locations", "saved-searches", "save-search", "remove-search", "review-search", "capture"}:
+            from . import discovery
+            from .locations import suggest_places
+
+            if command == "locations":
+                result = suggest_places(args.query, args.limit)
+            elif command == "saved-searches":
+                result = discovery.list_searches(store)
+            elif command == "save-search":
+                result = discovery.save_search(store, args.name, args.query, args.kind, _location_filter(args))
+            elif command == "remove-search":
+                result = discovery.remove_search(store, args.name)
+            elif command == "review-search":
+                result = discovery.review_search(store, args.name, args.cursor, args.expected_cursor)
+            else:
+                result = discovery.capture(store, args.title, url=args.url, organization=args.organization,
+                    location=args.location, deadline_at=args.deadline, kind=args.kind)
+        elif command in {"listing-revisions", "related", "cost-evidence"}:
+            from . import intelligence
+
+            if command == "listing-revisions":
+                result = intelligence.listing_revisions(store, args.id)
+            elif command == "related":
+                result = intelligence.related_opportunities(store, args.id)
+            else:
+                result = intelligence.cost_evidence(store.inspect(args.id)["observations"])
+        elif command in {"application-agenda", "application-plan", "application-calendar"}:
+            from . import planning
+
+            if command == "application-agenda":
+                result = planning.agenda(store, args.limit, args.offset)
+            elif command == "application-calendar":
+                result = planning.calendar_export(store, args.file)
+                if args.file is None and not args.json:
+                    sys.stdout.buffer.write(result["text"].encode("utf-8"))
+                    return 0
+            elif args.file is None:
+                result = planning.get_plan(store, args.id)
+            else:
+                from .app import read_json
+
+                fields = read_json(args.file, 64000)
+                if not isinstance(fields, dict) or fields.keys() - {"next_action", "follow_up", "checklist", "expected_revision"}:
+                    raise ValueError("Application plans accept next_action, follow_up, checklist and expected_revision")
+                result = planning.save_plan(store, args.id, **fields)
         elif command == "inspect":
             result = store.inspect(args.id, args.goal)
         elif command == "goals":

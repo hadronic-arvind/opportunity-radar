@@ -168,3 +168,58 @@ The old command `python3 -m monitor` and its runtime remain available for legacy
 See the [design, audit, and acceptance record](docs/REBUILD.md) for tested environments, release gates, measured results and coverage gaps.
 Run `./scripts/check.sh` for the offline suite and `python3 -m scripts.benchmark_radar` for the disposable workload benchmark.
 Run `python3 -m radar.collection --smoke` only when you want to make bounded requests to public catalog sources.
+
+## Search by place and plan applications
+
+Use **Location** in For You or Explore for a temporary filter.
+Choose a country, region, or qualified city from the offline picker.
+A country or region matches recognized locations inside it.
+Choose work arrangements separately.
+A remote listing with a stated geographic scope can match places inside that scope.
+A listing labeled only Remote has an unknown geographic scope.
+The picker can include unknown records when you want to review them manually.
+These are listing evidence rules, and employers may have separate authorization or residency requirements.
+
+Use **Tune feed → Edit an existing goal → Location preferences** to prioritize or require locations for a profile.
+The app keeps the publisher's original text for verification.
+The catalog is finite, so ambiguous or unrecognized place names remain unresolved.
+Existing profiles gain location preferences only when edited or imported with them.
+
+A profile pack can add this optional object under `rules`:
+
+```json
+{
+  "location": {
+    "places": ["country:CA", "city:US:MD:baltimore"],
+    "modes": ["hybrid", "onsite"],
+    "policy": "prefer",
+    "include_unknown": false
+  }
+}
+```
+
+Use up to 12 places.
+Unambiguous qualified names are also accepted.
+A listing can match any selected place and any selected work arrangement on the same publisher observation.
+
+```sh
+python3 -m radar locations "Portland"
+python3 -m radar feed --view explore --place "Maryland, United States"
+python3 -m radar search --work-mode remote --place Canada
+```
+
+Use **Explore → Saved searches** to save the current keywords, opportunity type, and location filter.
+**Check what’s new** shows matches collected since that search was saved or marked reviewed.
+**Mark batch reviewed** advances only through the displayed batch's collection snapshot.
+Use **Capture opportunity** to add a listing and its source link to Saved from outside your configured feeds.
+
+Use **Applications → Deadline agenda** for due dates and follow-ups from Saved and Applications.
+Use **Plan the application** in a listing to write a next action, set its follow-up date, and check off application materials.
+Export an `.ics` snapshot to add dated tasks to your calendar.
+Publisher deadlines with conflicting evidence stay visible for review.
+The calendar export excludes private plan text.
+
+A listing also includes **What changed**, **Related opportunities**, and **Pay, costs and support**.
+Changes compare successive captures of one source record.
+Related items show shared terms in your local collection.
+Pay, cost and support evidence preserves the source wording and flags conditional language.

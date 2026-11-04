@@ -8,8 +8,9 @@ import sqlite3
 import sys
 from threading import Event, Thread
 
-from . import app, feed
+from . import app, discovery, feed, intelligence, planning
 from .collection import load_catalog
+from .locations import place_labels, suggest_places
 from .profiles import import_profiles, preview_profiles
 from .recovery import backup, migrate, restore
 from .store import DEFAULT_WORKSPACE, Store
@@ -82,6 +83,7 @@ def _import(store, path=None, rows=None, source_id="manual"):
 def _inspect(store, id, goal=None):
     detail = store.inspect(id, goal or None)
     detail["history"] = detail["history"][:10]
+    detail["cost_evidence"] = intelligence.cost_evidence(detail["observations"])
     return detail
 
 
@@ -103,7 +105,20 @@ def _dispatch(store, request):
         "ping": _ping,
         "feed": lambda **args: feed.get_feed(store, **args),
         "home": lambda **args: feed.get_feed(store, **args),
+        "locations": suggest_places,
+        "location_labels": lambda ids: {item["id"]: item["label"] for item in place_labels(ids)},
+        "list_saved_searches": lambda: discovery.list_searches(store),
+        "save_saved_search": lambda **args: discovery.save_search(store, **args),
+        "remove_saved_search": lambda **args: discovery.remove_search(store, **args),
+        "review_saved_search": lambda **args: discovery.review_search(store, **args),
+        "capture_opportunity": lambda **args: discovery.capture(store, **args),
         "inspect": lambda **args: _inspect(store, **args),
+        "listing_revisions": lambda **args: intelligence.listing_revisions(store, **args),
+        "related_opportunities": lambda **args: intelligence.related_opportunities(store, **args),
+        "application_agenda": lambda **args: planning.agenda(store, **args),
+        "application_plan": lambda **args: planning.get_plan(store, **args),
+        "save_application_plan": lambda **args: planning.save_plan(store, **args),
+        "application_calendar": lambda **args: planning.calendar_export(store, **args),
         "track": lambda **args: feed.track(store, **args),
         "hide": lambda **args: feed.hide(store, **args),
         "undo_hide": lambda **args: feed.undo_hide(store, **args),

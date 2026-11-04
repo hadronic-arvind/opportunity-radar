@@ -967,3 +967,31 @@ dialog::backdrop {
     margin-top: 12px;
   }
 }
+
+.search-banner {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+.search-banner p,
+.location-picker p {
+  margin: 0;
+}
+.location-picker {
+  margin-block: 0.75rem;
+}
+.location-picker .caption:empty,
+.location-picker .actions:empty {
+  display: none;
+}
+.location-picker .secondary,
+.location-picker .chip {
+  white-space: normal;
+}
+.location-modes {
+  min-width: 0;
+  margin: 0;
+  padding: 0.6rem 0.85rem 0.85rem;
+  border: 1px solid currentColor;
+  border-radius: 0.6rem;
+}

@@ -23,6 +23,8 @@ from monitor import fetchers
 from monitor.public_feeds import GRANTS_API_URL, fetch_public_page
 from monitor.text import canonical_url, normalize_opportunity_type, stable_hash
 
+from .locations import workplace_mode
+
 BOARD_ADAPTERS = {"greenhouse", "lever", "ashby"}
 SUPPORTED_KINDS = BOARD_ADAPTERS | {
     "arbeitnow",
@@ -218,6 +220,9 @@ def _observations(source, items, request_url):
         for key in ("dates", "listing"):
             if item.metadata.get(key):
                 evidence[key] = item.metadata[key]
+        arrangement = workplace_mode(item.metadata.get("workplace_type"))
+        if arrangement:
+            evidence["workplace_type"] = arrangement
         kinds = [item.opportunity_type]
         if (
             source["id"] == "nrc_canada_postdoctoral"

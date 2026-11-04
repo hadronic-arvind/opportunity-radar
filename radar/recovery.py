@@ -14,7 +14,7 @@ from .collection import _public_url, load_catalog, validate_source
 from .locking import exclusive_work
 from .matching import tokens
 from .profiles import clear_pristine_starters
-from .store import APPLICATION_ID, SCHEMA, SCHEMA_V1, SCHEMA_VERSION, safe_url, upgrade_schema
+from .store import APPLICATION_ID, SCHEMA_VERSION, safe_url, schema, upgrade_schema
 
 LEGACY_VERSIONS = range(3, 8)
 MAX_DATABASE_BYTES = 4 * 1024**3
@@ -115,10 +115,10 @@ def _version(connection):
     )
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=3)
 def _expected_schema(version):
     with closing(sqlite3.connect(":memory:")) as connection:
-        connection.executescript(SCHEMA_V1 if version == 1 else SCHEMA)
+        connection.executescript(schema(version))
         return _schema(connection)
 
 
@@ -126,7 +126,7 @@ def _check_snapshot(source):
     app, version = _version(source)
     if (
         app != APPLICATION_ID
-        or version not in {1, SCHEMA_VERSION}
+        or version not in {1, 2, SCHEMA_VERSION}
         or _schema(source) != _expected_schema(version)
     ):
         raise ValueError("Snapshot schema does not match this Opportunity Radar version")
@@ -171,10 +171,11 @@ def restore(store, snapshot):
             _copy_database(source, staged)
             staged.execute("PRAGMA trusted_schema = OFF")
             _check_snapshot(staged)
-            if _version(staged)[1] == 1:
+            version = _version(staged)[1]
+            if version < SCHEMA_VERSION:
                 with staged:
                     staged.execute("BEGIN IMMEDIATE")
-                    upgrade_schema(staged)
+                    upgrade_schema(staged, version)
             with closing(store.connect()) as destination:
                 _copy_database(staged, destination)
     return {"restored": True}

@@ -8,6 +8,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from html import unescape
 
+from .locations import assess_location, location_predicate, normalize_location
 from .store import STATES, _expression, _goal_expression
 
 VIEWS = ("for-you", "explore", "saved", "applications", "hidden")
@@ -96,7 +97,10 @@ def _goal_for_feed(store, db, goals, selected):
     if migrated and isinstance(migrated[0], str) and migrated[0].casefold() in names:
         return names[migrated[0].casefold()]
     return next(
-        (goal["name"] for goal in goals if _goal_expression(goal["rules"])), None
+        (
+            goal["name"] for goal in goals
+            if _goal_expression(goal["rules"]) or goal["rules"].get("location")
+        ), None
     )
 
 
@@ -130,6 +134,12 @@ def _card(summary, observations, view, goal):
             quote = (
                 signal.get("quote") if signal.get("field") == "description" else None
             )
+    location = (card.get("match") or {}).get("location")
+    if location:
+        card["location_match"] = location
+        if "reason" not in card and location["state"] == "match":
+            card["reason"] = "Matches your location preferences"
+            card["reason_kind"] = "match"
     if "reason" not in card:
         card["reason"] = (
             "Recently found in your collection" if view == "for-you" else ""
@@ -143,7 +153,7 @@ def _card(summary, observations, view, goal):
     return card
 
 
-def _rows(db, view, kind, expression, limit, offset):
+def _rows(db, view, kind, expression, limit, offset, filters=(), after_rowid=None):
     join = ""
     params = []
     where = []
@@ -169,6 +179,13 @@ def _rows(db, view, kind, expression, limit, offset):
             WHERE o.listing_id=l.id AND k.value=?
         )""")
         params.append(kind)
+    for criteria in filters:
+        predicate, values = location_predicate(criteria)
+        where.append(predicate)
+        params.extend(values)
+    if after_rowid is not None:
+        where.append("l.rowid > ?")
+        params.append(after_rowid)
     return db.execute(
         f"""
         SELECT l.id,l.first_seen,d.status,d.saved,d.note,d.status_updated_at,d.applied_at
@@ -179,7 +196,7 @@ def _rows(db, view, kind, expression, limit, offset):
     ).fetchall()
 
 
-def _cards(store, db, rows, rules, view, goal, kind=None):
+def _cards(store, db, rows, rules, view, goal, kind=None, location=None):
     if not rows:
         return []
     groups = store._observation_page(db, [row["id"] for row in rows])
@@ -195,6 +212,8 @@ def _cards(store, db, rows, rules, view, goal, kind=None):
         ):
             continue
         card = _card(item, observations, view, goal)
+        if location:
+            card["location_match"] = assess_location(observations, location)
         score = item["match"]["score"] if item["match"] else 0
         result.append((score, card))
     return result
@@ -221,16 +240,19 @@ def _diverse_rank(cards):
     return first + rest
 
 
-def _recent_cards(store, db, view, kind, expression, offset, limit):
+def _recent_cards(
+    store, db, view, kind, expression, offset, limit, filters=(), location=None,
+    after_rowid=None,
+):
     # Offsets count raw rows. Stop just before the first unreturned eligible row.
     items = []
     remaining = 1200
     while remaining and offset <= MAX_OFFSET:
         batch_size = min(remaining, 96 if view == "for-you" else limit + 1)
-        rows = _rows(db, view, kind, expression, batch_size, offset)
+        rows = _rows(db, view, kind, expression, batch_size, offset, filters, after_rowid)
         candidates = {
             card["id"]: card
-            for _, card in _cards(store, db, rows, None, view, None)
+            for _, card in _cards(store, db, rows, None, view, None, location=location)
             if view != "for-you" or card["status"] not in EXCLUDED_STATUSES
         }
         for index, row in enumerate(rows):
@@ -246,7 +268,8 @@ def _recent_cards(store, db, view, kind, expression, offset, limit):
 
 
 def get_feed(
-    store, view="for-you", query="", goal=None, kind=None, offset=0, limit=PAGE_SIZE
+    store, view="for-you", query="", goal=None, kind=None, offset=0, limit=PAGE_SIZE,
+    location=None, after_rowid=None,
 ):
     if view not in VIEWS:
         raise ValueError("Unknown dashboard view")
@@ -260,6 +283,11 @@ def get_feed(
         raise ValueError("Page size must be between 1 and 40")
     if type(offset) is not int or not 0 <= offset <= MAX_OFFSET:
         raise ValueError("Invalid page offset")
+    if after_rowid is not None and (
+        view != "explore" or type(after_rowid) is not int or not 0 <= after_rowid < 2**63
+    ):
+        raise ValueError("Use a valid Explore review cursor")
+    location = normalize_location(location, default_policy="require")
     query = query.strip()
     kind = kind or None
     with closing(store.connect()) as db, db:
@@ -270,22 +298,39 @@ def get_feed(
             (entry["rules"] for entry in goals if entry["name"] == active), None
         )
         terms = _goal_expression(rules or {}) if view == "for-you" else ""
+        goal_location = (rules or {}).get("location", {}) if view == "for-you" else {}
+        filters = tuple(criteria for criteria in (
+            location, goal_location if goal_location.get("policy") == "require" else None
+        ) if criteria)
         expression = _expression(query)
-        mode = ("personalized" if terms else "recent") if view == "for-you" else view
+        personalized = bool(terms or goal_location)
+        mode = ("personalized" if personalized else "recent") if view == "for-you" else view
         items, next_offset = [], None
         if not query or expression:
-            if terms:
+            if personalized:
                 match_expression = (
-                    f"({expression}) AND ({terms})" if expression else terms
+                    f"({expression}) AND ({terms})" if expression and terms else expression or terms
                 )
-                kind_expression = _expression(kind) if kind else ""
-                if kind_expression:
-                    match_expression = (
-                        f"({match_expression}) AND kinds : ({kind_expression})"
+                candidate_kind = kind
+                if match_expression and (kind_expression := _expression(kind or "")):
+                    match_expression = f"({match_expression}) AND kinds : ({kind_expression})"
+                    candidate_kind = None
+                candidate_filters = filters
+                if goal_location and not terms and goal_location not in candidate_filters:
+                    candidate_filters = (*filters, goal_location)
+                rows = _rows(
+                    db, view, candidate_kind, match_expression, PERSONALIZED_LIMIT, 0, candidate_filters
+                )
+                if goal_location and goal_location not in candidate_filters:
+                    # Reserve some retrieval capacity for preferred places so
+                    # lexical ties cannot exhaust the window before scoring.
+                    regional = _rows(
+                        db, view, candidate_kind, match_expression, PERSONALIZED_LIMIT // 2, 0,
+                        (*candidate_filters, goal_location),
                     )
-                rows = _rows(db, view, None, match_expression, PERSONALIZED_LIMIT, 0)
+                    rows = list({row["id"]: row for row in (*regional, *rows)}.values())
                 ranked = _diverse_rank(
-                    _cards(store, db, rows, rules, view, active, kind)
+                    _cards(store, db, rows, rules, view, active, kind, location)
                 )
                 # Retain hidden and application rows in raw rank positions so
                 # tracking actions cannot move another listing across a cursor.
@@ -305,13 +350,18 @@ def get_feed(
                     mode = "recent"
             if mode != "personalized":
                 items, next_offset = _recent_cards(
-                    store, db, view, kind, expression, offset, limit
+                    store, db, view, kind, expression, offset, limit, filters,
+                    location or (goal_location if filters else None), after_rowid,
                 )
         count = db.execute("""SELECT
             count(*) FILTER (WHERE saved=1 AND status <> 'skip'),
             count(*) FILTER (WHERE status='skip'),
             count(*) FILTER (WHERE status IN ('apply','applied')) FROM decisions
             """).fetchone()
+        review_cursor = (
+            db.execute("SELECT coalesce(max(rowid),0) FROM listings").fetchone()[0]
+            if view == "explore" else None
+        )
         summary = {
             "total": db.execute("SELECT count(*) FROM listings").fetchone()[0],
             "saved": count[0],
@@ -331,6 +381,8 @@ def get_feed(
         "summary": summary,
         "kind": kind,
         "query": query,
+        "location": location,
+        **({"review_cursor": review_cursor} if review_cursor is not None else {}),
     }
 
 

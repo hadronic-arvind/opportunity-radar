@@ -20,7 +20,8 @@
   let feedRequest;
   const compareIds = new Set();
   const viewFilters = new Map();
-  const state = {view:"for-you", kind:"", query:"", draft:"", data:null, items:[], loading:false, error:""};
+  const state = {view:"for-you", kind:"", query:"", draft:"", location:null, search:null,
+    newOnly:false, data:null, items:[], loading:false, error:""};
   const tabs = [
     ["for-you", "For You", "spark"], ["explore", "Explore", "compass"],
     ["saved", "Saved", "bookmark"], ["applications", "Applications", "case"],
@@ -149,12 +150,16 @@
 
   function navigate(view, focusSearch = false) {
     if (state.view !== view) {
-      viewFilters.set(state.view,{kind:state.kind,query:state.query,draft:state.draft});
+      viewFilters.set(state.view,{kind:state.kind,query:state.query,draft:state.draft,
+        location:state.location,search:state.search,newOnly:state.newOnly});
       state.view = view;
       const filters = viewFilters.get(view);
       state.kind = filters?.kind || "";
       state.query = filters?.query || "";
       state.draft = filters?.draft || "";
+      state.location = filters?.location || null;
+      state.search = filters?.search || null;
+      state.newOnly = filters?.newOnly || false;
       state.data = null;
       state.items = [];
       state.error = "";
@@ -181,6 +186,9 @@
 
   function argumentsFor(offset) {
     const args = {view:state.view, kind:state.kind, query:state.query, offset, limit:12};
+    if (state.location) args.location = state.location;
+    if (state.view === "explore" && state.search && state.newOnly)
+      args.after_rowid = state.search.reviewed_through;
     return args;
   }
 
@@ -197,7 +205,7 @@
       const data = await call("feed",argumentsFor(append ? before?.next_offset || 0 : 0),
         {signal:feedRequest.signal});
       if (version !== loadVersion) return;
-      state.data = data;
+      state.data = append && before ? {...data,review_cursor:before.review_cursor} : data;
       const prior = new Set(state.items.map(({id}) => id));
       state.items = append ? [...state.items,...data.items.filter(({id}) => !prior.has(id))] : data.items;
     } catch (error) {
@@ -245,18 +253,30 @@
       })[state.view], state.view === "saved" ? [
         button("Compare" + (compareIds.size ? " (" + compareIds.size + ")" : ""), "primary",
           compare, "sliders", {disabled:compareIds.size < 2, id:"compare-selected"}),
-        button("View hidden","secondary",() => navigate("hidden"))
-      ] : state.view === "hidden" ? button("Back to saved","secondary",() => navigate("saved")) : null);
+        button("View hidden","secondary",() => navigate("hidden")),
+        button("Capture opportunity","secondary",openCapture)
+      ] : state.view === "hidden" ? button("Back to saved","secondary",() => navigate("saved"))
+        : explore ? [
+          button("Saved searches","primary",openSavedSearches),
+          button("Capture opportunity","secondary",openCapture)
+        ] : state.view === "applications" ? button("Deadline agenda","primary",openAgenda) : null);
     const filters = (onFeed || explore) ? el("div",{class:"toolbar"},
       el("div",{class:"chips","aria-label":"Opportunity type"},types.map(([kind,text]) =>
-        button(text,"chip",() => { state.kind=kind; load(); },null,{"aria-pressed":String(state.kind === kind),"data-focus":"kind-"+kind})))) : null;
+        button(text,"chip",() => {
+          if (state.kind !== kind) detachSavedSearch();
+          state.kind=kind; load();
+        },null,{"aria-pressed":String(state.kind === kind),"data-focus":"kind-"+kind}))),
+      button(state.location ? "Location filters active" : "Location", "secondary",openLocation,"pin",
+        {"data-focus":"location-filter"})) : null;
     let searchForm = null;
     if (explore) {
       const input = el("input",{id:"query",class:"search-input",type:"search",placeholder:"Role, skill, employer, or location",
         "aria-label":"Search opportunities", value:inputValue,
         onInput:(event) => { state.draft = event.currentTarget.value; }});
       searchForm = el("div",{class:"results-search"},el("form",{onSubmit:(event) => {
-        event.preventDefault(); state.draft=input.value; state.query=input.value.trim(); load();
+        event.preventDefault();
+        if (state.query !== input.value.trim()) detachSavedSearch();
+        state.draft=input.value; state.query=input.value.trim(); load();
       }}, input, el("button",{type:"submit",class:"primary"},"Search")));
     }
     const results = [];
@@ -280,9 +300,13 @@
             try { await call("sample"); await load(); } catch (error) { notice(error.message); }
           }));
       } else if (onFeed || explore) {
-        title = data?.has_more ? "No opportunities on this page" : "No opportunities in this view";
-        detail = data?.has_more ? "Check the next page or clear your filters." : "Try a different category or a broader search.";
-        next = button("Clear filters","secondary",() => {state.query=""; state.draft=""; state.kind=""; load();});
+        title = state.newOnly ? "No new matches" : data?.has_more ? "No opportunities on this page" : "No opportunities in this view";
+        detail = state.newOnly ? "Run this saved search after you collect more listings."
+          : data?.has_more ? "Check the next page or clear your filters." : "Try a different category or a broader search.";
+        next = state.newOnly ? button("Show all matches","secondary",() => {state.newOnly=false; load();})
+          : button("Clear filters","secondary",() => {
+            detachSavedSearch(); state.query=""; state.draft=""; state.kind=""; state.location=null; load();
+          });
       } else if (state.view === "saved") {
         detail = "Save an opportunity from For You or Explore to see it here.";
         next = button("Go to For You","primary",() => navigate("for-you"));
@@ -299,7 +323,8 @@
     feed.setAttribute("aria-busy",String(state.loading));
     const compactGoal = onFeed && data?.goal
       ? el("p",{class:"caption compact-goal"},"Feed goal · " + data.goal) : null;
-    feed.replaceChildren(...[heading,compactGoal,searchForm,filters,
+    const savedSearch = explore && state.search ? renderSearchBanner(data) : null;
+    feed.replaceChildren(...[heading,compactGoal,searchForm,filters,savedSearch,
       el("section",{"aria-label":sectionTitle},results)].filter(Boolean));
     if (queryFocused && byId("query")) {
       byId("query").focus({preventScroll:true});
@@ -308,6 +333,88 @@
         node.closest("[data-listing]")?.dataset.listing === listingKey)?.focus({preventScroll:true});
     }
     if (withRail) renderRail(data);
+  }
+
+  function detachSavedSearch() {
+    state.search = null;
+    state.newOnly = false;
+  }
+
+  function renderSearchBanner(data) {
+    return el("section",{class:"panel search-banner","aria-label":"Saved search"},
+      el("strong",{},state.search.name),
+      el("span",{class:"caption"},state.newOnly ? "New since last review" : "All matching opportunities"),
+      el("div",{class:"actions"},
+        button(state.newOnly ? "Show all matches" : "Show new matches","secondary",() => {
+          state.newOnly = !state.newOnly;
+          load();
+        }),
+        state.newOnly ? button("Mark batch reviewed","secondary",async (event) => {
+          const control = event.currentTarget;
+          const current = state.search;
+          control.disabled = true;
+          try {
+            const search = await call("review_saved_search",{
+              name:current.name,cursor:data.review_cursor,expected_cursor:current.reviewed_through
+            });
+            if (state.search === current) { state.search = search; await load(); }
+            notice("Batch reviewed. Later arrivals stay new.");
+          } catch (error) { notice(error.message); control.disabled = false; }
+        },null,{disabled:state.loading || state.error || !Number.isInteger(data?.review_cursor)
+          || data.review_cursor <= state.search.reviewed_through}) : null),
+      state.newOnly ? el("p",{class:"caption"},"Review covers all matches through this batch, including later pages.") : null);
+  }
+
+  function openSavedSearches() {
+    ++drawerVersion;
+    openingId = null;
+    showDrawer("Saved searches",window.renderSavedSearches({
+      el,button,call,notice,criteria:{query:state.query,kind:state.kind,location:state.location},
+      onOpen:(search,newOnly) => {
+        drawer.close();
+        state.search = search;
+        state.newOnly = newOnly;
+        state.query = state.draft = search.criteria.query;
+        state.kind = search.criteria.kind || "";
+        state.location = search.criteria.location || null;
+        load();
+      }
+    }));
+  }
+
+  function openCapture() {
+    ++drawerVersion;
+    openingId = null;
+    showDrawer("Capture opportunity",window.renderOpportunityCapture({el,call,onCaptured:(id) => {
+      details(id);
+      notice("Opportunity saved to your shortlist.");
+      if (state.view === "saved") load({preserve:true});
+    }}));
+  }
+
+  function openAgenda() {
+    ++drawerVersion;
+    openingId = null;
+    showDrawer("Deadline agenda",window.renderApplicationAgenda({el,button,call,notice,details}));
+  }
+
+  function openLocation() {
+    ++drawerVersion;
+    openingId = null;
+    const picker = window.makeLocationPicker({el,button,call,initial:state.location || {}});
+    const apply = (location) => {
+      detachSavedSearch();
+      state.location = location;
+      drawer.close();
+      load();
+    };
+    showDrawer("Location filters",[
+      el("h2",{},"Filter by location"),
+      el("p",{class:"muted"},"Use the publisher’s recorded location and work arrangement."),
+      picker.element,
+      el("div",{class:"actions"},button("Apply filters","primary",() => apply(picker.value())),
+        button("Clear location filters","quiet",() => apply(null)))
+    ]);
   }
 
   function formatKind(value) {
@@ -351,6 +458,8 @@
       reason ? el("div",{class:"why"},el("strong",{},"Why it fits"),reason) : null,
       el("div",{class:"card-footer"},el("div",{class:"inline"},
         (item.kinds || []).slice(0,2).map((kind) => el("span",{class:"tag"},formatKind(kind))),
+        item.location_match?.state === "match" ? el("span",{class:"tag"}, "Location matches")
+          : item.location_match?.state === "unknown" ? el("span",{class:"caption"},"Location or work arrangement unconfirmed") : null,
         /conflict/i.test(item.availability || "") ? el("span",{class:"caption"},"Conflicting dates")
           : deadline ? el("span",{class:"caption"},(hasPast ? "Deadline passed " : "Recorded deadline ")+deadline) : null,
         item.status === "skip" ? el("span",{class:"tag"},"Hidden") : null,
@@ -466,7 +575,6 @@
         },"arrow") : null];
       const matches = (item.match?.rules || []).filter((rule) => rule.quote);
       const evidence = Object.entries(item.brief || {}).filter(([,entries]) => entries.length);
-      const history = item.history || [];
       const sources = (item.observations || []).map((entry) => el("p",{},
         [entry.source_name || entry.source_id,entry.observed_at?.slice(0,10)].filter(Boolean).join(" · "),
         entry.url ? el("br") : null, entry.url ? button("Open source","action",async () => {
@@ -489,6 +597,10 @@
           item.deadline_at ? "Recorded deadline " + item.deadline_at.slice(0,10) : null,
           item.availability, item.match?.eligibility?.state ? "Eligibility: "+item.match.eligibility.state : null
         ].filter(Boolean).join(" · ")),
+        item.match?.location ? el("p",{class:"caption"},
+          ({match:"Location matches the profile",unknown:"Location or work arrangement unconfirmed",
+            mismatch:"Location differs from the profile"})[item.match.location.state],
+          item.match.location.evidence ? " · " + item.match.location.evidence : null) : null,
         matches.length ? disclosure("Why it fits",matches.map((match) =>
           el("p",{},el("strong",{},match.term+" "),match.quote))) : null,
         item.description ? el("p",{class:"listing-description"},item.description) : el("p",{class:"muted"},"No description was collected."),
@@ -497,9 +609,9 @@
             el("p",{},entry.quote,entry.conditional ? el("span",{class:"tag"},"Conditional wording") : null))))) : null,
         disclosure("Sources and requirements",item.requirements ? el("p",{},item.requirements) : null,
           sources.length ? sources : el("p",{},"No additional source evidence.")),
-        history.length ? disclosure("Previous source observations",history.slice(0,10).map((entry) =>
-          el("p",{},[entry.observed_at?.slice(0,10),entry.title,entry.source_name].filter(Boolean).join(" · ")))) : null,
-        disclosure("Track an application",form)
+        window.renderListingIntelligence(item,{el,button,call,details}),
+        disclosure("Track an application",form),
+        window.renderApplicationPlan({el,button,call,notice,item})
       ]);
     } catch (error) {
       if (drawer.open && version === drawerVersion) showDrawer("Opportunity details",empty("Couldn’t load details",error.message));
@@ -540,6 +652,7 @@
     }},el("label",{class:"field"},"Show opportunities for",select),el("div",{},el("button",{type:"submit",class:"primary"},"Apply")));
     const name = el("input",{maxlength:"100",placeholder:"e.g. Research roles",required:""});
     const interests = el("textarea",{rows:"3",required:"",placeholder:"scientific computing, robotics, applied research"});
+    const location = window.makeLocationPicker({el,button,call,profile:true});
     const quick = el("form",{class:"form-row",onSubmit:async (event) => {
       event.preventDefault();
       const prefer = interests.value.split(/[,\n]/).map((part) => part.trim()).filter(Boolean);
@@ -548,10 +661,13 @@
         notice("Choose a new name, or edit that goal in the full workspace."); return;
       }
       try {
-        await call("set_goal",{name:name.value.trim(),rules:{prefer}});
+        const rules = {prefer};
+        if (location.value()) rules.location = location.value();
+        await call("set_goal",{name:name.value.trim(),rules});
         await applyGoal(name.value.trim());
       } catch (error) { notice(error.message); }
     }},el("label",{class:"field"},"Name",name),el("label",{class:"field"},"Interests, separated by commas",interests),
+      disclosure("Location preferences",location.element),
       el("div",{},el("button",{type:"submit",class:"secondary"},"Create and use goal")));
     showDrawer("Tune feed",[
       el("h2",{},"Make it yours"),
@@ -584,6 +700,8 @@
   function editGoalForm(goals, current) {
     const fields = [["prefer","Prioritize"],["require","Require"],["avoid","Avoid"],["explore","Explore"]];
     const inputs = {};
+    const location = el("div",{});
+    let picker;
     const selector = el("select",{},goals.map(({name}) =>
       el("option",{value:name,selected:current === name},name)));
     const controls = fields.map(([key,label]) => {
@@ -594,6 +712,8 @@
     const populate = () => {
       const goal = goals.find(({name}) => name === selector.value);
       for (const [key] of fields) inputs[key].value = (goal.rules?.[key] || []).join("\n");
+      picker = window.makeLocationPicker({el,button,call,initial:goal.rules.location || {},profile:true});
+      location.replaceChildren(picker.element);
     };
     selector.addEventListener("change",populate);
     populate();
@@ -602,9 +722,11 @@
       const goal = goals.find(({name}) => name === selector.value);
       const rules = {...goal.rules};
       for (const [key] of fields) rules[key] = inputs[key].value.split("\n").map((part) => part.trim()).filter(Boolean);
+      if (picker.value()) rules.location = picker.value();
+      else delete rules.location;
       try { await call("set_goal",{name:goal.name,rules}); await applyGoal(goal.name); }
       catch (error) { notice(error.message); }
-    }},el("label",{class:"field"},"Goal to edit",selector),controls,
+    }},el("label",{class:"field"},"Goal to edit",selector),controls,disclosure("Location preferences",location),
       el("p",{class:"caption"},"Use one phrase per line. Prioritize the most important phrase first."),
       el("div",{class:"actions"},el("button",{type:"submit",class:"secondary"},"Save and use goal"),
         button("Undo last goal edit","quiet",async () => {

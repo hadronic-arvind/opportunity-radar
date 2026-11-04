@@ -15,9 +15,9 @@ fi
 "$PYTHON_BIN" -m ruff format --check scripts/dev_nav.py tests/test_dev_nav.py tests/test_cross_industry.py
 if command -v node >/dev/null 2>&1; then
   node --check dashboard/app.js
-  node --check radar/desktop/dashboard.js
-  node --check radar/desktop/advanced.js
-  node --check radar/desktop/profiles.js
+  for script in radar/desktop/*.js; do
+    node --check "$script"
+  done
 else
   echo "JavaScript syntax check skipped locally: Node is unavailable (required in CI)."
 fi
