@@ -20,7 +20,7 @@ trap cleanup EXIT
 cd "$PROJECT_DIR"
 "$PYTHON_BIN" -m json.tool config/profile.json >/dev/null
 "$PYTHON_BIN" -m json.tool config/sources.json >/dev/null
-PYTHONPYCACHEPREFIX="$CHECK_DIR/pycache" "$PYTHON_BIN" -m compileall -q monitor scripts tests extras
+PYTHONPYCACHEPREFIX="$CHECK_DIR/pycache" "$PYTHON_BIN" -m compileall -q monitor radar scripts tests extras
 PYTHONPYCACHEPREFIX="$CHECK_DIR/pycache" "$PYTHON_BIN" -m unittest discover -s tests -v
 OPPORTUNITY_RADAR_LIFECYCLE_OWNER=installer \
   PYTHONPYCACHEPREFIX="$CHECK_DIR/pycache" \

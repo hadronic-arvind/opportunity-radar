@@ -17,10 +17,17 @@ python3 -m venv .venv
 
 The developer check command uses `.venv/bin/python`; set `OPPORTUNITY_RADAR_DEV_PYTHON` to an absolute Python executable to use an existing development environment instead.
 Node is used only for dashboard syntax checks and is required by CI; local checks explicitly report when it is unavailable.
-The optional native build requires macOS and Apple Command Line Tools as described in README.
+The replacement desktop uses Python with Tk 8.6 or newer.
+The legacy Swift bundle requires macOS and Apple Command Line Tools.
 No Git hooks, global MCP servers, agent subscription, Node packages, or background indexers are required.
 
 ## Find the relevant code
+
+The v1 workspace lives in `radar/`.
+Start with `radar/__main__.py` for terminal operations, `radar/gui.py` for the desktop, and `radar/app.py` for shared workflows.
+Persistence, matching, collection, and recovery each have a module named for that area.
+The v1 regression suites are `tests/test_radar_*.py`.
+The following map covers the legacy runtime and the public connectors retained by v1.
 
 | Area | Entry points | Tests to start with |
 | --- | --- | --- |

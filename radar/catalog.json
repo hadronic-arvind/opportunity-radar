@@ -1,0 +1,206 @@
+[
+  {
+    "id": "figma_greenhouse",
+    "name": "Figma",
+    "kind": "greenhouse",
+    "board": "figma",
+    "url": "https://www.figma.com/careers/",
+    "regions": [
+      "Global"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship"
+    ]
+  },
+  {
+    "id": "humanrightswatch_greenhouse",
+    "name": "Human Rights Watch",
+    "kind": "greenhouse",
+    "board": "humanrightswatch",
+    "url": "https://job-boards.greenhouse.io/humanrightswatch",
+    "publisher_url": "https://www.hrw.org/careers",
+    "regions": [
+      "Global"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship"
+    ]
+  },
+  {
+    "id": "kent_university_careers",
+    "name": "University of Kent",
+    "kind": "syndication",
+    "url": "https://jobs.kent.ac.uk/RSS/rss.aspx",
+    "publisher_url": "https://jobs.kent.ac.uk/RSS/",
+    "regions": [
+      "United Kingdom"
+    ],
+    "opportunity_types": [
+      "job",
+      "apprenticeship",
+      "postdoc"
+    ]
+  },
+  {
+    "id": "euraxess",
+    "name": "EURAXESS",
+    "kind": "html_links",
+    "url": "https://euraxess.ec.europa.eu/jobs/search?page=0",
+    "publisher_url": "https://euraxess.ec.europa.eu/jobs",
+    "include": [
+      "/jobs/",
+      "/funding/"
+    ],
+    "exclude": [
+      "/jobs/search",
+      "/jobs/funding",
+      "/funding/search"
+    ],
+    "pages": 3,
+    "regions": [
+      "Europe",
+      "Global"
+    ],
+    "opportunity_types": [
+      "job",
+      "fellowship",
+      "postdoc",
+      "research_program"
+    ]
+  },
+  {
+    "id": "nrc_canada_postdoctoral",
+    "name": "National Research Council Canada",
+    "kind": "html_links",
+    "url": "https://recruitment-recrutement.nrc-cnrc.gc.ca/go/All-Jobs/2320717/?title=postdoctoral",
+    "publisher_url": "https://www.nrc.canada.ca/en/corporate/careers/postdoctoral-fellowship-program",
+    "include": [
+      "/job/"
+    ],
+    "default_opportunity_type": "postdoc",
+    "regions": [
+      "Canada"
+    ],
+    "opportunity_types": [
+      "postdoc",
+      "fellowship"
+    ]
+  },
+  {
+    "id": "grants_gov_individuals",
+    "name": "Grants.gov for individual applicants",
+    "kind": "grants_gov",
+    "url": "https://www.grants.gov/search-grants",
+    "publisher_url": "https://www.grants.gov/api/common/search2",
+    "default_opportunity_type": "grant",
+    "regions": [
+      "United States"
+    ],
+    "opportunity_types": [
+      "grant",
+      "fellowship"
+    ]
+  },
+  {
+    "id": "mlh_events",
+    "name": "Major League Hacking",
+    "kind": "json_ld",
+    "url": "https://www.mlh.com/events",
+    "default_opportunity_type": "hackathon",
+    "regions": [
+      "Global"
+    ],
+    "opportunity_types": [
+      "hackathon",
+      "competition"
+    ]
+  },
+  {
+    "id": "arbeitnow_europe",
+    "name": "Arbeitnow Europe",
+    "kind": "arbeitnow",
+    "url": "https://www.arbeitnow.com/api/job-board-api",
+    "publisher_url": "https://www.arbeitnow.com/",
+    "regions": [
+      "Europe"
+    ],
+    "opportunity_types": [
+      "job",
+      "internship",
+      "apprenticeship"
+    ]
+  },
+  {
+    "id": "climate_corps_greenhouse",
+    "name": "Climate Corps",
+    "kind": "greenhouse",
+    "board": "cc",
+    "url": "https://www.climatecorps.org/",
+    "regions": [
+      "United States"
+    ],
+    "opportunity_types": [
+      "fellowship"
+    ]
+  },
+  {
+    "id": "pivotbio_greenhouse",
+    "name": "Pivot Bio",
+    "kind": "greenhouse",
+    "board": "pivotbio",
+    "url": "https://job-boards.greenhouse.io/pivotbio",
+    "regions": [],
+    "opportunity_types": [
+      "job",
+      "internship"
+    ]
+  },
+  {
+    "id": "ambience_healthcare_ashby",
+    "name": "Ambience Healthcare",
+    "kind": "ashby",
+    "board": "ambiencehealthcare",
+    "url": "https://jobs.ashbyhq.com/ambiencehealthcare",
+    "regions": [],
+    "opportunity_types": [
+      "job"
+    ]
+  },
+  {
+    "id": "lyra_health_lever",
+    "name": "Lyra Health",
+    "kind": "lever",
+    "board": "lyrahealth",
+    "url": "https://jobs.lever.co/lyrahealth",
+    "regions": [],
+    "opportunity_types": [
+      "job"
+    ]
+  },
+  {
+    "id": "lucidmotors_greenhouse",
+    "name": "Lucid Motors",
+    "kind": "greenhouse",
+    "board": "lucidmotors",
+    "url": "https://job-boards.greenhouse.io/lucidmotors",
+    "regions": [],
+    "opportunity_types": [
+      "job",
+      "internship"
+    ]
+  },
+  {
+    "id": "affirm_greenhouse",
+    "name": "Affirm",
+    "kind": "greenhouse",
+    "board": "affirm",
+    "url": "https://job-boards.greenhouse.io/affirm",
+    "regions": [],
+    "opportunity_types": [
+      "job",
+      "internship"
+    ]
+  }
+]

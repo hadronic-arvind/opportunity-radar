@@ -6,7 +6,9 @@ See [the developer guide](docs/DEVELOPMENT.md) for setup, navigation, validation
 
 ## Boundaries
 
-- Runtime: standard-library Python 3.9+, local SQLite, static dashboard, optional Swift/WKWebView host.
+- v1 runtime: standard-library Python 3.9+, local SQLite with FTS5 and JSON, optional desktop with Tk 8.6+.
+- Keep desktop and terminal operations over the same workspace.
+- The legacy runtime uses a static dashboard and optional Swift/WKWebView host.
 - Preserve burst-only sequential scans, zero idle processes, and lifecycle-then-scan lock ordering.
 - Never add developer dependencies, agent services, or test setup to app startup or installation.
 - Keep profiles, databases, logs, generated dashboards, credentials, and local `.agents/` files private and ignored.

@@ -1,7 +1,7 @@
 [project]
 name = "opportunity-radar"
-version = "0.10.0"
-description = "A local-first, low-overhead opportunity monitoring pipeline"
+version = "1.0.0"
+description = "A local workspace for finding, comparing, and tracking opportunities"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
