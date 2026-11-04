@@ -84,6 +84,8 @@ class FetchResult:
     content_hash: str
     status: str = "ok"
     message: str = ""
+    complete_snapshot: bool = True
+    next_detail_offset: Optional[int] = None
 
     def __post_init__(self) -> None:
         if len(self.opportunities) > MAX_OPPORTUNITIES_PER_SOURCE:

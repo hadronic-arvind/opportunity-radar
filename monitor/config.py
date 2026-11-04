@@ -474,6 +474,11 @@ def resolve_project_value(value: str) -> Path:
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
+def automatic_dashboard_enabled() -> bool:
+    """Allow CLI-only sessions to skip generating the browser snapshot."""
+    return os.environ.get("OPPORTUNITY_RADAR_CLI_ONLY", "").strip() != "1"
+
+
 def project_path(*parts: str) -> Path:
     return PROJECT_ROOT.joinpath(*parts)
 

@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -26,7 +27,10 @@ class PipelineConfigurationTests(unittest.TestCase):
         self.assertEqual(counts, {"new": 0, "updated": 0, "unchanged": 0})
         self.assertIsNone(error)
         self.assertEqual(
-            self.database.connection.execute("SELECT COUNT(*) FROM sources").fetchone()[0], 0
+            self.database.connection.execute("SELECT COUNT(*) FROM sources").fetchone()[
+                0
+            ],
+            0,
         )
 
     def test_valid_curated_path_registers_and_imports(self):
@@ -144,9 +148,7 @@ class PipelineConfigurationTests(unittest.TestCase):
             "cadence_hours": 1,
             "enabled": True,
         }
-        hashes = iter(
-            ["baseline", "dynamic-one", "dynamic-two", "stable", "stable"]
-        )
+        hashes = iter(["baseline", "dynamic-one", "dynamic-two", "stable", "stable"])
 
         def fetch(_source):
             return FetchResult([], next(hashes))
@@ -195,10 +197,23 @@ class PipelineConfigurationTests(unittest.TestCase):
 
     def test_failed_source_refresh_rolls_back_earlier_rows_and_counts(self):
         runtime = self.root / "runtime"
-        source = {"id": "fixture", "name": "Fixture", "kind": "greenhouse",
-                  "url": "https://example.org/jobs", "cadence_hours": 1}
-        items = [Opportunity("fixture", str(i), "Role " + str(i), "Example",
-                             "https://example.org/" + str(i)) for i in range(2)]
+        source = {
+            "id": "fixture",
+            "name": "Fixture",
+            "kind": "greenhouse",
+            "url": "https://example.org/jobs",
+            "cadence_hours": 1,
+        }
+        items = [
+            Opportunity(
+                "fixture",
+                str(i),
+                "Role " + str(i),
+                "Example",
+                "https://example.org/" + str(i),
+            )
+            for i in range(2)
+        ]
         real_score = pipeline.score_opportunity
 
         def score(item, profile):
@@ -207,12 +222,24 @@ class PipelineConfigurationTests(unittest.TestCase):
             return real_score(item, profile)
 
         with (
-            patch("monitor.pipeline.project_path", side_effect=lambda *p: runtime.joinpath(*p)),
-            patch("monitor.pipeline.load_profile", return_value={"matching": {"base_score": 80}}),
+            patch(
+                "monitor.pipeline.project_path",
+                side_effect=lambda *p: runtime.joinpath(*p),
+            ),
+            patch(
+                "monitor.pipeline.load_profile",
+                return_value={"matching": {"base_score": 80}},
+            ),
             patch("monitor.pipeline.load_sources", return_value=[source]),
-            patch("monitor.pipeline.fetch_source", return_value=FetchResult(items, "fixture")),
+            patch(
+                "monitor.pipeline.fetch_source",
+                return_value=FetchResult(items, "fixture"),
+            ),
             patch("monitor.pipeline.score_opportunity", side_effect=score),
-            patch("monitor.pipeline.render_dashboard", return_value=runtime / "dashboard/index.html"),
+            patch(
+                "monitor.pipeline.render_dashboard",
+                return_value=runtime / "dashboard/index.html",
+            ),
             patch("monitor.pipeline.ensure_profile_lifecycle_idle"),
             patch("monitor.pipeline.polite_pause"),
         ):
@@ -222,10 +249,279 @@ class PipelineConfigurationTests(unittest.TestCase):
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["new_count"], 0)
             self.assertEqual(result["new_high_fit"], [])
-            self.assertEqual(observer.connection.execute("SELECT COUNT(*) FROM opportunities").fetchone()[0], 0)
+            self.assertEqual(
+                observer.connection.execute(
+                    "SELECT COUNT(*) FROM opportunities"
+                ).fetchone()[0],
+                0,
+            )
             self.assertEqual(observer.source_status("fixture"), "error")
         finally:
             observer.close()
+
+
+class ScanRefreshTests(unittest.TestCase):
+    def setUp(self):
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        self.root = Path(tempdir.name)
+        self.database_path = self.root / "data" / "opportunities.sqlite3"
+        self.sources = [self.source("fixture")]
+        self.start_patch("project_path", side_effect=self.root.joinpath)
+        self.start_patch("ensure_profile_lifecycle_idle")
+        self.start_patch("load_profile", return_value={"polite_delay_seconds": 0})
+        self.start_patch("load_sources", side_effect=lambda **_: self.sources)
+        self.start_patch(
+            "render_dashboard", return_value=self.root / "dashboard/index.html"
+        )
+
+    def start_patch(self, attribute, **kwargs):
+        mock = patch.object(pipeline, attribute, **kwargs)
+        self.addCleanup(mock.stop)
+        return mock.start()
+
+    @staticmethod
+    def source(identifier, **fields):
+        return {
+            "id": identifier,
+            "name": identifier,
+            "kind": "greenhouse",
+            "cadence_hours": 24,
+            **fields,
+        }
+
+    @staticmethod
+    def item(identifier, description="", **metadata):
+        return Opportunity(
+            "fixture",
+            identifier,
+            "Research Associate",
+            "Example",
+            "https://example.org/" + identifier,
+            description=description,
+            metadata=metadata,
+        )
+
+    def test_unchanged_snapshot_and_rows_bypass_scoring_but_changed_evidence_does_not(
+        self,
+    ):
+        self.start_patch(
+            "fetch_source",
+            side_effect=[
+                FetchResult(
+                    [self.item("one", "Initial"), self.item("two", "Stable")], "one"
+                ),
+                FetchResult(
+                    [self.item("two", "Stable"), self.item("one", "Initial")], "two"
+                ),
+                FetchResult(
+                    [self.item("one", "Changed"), self.item("two", "Stable")], "two"
+                ),
+            ],
+        )
+        scoring = self.start_patch(
+            "score_opportunity", wraps=pipeline.score_opportunity
+        )
+        self.assertEqual(pipeline.run_scan(force=True)["new_count"], 2)
+        unchanged = pipeline.run_scan(force=True)
+        self.assertEqual(unchanged["unchanged_sources"], 1)
+        self.assertEqual(unchanged["updated_count"], 0)
+        self.assertEqual(scoring.call_count, 2)
+        changed = pipeline.run_scan(force=True)
+        self.assertEqual(changed["updated_count"], 1)
+        self.assertEqual(scoring.call_count, 3)
+
+        # A restored/missing row must never be ignored just because its source
+        # still has the matching snapshot marker.
+        observer = Database(self.database_path)
+        self.addCleanup(observer.close)
+        observer.connection.execute(
+            "UPDATE opportunities SET active=0 WHERE external_id='one'"
+        )
+        observer.connection.commit()
+        with patch.object(
+            pipeline,
+            "fetch_source",
+            return_value=FetchResult(
+                [
+                    self.item("one", "Changed"),
+                    self.item("two", "Stable"),
+                ],
+                "two",
+            ),
+        ):
+            self.assertEqual(pipeline.run_scan(force=True)["unchanged_sources"], 0)
+        row = observer.connection.execute(
+            "SELECT active FROM opportunities WHERE external_id='one'"
+        ).fetchone()
+        self.assertEqual(row["active"], 1)
+        self.assertEqual(scoring.call_count, 4)
+
+    def test_rolling_feed_and_failed_empty_fetch_do_not_retire_rows(self):
+        self.start_patch(
+            "fetch_source",
+            side_effect=[
+                FetchResult([self.item("one")], "initial", complete_snapshot=False),
+                FetchResult([self.item("two")], "next", complete_snapshot=False),
+                FetchResult(
+                    [], "invalid", status="error", message="Malformed response"
+                ),
+                FetchResult([], "complete"),
+            ],
+        )
+        pipeline.run_scan(force=True)
+        pipeline.run_scan(force=True)
+        self.assertEqual(pipeline.run_scan(force=True)["status"], "partial")
+        observer = Database(self.database_path)
+        self.addCleanup(observer.close)
+        self.assertEqual(
+            observer.connection.execute(
+                "SELECT SUM(active) FROM opportunities"
+            ).fetchone()[0],
+            2,
+        )
+        pipeline.run_scan(force=True)
+        self.assertEqual(
+            observer.connection.execute(
+                "SELECT SUM(active) FROM opportunities"
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_ordinary_bursts_resume_with_priority_and_progress(self):
+        self.sources = [
+            self.source("slow"),
+            self.source("other"),
+            self.source("broad", packs=["multi-employer"]),
+            self.source("events", packs=["professional-events"]),
+        ]
+        seconds = [0.0]
+        checked = []
+
+        def fetch(source):
+            checked.append(source["id"])
+            seconds[0] += pipeline.DEFAULT_DUE_BURST_SECONDS + 1
+            return FetchResult([], source["id"])
+
+        self.start_patch("fetch_source", side_effect=fetch)
+        events = []
+        with patch.object(pipeline.time, "monotonic", side_effect=lambda: seconds[0]):
+            first = pipeline.run_scan(progress=events.append)
+            second = pipeline.run_scan(max_sources=1)
+            third = pipeline.run_scan()
+            fourth = pipeline.run_scan()
+            target = pipeline.run_scan(force=True, source_ids=["other"])
+        self.assertEqual(checked, ["events", "broad", "slow", "other", "other"])
+        self.assertEqual(
+            [result["remaining_due"] for result in (first, second, third, fourth)],
+            [3, 2, 1, 0],
+        )
+        self.assertEqual(target["checked_sources"], 1)
+        self.assertEqual(
+            [event["event"] for event in events],
+            ["start", "source_start", "source_complete", "render", "finish"],
+        )
+        self.assertEqual(events[-1]["remaining_due"], 3)
+        self.assertEqual(events[2]["source_id"], "events")
+
+    def test_rolling_history_archives_old_unseen_rows_and_preserves_workflow(self):
+        self.start_patch(
+            "fetch_source",
+            side_effect=[
+                FetchResult(
+                    [self.item("tracked"), self.item("recent")],
+                    "initial",
+                    complete_snapshot=False,
+                ),
+                FetchResult([], "error", status="error", complete_snapshot=False),
+                FetchResult([], "quiet", complete_snapshot=False),
+                FetchResult(
+                    [self.item("tracked")], "reappeared", complete_snapshot=False
+                ),
+            ],
+        )
+        pipeline.run_scan(force=True)
+        observer = Database(self.database_path)
+        self.addCleanup(observer.close)
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        observer.connection.executemany(
+            "UPDATE opportunities SET last_seen_at=? WHERE external_id=?",
+            [
+                ((now - timedelta(days=days)).isoformat(), identifier)
+                for identifier, days in (("tracked", 91), ("recent", 89))
+            ],
+        )
+        observer.connection.commit()
+
+        def stored(identifier):
+            return observer.connection.execute(
+                "SELECT id, active, status, bookmarked FROM opportunities WHERE external_id=?",
+                (identifier,),
+            ).fetchone()
+
+        identifier = stored("tracked")["id"]
+        observer.set_status(identifier, "applied")
+        observer.set_bookmarked(identifier, True)
+        pipeline.run_scan(force=True)
+        self.assertEqual(stored("tracked")["active"], 1)
+        pipeline.run_scan(force=True)
+        archived = stored("tracked")
+        self.assertEqual(
+            (archived["active"], archived["status"], archived["bookmarked"]),
+            (0, "applied", 1),
+        )
+        self.assertEqual(stored("recent")["active"], 1)
+        pipeline.run_scan(force=True)
+        resurfaced = stored("tracked")
+        self.assertEqual(
+            (
+                resurfaced["id"],
+                resurfaced["active"],
+                resurfaced["status"],
+                resurfaced["bookmarked"],
+            ),
+            (identifier, 1, "applied", 1),
+        )
+
+    def test_detail_failures_preserve_prior_description_but_successful_empty_removes_it(
+        self,
+    ):
+        self.sources = [self.source("fixture", kind="workday")]
+        fetch = self.start_patch(
+            "fetch_source",
+            side_effect=[
+                FetchResult(
+                    [self.item("one", "Prior requirements", detail_status="current")],
+                    "first",
+                    next_detail_offset=7,
+                ),
+                FetchResult(
+                    [self.item("one", detail_status="failed")],
+                    "second",
+                    next_detail_offset=8,
+                ),
+                FetchResult(
+                    [self.item("one", detail_status="current")],
+                    "third",
+                    next_detail_offset=0,
+                ),
+            ],
+        )
+        pipeline.run_scan(force=True)
+        pipeline.run_scan(force=True)
+        observer = Database(self.database_path)
+        self.addCleanup(observer.close)
+        query = "SELECT description, metadata_json FROM opportunities WHERE external_id='one'"
+        row = observer.connection.execute(query).fetchone()
+        self.assertEqual(row["description"], "Prior requirements")
+        self.assertIn('"detail_status": "cached"', row["metadata_json"])
+        pipeline.run_scan(force=True)
+        self.assertEqual(
+            observer.connection.execute(query).fetchone()["description"], ""
+        )
+        self.assertEqual(
+            [call.args[0]["_detail_offset"] for call in fetch.call_args_list], [0, 7, 8]
+        )
 
 
 if __name__ == "__main__":

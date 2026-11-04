@@ -124,7 +124,7 @@ class SourceRegistryTests(unittest.TestCase):
         finally:
             connection.close()
 
-    def test_detects_supported_boards_and_falls_back_to_bounded_html_links(self):
+    def test_detects_supported_boards_feeds_and_public_pages(self):
         cases = (
             (
                 "https://boards.greenhouse.io/acme/jobs/42",
@@ -136,7 +136,10 @@ class SourceRegistryTests(unittest.TestCase):
             ),
             ("https://jobs.lever.co/acme/role", ("lever", {"site": "acme"})),
             ("https://jobs.ashbyhq.com/acme/role", ("ashby", {"board": "acme"})),
-            ("https://careers.example.org/openings", ("html_links", {})),
+            ("https://careers.example.org/openings", ("public_page", {})),
+            ("https://careers.example.org/openings.atom", ("syndication", {})),
+            ("https://www.arbeitnow.com/api/job-board-api", ("arbeitnow", {})),
+            ("https://www.grants.gov/search-grants", ("grants_gov", {})),
         )
         for url, expected in cases:
             with self.subTest(url=url):
@@ -204,7 +207,7 @@ class SourceRegistryTests(unittest.TestCase):
             "Community Fellowships",
             "https://example.org/fellowships",
         )
-        self.assertEqual(links["kind"], "html_links")
+        self.assertEqual(links["kind"], "public_page")
         self.assertEqual(links["pages"], 1)
         self.assertTrue(links["same_domain"])
         self.assertIn("/fellow", links["include"])

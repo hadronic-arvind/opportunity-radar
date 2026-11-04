@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from .eligibility import clinical_degree_evidence, clinical_training_gates, degree_gates, nationality_gates
 from .models import Opportunity
-from .text import clean_text
+from .text import NON_EMPLOYMENT_TYPES, clean_text
 from .taxonomy import location_match_details
 from .targeting import effective_matching_rules
 
@@ -33,7 +33,7 @@ DEFAULT_FIELDS = (
 CURATED_DOCUMENT_PROVENANCE = "curated_explicit"
 LEGACY_CURATED_DOCUMENT_PROVENANCE = "curated_legacy"
 PROFILE_DOCUMENT_PROVENANCE = "profile"
-SCORING_SCHEMA_VERSION = 10
+SCORING_SCHEMA_VERSION = 11
 STRUCTURED_ENGINE = "structured_v2"
 # These describe a program or a broad activity, rather than its subject.
 # A deliberately broad profile can still use them; a specific profile must
@@ -49,6 +49,24 @@ GENERIC_INTEREST_TERMS = {
     "research internship", "research internships", "research scientist", "research scientists",
     "research fellow", "research fellows", "graduate researcher", "graduate researchers",
     "researcher", "researchers",
+}
+# Narrow title equivalents for derived role preferences. Never expand custom
+# rules, exclusions, or titles that only mention these terms in the description.
+ROLE_TITLE_EQUIVALENTS = (
+    ("software engineer", "software developer", "software development engineer"),
+    ("data engineer", "data engineering specialist"),
+    ("quality engineer", "engineer quality", "quality assurance engineer"),
+    ("technical writer", "documentation specialist", "technical documentation writer"),
+    ("technical recruiter", "technical talent acquisition specialist"),
+    ("ux researcher", "user experience researcher", "user researcher"),
+    ("paralegal", "legal assistant"),
+    ("staff accountant", "accounting associate"),
+    ("financial planning analyst", "fp a analyst", "financial planning and analysis analyst"),
+    ("clinical research coordinator", "clinical study coordinator"),
+)
+ROLE_WORD_RE = re.compile(r"[^\W_]+")
+ROLE_EQUIVALENTS_BY_NAME = {
+    role: group for group in ROLE_TITLE_EQUIVALENTS for role in group
 }
 STRUCTURED_DIMENSIONS = ("interest", "target", "qualification", "preference")
 DEFAULT_FIELD_WEIGHTS = {
@@ -408,6 +426,8 @@ def _structured_rule_evidence(
     )
     cache = match_cache if isinstance(match_cache, dict) else {}
     evidence: List[Dict[str, Any]] = []
+    expand_role = rule.get("derived_profile") and rule.get("id") == "profile_role_families"
+    role_title = " {} ".format(" ".join(ROLE_WORD_RE.findall(texts.get("title", "")))) if expand_role else ""
     for term in terms:
         normalized_term = str(term).strip().casefold()
         if not normalized_term:
@@ -436,16 +456,22 @@ def _structured_rule_evidence(
                     start = text.find(normalized_term, start + 1)
                 cache[cache_key] = present
             if present:
-                choices.append((field_weights.get(field, 0.0), -order, field))
-        if choices:
-            strength, _order, field = max(choices)
-            evidence.append(
-                {
-                    "term": str(term),
-                    "field": field,
-                    "strength": round(strength, 3),
-                }
+                choices.append((field_weights.get(field, 0.0), -order, field, ""))
+        if role_title and "title" in fields and not any(entry[2] == "title" for entry in choices):
+            role = " ".join(ROLE_WORD_RE.findall(normalized_term))
+            variants = ROLE_EQUIVALENTS_BY_NAME.get(role, (role,))
+            equivalent = next(
+                (variant for variant in variants if variant and " {} ".format(variant) in role_title),
+                "",
             )
+            if equivalent:
+                choices.append((field_weights.get("title", 0.0) * 0.9, 0, "title", equivalent))
+        if choices:
+            strength, _order, field, equivalent = max(choices)
+            entry = {"term": str(term), "field": field, "strength": round(strength, 3)}
+            if equivalent:
+                entry["listing_term"] = equivalent
+            evidence.append(entry)
     if str(rule.get("match", "any")).lower() == "all" and len(evidence) != len(terms):
         return []
     return evidence
@@ -973,6 +999,11 @@ def _listing_timeframes(item: Opportunity) -> Tuple[List[int], List[str]]:
     title_category = "{} {}".format(item.title, item.category)
     full_text = "{} {}".format(title_category, item.description[:20000])
     years = {int(year) for year in re.findall(r"\b(20\d{2})\b", item.title)}
+    schedule = item.metadata.get("listing", {})
+    if isinstance(schedule, dict):
+        starts_at = re.match(r"(20\d{2})-\d{2}-\d{2}", str(schedule.get("starts_at", "")))
+        if starts_at:
+            years.add(int(starts_at.group(1)))
     years.update(
         int(year)
         for year in re.findall(
@@ -1201,7 +1232,7 @@ def _structured_gates(
         or (MANAGER_TITLE_RE.search(item.title) and not EARLY_TITLE_RE.search(item.title))
         else "not_detected"
     )
-    if stage in EARLY_CAREER_STAGES and seniority == "senior":
+    if stage in EARLY_CAREER_STAGES and seniority == "senior" and item_type not in NON_EMPLOYMENT_TYPES:
         gates.append({"id": "career_stage", "state": "fail", "evidence": ["senior title"]})
 
     requirements_text = "{} {}".format(item.eligibility, item.description)
@@ -1303,7 +1334,8 @@ def _structured_gates(
     maximum_years = candidate.get("max_required_experience_years")
     if isinstance(maximum_years, int) and not isinstance(maximum_years, bool):
         if required_years is None:
-            gates.append({"id": "experience", "state": "unknown", "evidence": []})
+            if item_type not in NON_EMPLOYMENT_TYPES:
+                gates.append({"id": "experience", "state": "unknown", "evidence": []})
         elif required_years > maximum_years:
             gates.append(
                 {"id": "experience", "state": "fail", "evidence": ["{}+ years".format(required_years)]}
@@ -1419,7 +1451,14 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
             continue
         score += points
         label = str(rule.get("label", "Configured match"))
-        detail = "{}: {}".format(label, ", ".join(str(entry["term"]) for entry in evidence[:3]))
+        detail = "{}: {}".format(
+            label,
+            ", ".join(
+                "{} ({})".format(entry["term"], entry["listing_term"])
+                if entry.get("listing_term") else str(entry["term"])
+                for entry in evidence[:3]
+            ),
+        )
         component = {
             "id": str(rule.get("id", label)).strip() or "configured_rule",
             "label": label,
@@ -1440,7 +1479,8 @@ def _score_structured(item: Opportunity, profile: Dict[str, Any]) -> Opportunity
         if _normalized_token(value)
     }
     if target_types and features["opportunity_type"] in target_types:
-        bonus = int(matching.get("target_type_bonus", 10))
+        default_bonus = 10 if has_interest_rules else 20
+        bonus = int(matching.get("target_type_bonus", default_bonus))
         score += bonus
         dimensions["target"]["points"] += bonus
         dimensions["target"]["matches"].append("target_type")
@@ -1804,7 +1844,7 @@ def profile_fingerprint(profile: Dict[str, Any]) -> str:
                 else thresholds.get("watch", 25)
             ),
             "anchor_min_strength": float(matching.get("anchor_min_strength", 0.7)),
-            "target_type_bonus": int(matching.get("target_type_bonus", 10)),
+            "target_type_bonus": matching.get("target_type_bonus"),
             "target_timeframe_bonus": int(
                 matching.get("target_timeframe_bonus", 10)
             ),

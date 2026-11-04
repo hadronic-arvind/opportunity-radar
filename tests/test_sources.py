@@ -193,7 +193,7 @@ REPRESENTATIVE_MANUAL_STEM_RESOURCES = {
 }
 
 RELIABLE_LISTING_KINDS = {"ashby", "greenhouse", "lever", "jibe", "workday", "smartrecruiters"}
-LISTING_KINDS = RELIABLE_LISTING_KINDS | {"html_links", "rippling", "recruiterbox", "sap_public", "comeet", "workable"}
+LISTING_KINDS = RELIABLE_LISTING_KINDS | {"arbeitnow", "grants_gov", "html_links", "json_ld", "rippling", "recruiterbox", "sap_public", "syndication", "comeet", "workable"}
 
 NEW_OPT_IN_FEED_PACKS = {
     "metr_lever": {"public-interest", "academia-research", "ai-research"},

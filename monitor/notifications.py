@@ -1,14 +1,9 @@
-"""Change-only local and optional webhook notifications."""
+"""Change-only local notifications."""
 
-import json
 import os
 import platform
 import subprocess
-import urllib.parse
-import urllib.request
 from typing import Any, Dict, List
-
-from . import __version__
 
 
 def summarize(items: List[Dict[str, Any]]) -> str:
@@ -38,24 +33,3 @@ def notify_macos(title: str, body: str) -> bool:
         timeout=10,
     )
     return True
-
-
-def notify_webhook(payload: Dict[str, Any]) -> bool:
-    url = os.environ.get("OPPORTUNITY_MONITOR_WEBHOOK_URL", "").strip()
-    if not url:
-        return False
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme != "https" or not parsed.netloc:
-        raise ValueError("Webhook URL must be absolute HTTPS")
-    body = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(
-        url,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": "OpportunityRadar/{}".format(__version__),
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=20):
-        return True

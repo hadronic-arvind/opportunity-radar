@@ -1604,16 +1604,18 @@ def refresh_profile_state() -> Dict[str, Any]:
         # Keep source reconciliation and rescoring in one outer transaction.
         # Database helpers use nested savepoints, so a dashboard-render failure
         # leaves the database exactly as it was before the settings refresh.
+        publish = config.automatic_dashboard_enabled()
         with database.transaction():
             _register_sources(database, all_sources, profile)
             rescore = database.rescore_for_profile(profile)
-            render_dashboard(database.dashboard_payload(), profile=profile)
+            if publish:
+                render_dashboard(database.dashboard_payload(), profile=profile)
     finally:
         database.close()
     return {
         "rescored": int(rescore.get("rescored", 0)),
         "profile_changed": bool(rescore.get("changed", False)),
-        "dashboard_rebuilt": True,
+        "dashboard_rebuilt": publish,
     }
 
 

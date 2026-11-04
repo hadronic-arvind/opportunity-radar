@@ -11,6 +11,9 @@ CROSS_INDUSTRY_PACK = "cross-industry"
 PACK_ORDER = [
     "starter-diverse",
     CROSS_INDUSTRY_PACK,
+    "multi-employer",
+    "professional-events",
+    "funding-opportunities",
     "engineering",
     "data-software",
     "cybersecurity",
@@ -590,6 +593,18 @@ def packs_for_preset(preset: str) -> List[str]:
     return _ordered_unique(entry["packs"])
 
 
+def _opportunity_packs(profile: Mapping[str, Any]) -> List[str]:
+    targets = profile.get("targets", {})
+    targets = targets if isinstance(targets, Mapping) else {}
+    types = {_normalize(value) for value in _string_values(targets.get("opportunity_types"))}
+    packs = []
+    if types.intersection({"hackathon", "conference", "event", "competition"}):
+        packs.append("professional-events")
+    if types.intersection({"grant", "funding"}):
+        packs.append("funding-opportunities")
+    return packs
+
+
 def recommend_source_packs(profile: Mapping[str, Any]) -> List[str]:
     signals = _profile_signals(profile)
     selected = ["starter-diverse"]
@@ -615,7 +630,7 @@ def recommend_source_packs(profile: Mapping[str, Any]) -> List[str]:
     if stage in early_stage_tokens or _keyword_matches("postbacc", signals):
         selected.extend(["students-early-career", "fellowships"])
 
-    return _ordered_unique(selected)
+    return _ordered_unique(selected + _opportunity_packs(profile))
 
 
 def effective_source_packs(
@@ -628,11 +643,11 @@ def effective_source_packs(
     # Employer industry cannot predict every occupation on its job board.
     # Profiles rank individual listings; manual mode is the explicit opt-out.
     if chosen != MANUAL_PRESET:
-        effective.extend([CROSS_INDUSTRY_PACK, "interesting-employers"])
+        effective.extend([CROSS_INDUSTRY_PACK, "multi-employer", "interesting-employers"])
     if chosen == AUTOMATIC_PRESET:
         effective.extend(recommend_source_packs(profile))
     elif chosen != MANUAL_PRESET:
-        effective.extend(packs_for_preset(chosen))
+        effective.extend(packs_for_preset(chosen) + _opportunity_packs(profile))
     return _ordered_unique(effective)
 
 

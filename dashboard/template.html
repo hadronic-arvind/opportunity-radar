@@ -18,8 +18,7 @@
       </a>
       <div class="header-actions">
         <span class="scan-state" id="scan-state" role="status" aria-live="polite"></span>
-        <button class="control subtle" id="refresh-button" type="button">Refresh</button>
-        <button class="control accent" id="scan-all-button" type="button">Scan all</button>
+        <button class="control accent" id="refresh-button" type="button">Check sources</button>
         <label class="theme-control" for="theme-select">
           <span class="sr-only">Color theme</span>
           <select class="theme-select" id="theme-select" aria-label="Color theme">
@@ -36,43 +35,71 @@
         <div>
           <p class="context" id="search-context">Opportunity search</p>
           <h1 id="intro-title">Your Opportunities</h1>
-          <p class="subtitle" id="dashboard-subtitle">Review matches and track applications from the sources you follow.</p>
+          <p class="subtitle" id="dashboard-subtitle">Find work, research, funding, and other opportunities across the sources you follow.</p>
         </div>
         <div class="updated" id="last-scan">Preparing dashboard</div>
       </section>
 
       <section class="summary" aria-label="Search summary">
-        <div class="metric"><strong id="stat-active">0</strong><span>Open</span></div>
-        <div class="metric"><strong id="stat-new">0</strong><span>New</span></div>
+        <div class="metric" title="Matches collected from enabled sources"><strong id="stat-active">0</strong><span>Collected matches</span></div>
+        <div class="metric" title="Unreviewed matches collected from enabled sources"><strong id="stat-new">0</strong><span>Unreviewed matches</span></div>
         <div class="metric"><strong id="stat-saved">0</strong><span>Saved</span></div>
         <div class="metric"><strong id="stat-applied">0</strong><span>Applied</span></div>
       </section>
 
       <nav class="view-switcher" aria-label="Opportunity views">
-        <button type="button" class="view-button active" data-view="discover" aria-pressed="true">Discover</button>
-        <button type="button" class="view-button" data-view="applications" aria-pressed="false">Applications <span id="application-count">0</span></button>
+        <button type="button" class="view-button active" data-view="discover" aria-controls="results-panel" aria-pressed="true">Discover</button>
+        <button type="button" class="view-button" data-view="applications" aria-controls="results-panel" aria-pressed="false">Tracker <span id="application-count">0</span></button>
+        <button type="button" class="view-button" data-view="coverage" aria-controls="coverage-panel" aria-pressed="false">Coverage</button>
       </nav>
 
       <section class="workspace" id="results" aria-label="Opportunities" tabindex="-1">
-        <div class="results-panel">
+        <div class="results-panel" id="results-panel">
+          <div class="panel-intro">
+            <div class="panel-intro-heading">
+              <h2 id="view-title">Discover opportunities</h2>
+              <button class="text-button quick-profile-button" id="quick-profile-button" type="button" hidden>Search profile</button>
+            </div>
+            <p id="view-description">Search for the work or experience you want across organizations and industries.</p>
+          </div>
+          <div class="filter-row" id="filter-row" role="group" aria-label="Opportunity filters"></div>
           <div class="toolbar">
             <label class="search-field">
-              <span class="search-icon" aria-hidden="true"></span>
-              <span class="sr-only">Search opportunities</span>
-              <input id="search" type="search" placeholder="Search roles, organizations, places..." autocomplete="off">
+              <span class="field-label">Search</span>
+              <span class="search-input-wrap">
+                <span class="search-icon" aria-hidden="true"></span>
+                <input id="search" type="search" placeholder="e.g. policy research, Seattle, public health" autocomplete="off" maxlength="240">
+              </span>
             </label>
-            <label>
-              <span class="sr-only">Sort opportunities</span>
+            <label class="facet-field">
+              <span class="field-label">Sort</span>
               <select id="sort" class="sort" aria-label="Sort opportunities">
-                <option value="fit">Best fit</option>
+                <option value="fit">Recommended</option>
                 <option value="newest">Latest posted</option>
+                <option value="found">Recently found</option>
                 <option value="deadline">Deadline</option>
                 <option value="organization">Organization</option>
               </select>
             </label>
           </div>
-          <section id="company-source-results" class="company-source-results" aria-label="Matching company sources" hidden></section>
-          <div class="filter-row" id="filter-row" role="group" aria-label="Opportunity filters"></div>
+          <div class="facets" id="discover-facets" role="group" aria-label="Refine discovery">
+            <label class="facet-field">
+              <span class="field-label">Opportunity type</span>
+              <select id="kind-filter" class="sort"><option value="all">All types</option></select>
+            </label>
+            <label class="facet-field">
+              <span class="field-label">Deadline</span>
+              <select id="deadline-filter" class="sort">
+                <option value="all">Any deadline</option>
+                <option value="week">Next 7 days</option>
+                <option value="month">Next 30 days</option>
+                <option value="rolling">Rolling or open-ended</option>
+                <option value="unlisted">No date listed</option>
+              </select>
+            </label>
+          </div>
+          <p class="snapshot-note" id="snapshot-note" hidden></p>
+          <section id="company-source-results" class="company-source-results" aria-label="Matching source pages" hidden></section>
           <div class="results-meta">
             <span id="results-note" role="status" aria-live="polite">0 opportunities</span>
             <button class="text-button" id="clear-filters" type="button" hidden>Clear filters</button>
@@ -86,7 +113,69 @@
           </nav>
         </div>
 
-        <aside class="side-column" aria-label="Source status and help">
+        <section class="side-card source-health" id="coverage-panel" aria-labelledby="coverage-title" hidden>
+          <div class="panel-intro">
+            <h2 id="coverage-title">Search coverage</h2>
+            <p>See what is checked automatically, what needs a manual visit, and which sources need attention.</p>
+          </div>
+          <div class="coverage-actions">
+            <button class="control subtle source-resource-button" id="source-resource-button" type="button" aria-haspopup="dialog">Browse the source directory</button>
+            <button class="control subtle" id="scan-all-button" type="button">Check every enabled source</button>
+          </div>
+          <div class="side-heading">
+            <div>
+              <p class="kicker">Sources</p>
+              <h2 id="health-summary">Not scanned yet</h2>
+            </div>
+            <span class="health-mark" id="health-mark" aria-hidden="true"></span>
+          </div>
+          <div class="source-overview" id="source-overview"></div>
+          <p class="source-overview" id="collection-note" hidden></p>
+          <details id="source-details" open>
+            <summary>View source details <span id="source-detail-count"></span></summary>
+            <div class="source-tools" id="source-tools">
+              <label class="source-search-field">
+                <span class="sr-only">Search sources</span>
+                <input id="source-search" type="search" placeholder="Search sources..." autocomplete="off">
+              </label>
+              <label>
+                <span class="sr-only">Filter sources by status</span>
+                <select id="source-status-filter" aria-label="Filter sources by status">
+                  <option value="all">All statuses</option>
+                  <option value="error">Needs attention</option>
+                  <option value="blocked">Access limited</option>
+                  <option value="waiting">Waiting</option>
+                  <option value="ok">Healthy</option>
+                </select>
+              </label>
+            </div>
+            <p class="source-list-note" id="source-list-note" role="status" aria-live="polite"></p>
+            <div class="source-list" id="source-list"></div>
+            <button class="control subtle source-show-more" id="source-show-more" type="button" aria-controls="source-list" hidden>Show all sources</button>
+          </details>
+          <details class="source-add" id="source-add-details">
+            <summary>Add your own source <span class="native-only-badge">macOS app only</span></summary>
+            <form id="source-add-form" novalidate>
+              <p class="source-add-intro">Follow an organization or program by adding its official listings page.</p>
+              <label class="source-add-field" for="source-add-name">
+                <span>Company or program</span>
+                <input id="source-add-name" name="name" type="text" autocomplete="organization" maxlength="120" placeholder="Example organization" required>
+              </label>
+              <label class="source-add-field" for="source-add-url">
+                <span>Official listings URL</span>
+                <input id="source-add-url" name="url" type="url" inputmode="url" autocomplete="url" maxlength="2000" placeholder="https://example.org/opportunities" required>
+              </label>
+              <p class="source-add-status" id="source-add-status" role="status" aria-live="polite"></p>
+              <button class="control accent source-add-submit" id="source-add-submit" type="submit">Test and add source</button>
+            </form>
+          </details>
+          <div class="event-section" id="event-section" hidden>
+            <p class="kicker">Recent page changes</p>
+            <div class="event-list" id="event-list"></div>
+          </div>
+        </section>
+
+        <aside class="side-column" id="search-sidebar" aria-label="Search settings">
           <section class="side-card profile-card" id="profile-card" hidden>
             <p class="kicker">Search profile</p>
             <div class="profile-catalog" id="profile-catalog" hidden>
@@ -106,64 +195,11 @@
               <button class="text-button danger" id="profile-delete-button" type="button" data-profile-management>Delete</button>
             </div>
           </section>
-          <section class="side-card source-health">
-            <div class="side-heading">
-              <div>
-                <p class="kicker">Sources</p>
-                <h2 id="health-summary">Not scanned yet</h2>
-              </div>
-              <span class="health-mark" id="health-mark" aria-hidden="true"></span>
-            </div>
-            <div class="source-overview" id="source-overview"></div>
-            <button class="control subtle source-resource-button" id="source-resource-button" type="button" aria-haspopup="dialog">Browse career resources</button>
-            <details id="source-details">
-              <summary>View source details <span id="source-detail-count"></span></summary>
-              <div class="source-tools" id="source-tools">
-                <label class="source-search-field">
-                  <span class="sr-only">Search sources</span>
-                  <input id="source-search" type="search" placeholder="Search sources..." autocomplete="off">
-                </label>
-                <label>
-                  <span class="sr-only">Filter sources by status</span>
-                  <select id="source-status-filter" aria-label="Filter sources by status">
-                    <option value="all">All statuses</option>
-                    <option value="error">Needs attention</option>
-                    <option value="blocked">Access limited</option>
-                    <option value="waiting">Waiting</option>
-                    <option value="ok">Healthy</option>
-                  </select>
-                </label>
-              </div>
-              <p class="source-list-note" id="source-list-note" role="status" aria-live="polite"></p>
-              <div class="source-list" id="source-list"></div>
-              <button class="control subtle source-show-more" id="source-show-more" type="button" aria-controls="source-list" hidden>Show all sources</button>
-            </details>
-            <details class="source-add" id="source-add-details">
-              <summary>Add your own source <span class="native-only-badge">macOS app only</span></summary>
-              <form id="source-add-form" novalidate>
-                <p class="source-add-intro">Follow a company or program that is missing by adding its official jobs or careers page.</p>
-                <label class="source-add-field" for="source-add-name">
-                  <span>Company or program</span>
-                  <input id="source-add-name" name="name" type="text" autocomplete="organization" maxlength="120" placeholder="Example organization" required>
-                </label>
-                <label class="source-add-field" for="source-add-url">
-                  <span>Official jobs or careers URL</span>
-                  <input id="source-add-url" name="url" type="url" inputmode="url" autocomplete="url" maxlength="2000" placeholder="https://example.org/careers" required>
-                </label>
-                <p class="source-add-status" id="source-add-status" role="status" aria-live="polite"></p>
-                <button class="control accent source-add-submit" id="source-add-submit" type="submit">Test and add source</button>
-              </form>
-            </details>
-            <div class="event-section" id="event-section" hidden>
-              <p class="kicker">Recent page changes</p>
-              <div class="event-list" id="event-list"></div>
-            </div>
-          </section>
           <section class="side-card guidance" id="guidance-card">
-            <p class="kicker">How scoring works</p>
-            <h2>Fit, not probability.</h2>
-            <p>Matches use your roles, fields, skills, and requirements. Broad labels such as fellowship do not establish subject fit for a specific profile.</p>
-            <p>Open Review fit and requirements on a listing to inspect the evidence. Scores help you prioritize; they do not estimate acceptance.</p>
+            <p class="kicker">Matching</p>
+            <h2>Make your search yours</h2>
+            <p>Use your profile to set interests and constraints. Switch to All collected to look beyond your current matches.</p>
+            <p>Each listing shows what the source provided and why the profile matched.</p>
           </section>
         </aside>
       </section>
@@ -175,10 +211,21 @@
     <form method="dialog">
       <p class="kicker">Full scan</p>
       <h2>Check every enabled source now?</h2>
-      <p>This ignores each source's normal schedule and may take a few minutes.</p>
+      <p>This checks all enabled sources, including those recently checked. The duration depends on the sources and their response times.</p>
       <div class="dialog-actions">
         <button class="control subtle" value="cancel">Cancel</button>
         <button class="control accent" id="confirm-scan" value="confirm">Scan all sources</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="scan-help-dialog" aria-labelledby="scan-help-title">
+    <form method="dialog">
+      <p class="kicker">Local dashboard file</p>
+      <h2 id="scan-help-title">Check sources from Terminal</h2>
+      <p>Run this command from the Opportunity Radar folder, then reload the dashboard.</p>
+      <p><code id="scan-help-command">python3 -m monitor scan</code></p>
+      <div class="dialog-actions">
+        <button class="control accent" id="scan-help-close" value="close">Close</button>
       </div>
     </form>
   </dialog>
@@ -197,7 +244,7 @@
         This dashboard is read-only outside the app. To make changes, run <code>python3 -m monitor profile set --help</code> in Terminal.
       </div>
       <div class="profile-page-tabs" role="tablist" aria-label="Profile settings">
-        <button class="profile-page-tab active" id="profile-basics-tab" type="button" role="tab" aria-selected="true" aria-controls="profile-basics-page" data-profile-page-tab="basics">Basics</button>
+        <button class="profile-page-tab active" id="profile-basics-tab" type="button" role="tab" aria-selected="true" aria-controls="profile-basics-page" data-profile-page-tab="basics">Goals and eligibility</button>
         <button class="profile-page-tab" id="profile-sources-tab" type="button" role="tab" aria-selected="false" aria-controls="profile-sources-page" data-profile-page-tab="sources">Sources</button>
         <button class="profile-page-tab" id="profile-advanced-tab" type="button" role="tab" aria-selected="false" aria-controls="profile-advanced-page" data-profile-page-tab="advanced">Advanced</button>
       </div>
@@ -266,15 +313,15 @@
     <div class="source-resource-sheet">
       <div class="source-resource-header">
         <div>
-          <p class="kicker">career resource directory</p>
-          <h2 id="source-resource-dialog-title">Browse official opportunity resources</h2>
-          <p>Explore scanned sources and additional official career or program pages across career fields.</p>
+          <p class="kicker">Source directory</p>
+          <h2 id="source-resource-dialog-title">Browse opportunity sources</h2>
+          <p>Explore enabled feeds, monitored pages, and directories you can visit directly.</p>
         </div>
-        <button class="profile-close" id="source-resource-close" type="button" aria-label="Close career resource directory">Close</button>
+        <button class="profile-close" id="source-resource-close" type="button" aria-label="Close source directory">Close</button>
       </div>
       <div class="source-resource-tools">
         <label for="source-resource-search">Search by organization, role, field, or opportunity type</label>
-        <input id="source-resource-search" type="search" placeholder="Bose, software engineer, acoustics, internship..." autocomplete="off" aria-describedby="source-resource-count">
+        <input id="source-resource-search" type="search" placeholder="e.g. public health, apprenticeship, policy research" autocomplete="off" aria-describedby="source-resource-count">
         <p id="source-resource-count" role="status" aria-live="polite"></p>
       </div>
       <div class="source-resource-list" id="source-resource-list" role="list"></div>

@@ -57,7 +57,7 @@ def _source_resource_directory() -> list:
             {
                 "id": source_id,
                 "name": name,
-                "url": safe_external_url(source.get("url")),
+                "url": safe_external_url(source.get("publisher_url") or source.get("url")),
                 "packs": _bounded_string_list(source.get("packs")),
                 "domains": _bounded_string_list(source.get("domains")),
                 "role_families": _bounded_string_list(source.get("role_families")),
@@ -140,16 +140,32 @@ def _dashboard_settings(profile: Dict[str, Any]) -> Dict[str, Any]:
 
 def safe_external_url(value: Any) -> str:
     candidate = str(value or "").strip()
-    parsed = urlparse(candidate)
-    return candidate if parsed.scheme.lower() in {"https", "http"} and parsed.netloc else ""
+    try:
+        parsed = urlparse(candidate)
+        if parsed.scheme.lower() in {"https", "http"} and parsed.hostname and not parsed.username:
+            return candidate
+    except ValueError:
+        pass
+    return ""
 
 
 def _safe_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     rendered = dict(payload)
-    rendered["opportunities"] = [
-        dict(item, url=safe_external_url(item.get("url")))
-        for item in payload.get("opportunities", [])
-    ]
+    for key in ("opportunities", "catalog"):
+        rendered[key] = []
+        for item in payload.get(key, []):
+            output = dict(item, url=safe_external_url(item.get("url")))
+            facts = output.get("facts")
+            if isinstance(facts, dict):
+                facts = dict(facts)
+                for field in ("application_url", "publisher_url"):
+                    if field in facts:
+                        facts[field] = safe_external_url(facts[field])
+                if isinstance(facts.get("source"), dict):
+                    source = facts["source"]
+                    facts["source"] = dict(source, url=safe_external_url(source.get("url")))
+                output["facts"] = facts
+            rendered[key].append(output)
     rendered["sources"] = [
         dict(source, url=safe_external_url(source.get("url")))
         for source in payload.get("sources", [])

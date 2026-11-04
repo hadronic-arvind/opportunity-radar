@@ -155,6 +155,10 @@ def _infer_opportunity_type(
         default=normalize_opportunity_type(
             source.get("default_opportunity_type")
         ) or "job",
+        employment_feed=source.get("kind") in {
+            "arbeitnow", "ashby", "comeet", "greenhouse", "jibe", "lever", "recruiterbox",
+            "rippling", "sap_public", "smartrecruiters", "workable", "workday",
+        },
     )
 
 
@@ -801,47 +805,36 @@ def _jibe_pages(source: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
 
 def fetch_source(source: Dict[str, Any]) -> FetchResult:
     kind = source["kind"]
-    if kind == "workable":
-        from .employer_feeds import fetch_workable
-
-        return fetch_workable(source)
-
-    if kind in {"sap_public", "comeet"}:
-        from .employer_feeds import fetch_sap_public, fetch_comeet
-
-        return fetch_sap_public(source) if kind == "sap_public" else fetch_comeet(source)
-
-    if kind in {"rippling", "recruiterbox"}:
-        from .employer_feeds import fetch_rippling, fetch_recruiterbox
-
-        return fetch_rippling(source) if kind == "rippling" else fetch_recruiterbox(source)
-
-    if kind == "smartrecruiters":
-        from .employer_feeds import fetch_smartrecruiters
-
-        return filter_items(source, fetch_smartrecruiters(source))
-    if kind == "workday":
-        from .employer_feeds import fetch_workday
-
-        return filter_items(source, fetch_workday(source))
-    if kind == "ashby":
-        result = fetch_ashby(source)
-        return filter_items(source, result)
-    if kind == "greenhouse":
-        result = fetch_greenhouse(source)
-        return filter_items(source, result)
-    if kind == "lever":
-        result = fetch_lever(source)
-        return filter_items(source, result)
-    if kind == "jibe":
-        result = fetch_jibe(source)
-        return filter_items(source, result)
-    if kind == "html_links":
-        result = fetch_html_links(source)
-        return filter_items(source, result)
     if kind == "watch_page":
         return fetch_watch_page(source)
-    raise ValueError("Unsupported source kind: {}".format(kind))
+    from . import employer_feeds, public_feeds
+
+    adapters = {
+        "ashby": fetch_ashby,
+        "greenhouse": fetch_greenhouse,
+        "html_links": fetch_html_links,
+        "jibe": fetch_jibe,
+        "lever": fetch_lever,
+        "comeet": employer_feeds.fetch_comeet,
+        "recruiterbox": employer_feeds.fetch_recruiterbox,
+        "rippling": employer_feeds.fetch_rippling,
+        "sap_public": employer_feeds.fetch_sap_public,
+        "smartrecruiters": employer_feeds.fetch_smartrecruiters,
+        "workable": employer_feeds.fetch_workable,
+        "workday": employer_feeds.fetch_workday,
+        "arbeitnow": public_feeds.fetch_arbeitnow,
+        "grants_gov": public_feeds.fetch_grants_gov,
+        "json_ld": public_feeds.fetch_public_page,
+        "public_page": public_feeds.fetch_public_page,
+        "syndication": public_feeds.fetch_public_page,
+    }
+    adapter = adapters.get(kind)
+    if adapter is None:
+        raise ValueError("Unsupported source kind: {}".format(kind))
+    result = adapter(source)
+    if kind == "html_links" and source.get("rolling_window", False):
+        result.complete_snapshot = False
+    return filter_items(source, result)
 
 
 def filter_items(source: Dict[str, Any], result: FetchResult) -> FetchResult:
@@ -1153,7 +1146,9 @@ def fetch_jibe(source: Dict[str, Any]) -> FetchResult:
     return FetchResult(items, content_hash, message="{} Jibe jobs".format(len(items)))
 
 
-def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
+def fetch_html_links(
+    source: Dict[str, Any], prefetched: Optional[bytes] = None
+) -> FetchResult:
     source_url, source_host, _source_port = _remote_url_parts(str(source["url"]))
     configured_link_base = _html_link_base(
         source.get("link_base_url"),
@@ -1161,7 +1156,10 @@ def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
         source_host,
         strict=source.get("link_base_url") not in (None, ""),
     )
-    payloads, content_hash = _html_link_payloads(source)
+    if prefetched is None:
+        payloads, content_hash = _html_link_payloads(source)
+    else:
+        payloads, content_hash = [prefetched], _hash(prefetched)
     links: List[Tuple[str, str, str]] = []
     for page_index, payload in enumerate(payloads):
         page_url = _html_page_url(source, page_index)
@@ -1194,6 +1192,15 @@ def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
         haystack = "{} {}".format(title, url).lower()
         if not title or not url.startswith("http"):
             continue
+        if prefetched is not None:
+            if any(ord(character) < 32 or character == "\\" for character in href):
+                continue
+            try:
+                _remote_url_parts(url)
+            except ValueError:
+                continue
+            if canonical_url(urllib.parse.urldefrag(url).url) == canonical_url(source_url):
+                continue
         if (
             source.get("same_domain", False)
             and (urllib.parse.urlsplit(url).hostname or "").casefold() != source_host
@@ -1219,6 +1226,17 @@ def fetch_html_links(source: Dict[str, Any]) -> FetchResult:
                     source,
                     adapter="html_links",
                     page_count=len(payloads),
+                    collection={
+                        "evidence": "directory_link",
+                        "source_url": source_url,
+                        "publisher_url": source.get("publisher_url", source_url),
+                        "context": "listing" if (
+                            prefetched is None and source.get("source_type") == "listing_feed"
+                        ) else "directory",
+                        "coverage": "partial" if (
+                            prefetched is not None or source.get("rolling_window", False)
+                        ) else "complete",
+                    },
                 ),
             )
         )

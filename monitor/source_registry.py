@@ -18,17 +18,23 @@ from .profile import (
     profile_lifecycle_lock,
     refresh_profile_state,
 )
+from .public_feeds import ARBEITNOW_HOSTS, GRANTS_SEARCH_URL, arbeitnow_publisher
 from .text import normalize_opportunity_type
 
 
 SOURCE_ID_RE = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
 SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$")
 SUPPORTED_KINDS = {
+    "arbeitnow",
     "ashby",
     "greenhouse",
+    "grants_gov",
     "html_links",
     "jibe",
+    "json_ld",
     "lever",
+    "public_page",
+    "syndication",
     "watch_page",
     "workday",
     "smartrecruiters",
@@ -47,11 +53,15 @@ CUSTOM_PACK = {
 DEFAULT_LINK_INCLUDES = [
     "/apply",
     "/career",
+    "/event",
     "/fellow",
+    "/grant",
+    "/hackathon",
     "/intern",
     "/job",
     "/opportunit",
     "/position",
+    "/program",
     "/role",
 ]
 DEFAULT_LINK_EXCLUDES = [
@@ -206,9 +216,21 @@ def validate_source(source: Any) -> Dict[str, Any]:
                 "Jibe job URL template",
             )
             result["job_url_template"] = template
-    if kind == "html_links":
+    if kind == "arbeitnow":
+        try:
+            result["publisher_url"] = arbeitnow_publisher(result["url"])
+        except ValueError as error:
+            raise ProfileValidationError(str(error)) from error
+    if kind == "grants_gov" and result["url"].rstrip("/") != GRANTS_SEARCH_URL:
+        raise ProfileValidationError("Grants.gov requires its official search page URL")
+    if result.get("publisher_url"):
+        result["publisher_url"] = _https_url(result["publisher_url"], "Publisher URL")
+    if "rolling_window" in result and not isinstance(result["rolling_window"], bool):
+        raise ProfileValidationError("rolling_window must be true or false")
+    if kind in {"html_links", "public_page"}:
         result["pages"] = _bounded_integer(
-            result.get("pages", 1), "HTML page count", 1, MAX_HTML_LINK_PAGES
+            result.get("pages", 1), "HTML page count", 1,
+            1 if kind == "public_page" else MAX_HTML_LINK_PAGES,
         )
         parameter = result.get("pagination_parameter", "page")
         if not isinstance(parameter, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", parameter):
@@ -346,7 +368,7 @@ def _slug(value: str) -> str:
 
 
 def detect_source(url: str) -> Tuple[str, Dict[str, str]]:
-    """Recognize safe public ATS URLs, otherwise use bounded HTML links."""
+    """Recognize public ATS and feed URLs, then try same-page structured evidence."""
     validated = _https_url(url, "Source URL")
     parsed = urllib.parse.urlsplit(validated)
     host = (parsed.hostname or "").casefold()
@@ -373,7 +395,13 @@ def detect_source(url: str) -> Tuple[str, Dict[str, str]]:
 
         workday_board(validated)
         return "workday", {}
-    return "html_links", {}
+    if host in ARBEITNOW_HOSTS and parsed.path == "/api/job-board-api":
+        return "arbeitnow", {}
+    if validated.rstrip("/") == GRANTS_SEARCH_URL:
+        return "grants_gov", {}
+    if parsed.path.casefold().rstrip("/").endswith((".rss", ".atom", "/feed", "/rss", "/atom")):
+        return "syndication", {}
+    return "public_page", {}
 
 
 def build_custom_source(
@@ -384,6 +412,7 @@ def build_custom_source(
     adapter: str = "",
     packs: Optional[Sequence[str]] = None,
     cadence_hours: int = 12,
+    opportunity_type: str = "",
 ) -> Dict[str, Any]:
     clean_name = str(name or "").strip()
     clean_url = _https_url(url, "Source URL")
@@ -399,9 +428,13 @@ def build_custom_source(
         "packs": list(packs or [CUSTOM_PACK_ID]),
         "cadence_hours": cadence_hours,
         "enabled": True,
-        "official": True,
+        "official": selected_kind not in {"html_links", "json_ld", "public_page", "syndication", "watch_page"},
         "managed_by": "opportunity-radar",
     }
+    if opportunity_type:
+        source["default_opportunity_type"] = opportunity_type
+    elif selected_kind in {"public_page", "syndication"}:
+        source["default_opportunity_type"] = "opportunity"
     adapter_key = {
         "ashby": "board",
         "greenhouse": "board",
@@ -425,7 +458,7 @@ def build_custom_source(
         source.update({"support_level": "experimental", "source_type": "listing_feed"})
     elif selected_kind == "workday":
         source.update({"support_level": "supported", "source_type": "listing_feed"})
-    elif selected_kind == "html_links":
+    elif selected_kind in {"html_links", "public_page"}:
         source.update(
             {
                 "include": list(DEFAULT_LINK_INCLUDES),
