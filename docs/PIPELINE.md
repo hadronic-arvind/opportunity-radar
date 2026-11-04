@@ -23,15 +23,17 @@ The scheduler installer copies the runtime package, selected configuration/dashb
 3. It registers the effective public and local source configuration.
 4. It imports an optional private curated Markdown seed.
 5. It selects due sources, prioritizes discovery during the first runs, and checks sources sequentially.
-6. It stops starting new sources when the default 45-second collection budget is reached and reports how many remain due.
+6. It applies a 15-second network budget to the first automatic scan, with up to 6 seconds per source.
+   Later automatic scans stop starting new sources after a 45-second collection window.
 7. It validates each response and evaluates only new or changed records unless the profile fingerprint changed.
 8. It updates SQLite while preserving first-seen and application state.
 9. It generates one private self-contained dashboard atomically.
 10. It optionally sends local macOS change alerts, closes every handle, and exits.
 
 Targeted and forced scans have no default collection budget.
-The CLI accepts explicit time and source-count limits for any run.
-A source already in flight uses its adapter's own deadline.
+The CLI accepts explicit network time and source-count limits for any run.
+An explicit or first-run deadline can defer a source without changing its health or deactivating any listings.
+During a later automatic scan, a source already in flight uses its adapter's own deadline.
 The CLI reports progress on standard error and keeps the final JSON summary on standard output.
 In CLI-only mode, automatic changes update SQLite without rendering HTML.
 The explicit dashboard command still generates an offline snapshot.
@@ -102,6 +104,9 @@ Listings without configured interest evidence stay outside the default recommend
 All collected search and the full CLI catalog can still surface them.
 Narrow title equivalents for common roles contribute auditable evidence across employer industries.
 The source brief keeps quoted activities, benefits, and requirements separate from the user's fit and eligibility checks.
+A source-backed activity and benefit index supports overlapping facets independently of the listing's primary kind.
+Source refreshes update the facet rows in the same transaction as their listing, and profile changes reuse the index.
+The database fills this index from existing records during the schema upgrade.
 Profiles that deliberately request only broad program labels retain broad discovery.
 Generic academic role labels such as research assistant and research scientist also cannot establish the subject fit of a specific profile.
 Weak description evidence for a specific interest retains its existing score ceiling and can remain in Watch when the configured display threshold allows it.

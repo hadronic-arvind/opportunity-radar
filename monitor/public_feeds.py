@@ -1,6 +1,7 @@
 """Bounded public listing discovery using common publication formats."""
 
 import json
+import math
 import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -227,6 +228,47 @@ def _schema_location(value: Any) -> str:
     return " · ".join(dict.fromkeys(filter(None, locations)))
 
 
+def _money_number(value: Any) -> Any:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    if isinstance(value, str) and len(value) > 50:
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
+        return None
+    if not math.isfinite(number) or number < 0:
+        return None
+    return int(number) if number.is_integer() else number
+
+
+def _schema_money(amount: Any, currency: Any = None) -> Dict[str, Any]:
+    """Retain explicit amounts and units without treating estimates as offers."""
+    fields = amount if isinstance(amount, dict) else {"value": amount}
+    values = fields.get("value")
+    if not isinstance(values, dict):
+        values = fields
+    result = {
+        key: number
+        for key, field in (
+            ("value", "value"),
+            ("minimum", "minValue"),
+            ("maximum", "maxValue"),
+        )
+        for number in [_money_number(values.get(field))]
+        if number is not None
+    }
+    if not result or result.get("minimum", 0) > result.get("maximum", math.inf):
+        return {}
+    currency_text = _text(fields.get("currency") or currency, 30)
+    unit = _text(values.get("unitText") or values.get("unitCode"), 50)
+    if currency_text:
+        result["currency"] = currency_text
+    if unit:
+        result["unit"] = unit
+    return result
+
+
 def _schema_items(source: Dict[str, Any], payload: bytes) -> List[Opportunity]:
     parser = _ListingMarkup()
     parser.feed(payload.decode("utf-8-sig", errors="replace"))
@@ -343,6 +385,12 @@ def _schema_items(source: Dict[str, Any], payload: bytes) -> List[Opportunity]:
             "duration": _text(node.get("timeToComplete") or node.get("duration"), 120),
             "eligibility": eligibility,
         }
+        if kind == "JobPosting":
+            listing["base_salary"] = _schema_money(
+                resolve(node.get("baseSalary")), node.get("salaryCurrency")
+            )
+        elif kind in {"Grant", "MonetaryGrant"}:
+            listing["grant_amount"] = _schema_money(resolve(node.get("amount")))
         results.append(
             Opportunity(
                 source_id=source["id"],
@@ -373,7 +421,7 @@ def _schema_items(source: Dict[str, Any], payload: bytes) -> List[Opportunity]:
                     listing={
                         key: value
                         for key, value in listing.items()
-                        if value not in (None, "")
+                        if value not in (None, "", {})
                     },
                     dates=dates,
                 ),
@@ -502,9 +550,11 @@ def _syndication_items(source: Dict[str, Any], payload: bytes) -> List[Opportuni
     return results
 
 
-def fetch_public_page(source: Dict[str, Any]) -> FetchResult:
+def fetch_public_page(
+    source: Dict[str, Any], prefetched: Optional[bytes] = None
+) -> FetchResult:
     kind = source["kind"]
-    payload = fetchers._request(source["url"])
+    payload = fetchers._request(source["url"]) if prefetched is None else prefetched
     prefix = payload[:1000].decode("utf-8-sig", errors="replace").lstrip().casefold()
     if kind == "syndication" or (
         kind == "public_page"

@@ -9,6 +9,7 @@ import urllib.parse
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .fetchers import (
+    CollectionDeadlineExceeded,
     MAX_JIBE_TOTAL_BYTES,
     MAX_JIBE_WALL_SECONDS,
     ResponseTooLargeError,
@@ -46,7 +47,7 @@ def _enrich_jobs(
         offset = (offset + 1) % len(identifiers)
         try:
             results[identifier] = load(identifier, detail_deadline)
-        except ResponseTooLargeError:
+        except (CollectionDeadlineExceeded, ResponseTooLargeError):
             results[identifier] = None
             break
         except (OSError, ValueError):

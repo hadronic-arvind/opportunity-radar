@@ -28,6 +28,8 @@ Counts are observations from that run.
 
 Add a public publisher feed or program page with `python3 -m monitor sources add --name NAME --url HTTPS_URL`.
 Automatic source detection recognizes supported career boards, common RSS and Atom addresses, and structured listing information on ordinary HTML pages.
+When a career page links to one recognized public hiring board, Add Source tests and saves that board with the original career page as attribution.
+When the page links to several boards, the setup output lists them so you can paste the one you want.
 Use `--kind syndication` for an RSS or Atom URL that automatic detection cannot identify.
 Use `--kind json_ld` to require Schema.org listing markup in JSON-LD or Microdata.
 Use `--opportunity-type` when the source has a known default for otherwise ambiguous entries.

@@ -27,7 +27,13 @@ from .dashboard import render_dashboard
 from .database import Database, SCHEMA_VERSION
 from .fetchers import MAX_HTML_LINK_PAGES, _remote_url_parts, fetch_source
 from .onboarding import comma_values, default_pack_ids, initialize, interactive_values
-from .opportunity_facts import listing_availability, opportunity_facts
+from .opportunity_facts import (
+    ACTIVITY_FACETS,
+    BENEFIT_FACETS,
+    listing_availability,
+    opportunity_facts,
+    participation_facets,
+)
 from .opportunity_search import listing_key, search_ranker
 from .pipeline import ensure_profile_lifecycle_idle, exclusive_lock, run_scan
 from .profile import (
@@ -48,6 +54,7 @@ from .source_registry import (
     SUPPORTED_KINDS,
     add_source,
     build_custom_source,
+    inspect_automatic_source,
     remove_source,
     set_source_enabled,
     source_summary,
@@ -75,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--force", action="store_true", help="Ignore per-source cadence")
     scan.add_argument("--notify", action="store_true", help="Send change-only notifications")
     scan.add_argument("--max-sources", type=int, help="Maximum source checks in this burst")
-    scan.add_argument("--max-seconds", type=float, help="Soft time budget checked between sources")
+    scan.add_argument("--max-seconds", type=float, help="Network time budget for this refresh")
     scan.add_argument("--progress", action="store_true", help="Show progress on standard error")
     scan.add_argument("--quiet", action="store_true", help="Suppress JSON output for scheduled runs")
 
@@ -151,6 +158,14 @@ def build_parser() -> argparse.ArgumentParser:
             choices=["new", "reviewed", "apply", "applied", "skip"],
         )
         command.add_argument("--type", dest="opportunity_type")
+        command.add_argument(
+            "--activity", action="append", choices=ACTIVITY_FACETS,
+            help="Filter by what participants do. Repeat to require multiple activities",
+        )
+        command.add_argument(
+            "--benefit", action="append", choices=BENEFIT_FACETS,
+            help="Filter by benefits described by the source. Repeat to require multiple benefits",
+        )
         command.add_argument("--source")
         command.add_argument("--organization", help="Filter by part of an organization name")
         command.add_argument("--location", help="Filter by part of a listed location")
@@ -341,7 +356,8 @@ def _scan_progress(event: Dict[str, Any]) -> None:
     elif event["event"] == "source_start":
         print(
             "[{}/{}] {}".format(
-                event["checked_sources"] + 1, event["total_sources"],
+                event["checked_sources"] + event.get("deferred_sources", 0) + 1,
+                event["total_sources"],
                 event.get("source_name", event.get("source_id", "Source")),
             ),
             file=sys.stderr, flush=True,
@@ -350,8 +366,10 @@ def _scan_progress(event: Dict[str, Any]) -> None:
         print("Rebuilding the local dashboard", file=sys.stderr, flush=True)
     elif event["event"] == "finish":
         print(
-            "Checked {} sources, with {} still due".format(
-                event["checked_sources"], event["remaining_due"]
+            "Checked {} sources, with {} still due{}".format(
+                event["checked_sources"], event["remaining_due"],
+                " ({} deferred by the network budget)".format(event["deferred_sources"])
+                if event.get("deferred_sources") else "",
             ),
             file=sys.stderr, flush=True,
         )
@@ -762,7 +780,10 @@ def command_sources(args: argparse.Namespace) -> int:
             )
             live = None
             if not args.skip_test:
-                result = fetch_source(source)
+                if args.kind == "auto" and source["kind"] == "public_page":
+                    source, result = inspect_automatic_source(source, args.opportunity_type)
+                else:
+                    result = fetch_source(source)
                 live = {
                     "status": result.status,
                     "items": len(result.opportunities),
@@ -1324,6 +1345,14 @@ def _opportunity_rows(args: argparse.Namespace) -> List[Dict[str, Any]]:
             clauses.append("{}=?".format(column))
             values.append(str(value))
 
+    for group, attribute in (("activities", "activity"), ("benefits", "benefit")):
+        for facet in dict.fromkeys(getattr(args, attribute, None) or []):
+            clauses.append(
+                "opportunities.id IN (SELECT opportunity_id FROM opportunity_facets "
+                "WHERE facet_group=? AND facet_id=?)"
+            )
+            values.extend((group, facet))
+
     # Readers use the latest committed snapshot, including during collection.
     with _read_opportunity_database(path) as connection:
         if query:
@@ -1464,6 +1493,7 @@ def command_opportunities(args: argparse.Namespace) -> int:
                 if value is not None:
                     payload[field.removesuffix("_json")] = json.loads(value)
             facts = opportunity_facts(payload)
+            facts["facets"] = participation_facets(payload)
             payload["facts"] = facts
             if args.json:
                 print(json.dumps(payload, indent=2, ensure_ascii=False))
@@ -1484,6 +1514,10 @@ def command_opportunities(args: argparse.Namespace) -> int:
                 print("URL: {}".format(payload["url"]))
                 print("Listing information: {}".format(facts["information"].replace("_", " ")))
                 print("Availability: {}".format(facts["availability"]))
+                for group, label in (("activities", "Activities"), ("benefits", "Offers")):
+                    entries = facts["facets"][group]
+                    if entries:
+                        print("{}: {}".format(label, ", ".join(entry["label"] for entry in entries)))
                 for key, value in facts.get("schedule", {}).items():
                     print("{}: {}".format(key.replace("_", " ").capitalize(), value))
                 match = payload.get("metadata", {}).get("match", {})

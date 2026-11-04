@@ -23,7 +23,12 @@ from .config import (
 )
 from .dashboard import render_dashboard
 from .database import Database, source_snapshot_key, utc_now
-from .fetchers import fetch_source, polite_pause
+from .fetchers import (
+    CollectionDeadlineExceeded,
+    collection_request_deadline,
+    fetch_source,
+    polite_pause,
+)
 from .models import FetchResult, Opportunity
 from .notifications import notify_macos, summarize
 from .scoring import score_opportunity
@@ -32,6 +37,8 @@ from .seed import parse_pipeline
 
 MAX_NOTIFICATION_ITEMS = 100
 DEFAULT_DUE_BURST_SECONDS = 45
+FIRST_REFRESH_NETWORK_SECONDS = 15
+FIRST_REFRESH_PER_SOURCE_SECONDS = 6
 LIFECYCLE_OWNER_ENV = "OPPORTUNITY_RADAR_LIFECYCLE_OWNER"
 
 
@@ -275,7 +282,7 @@ def run_scan(
     max_seconds: Optional[float] = None,
     progress: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
-    """Refresh due sources in a finite burst; an in-flight source keeps its own deadline."""
+    """Refresh due sources with a short first pass and bounded network requests."""
     if max_sources is not None and (
         isinstance(max_sources, bool)
         or not isinstance(max_sources, int)
@@ -288,7 +295,9 @@ def run_scan(
         or max_seconds <= 0
     ):
         raise ValueError("Maximum scan seconds must be positive and finite")
-    if max_seconds is None and not force and not source_ids:
+    explicit_budget = max_seconds is not None
+    automatic = not force and not source_ids
+    if max_seconds is None and automatic:
         max_seconds = DEFAULT_DUE_BURST_SECONDS
 
     began = time.monotonic()
@@ -320,12 +329,17 @@ def run_scan(
             _register_sources(database, all_sources, profile)
             due = database.sources_due(sources, force=force)
             planned = due[:max_sources]
+            first_refresh = (
+                automatic and not explicit_budget and not database.has_scan_history()
+            )
             run_id, started_at = database.begin_run()
         except (Exception, KeyboardInterrupt):
             database.close()
             raise
 
-        checked = unchanged_sources = blocked_sources = new_count = updated_count = 0
+        checked = deferred_sources = unchanged_sources = blocked_sources = new_count = (
+            updated_count
+        ) = 0
         errors: List[str] = []
         notification_errors: List[str] = []
         new_high_fit: List[Dict[str, Any]] = []
@@ -338,6 +352,7 @@ def run_scan(
                         "total_sources": len(planned),
                         "due_sources": len(due),
                         "checked_sources": checked,
+                        "deferred_sources": deferred_sources,
                         "remaining_due": len(due) - checked,
                         "elapsed_seconds": round(time.monotonic() - began, 3),
                         **details,
@@ -354,15 +369,14 @@ def run_scan(
                 if curated_error:
                     errors.append(curated_error)
 
+            seconds = FIRST_REFRESH_NETWORK_SECONDS if first_refresh else max_seconds
             deadline = (
-                time.monotonic() + max_seconds
-                if max_seconds is not None
-                else float("inf")
+                time.monotonic() + seconds if seconds is not None else float("inf")
             )
             delay = float(profile.get("polite_delay_seconds", 0.15))
             score = partial(score_opportunity, profile=profile)
-            for source in planned:
-                if checked:
+            for position, source in enumerate(planned):
+                if position:
                     if time.monotonic() + delay >= deadline:
                         break
                     polite_pause(delay)
@@ -382,7 +396,14 @@ def run_scan(
                             source,
                             _detail_offset=database.source_detail_offset(source["id"]),
                         )
-                    result = fetch_source(request)
+                    network_deadline = deadline if explicit_budget else None
+                    if first_refresh:
+                        network_deadline = min(
+                            deadline,
+                            time.monotonic() + FIRST_REFRESH_PER_SOURCE_SECONDS,
+                        )
+                    with collection_request_deadline(network_deadline):
+                        result = fetch_source(request)
                     added, updated, unchanged, highlights = _ingest_source(
                         database, source, result, score
                     )
@@ -394,6 +415,11 @@ def run_scan(
                     )
                     if unchanged:
                         source_status = "unchanged"
+                except CollectionDeadlineExceeded:
+                    database.defer_source(source["id"])
+                    checked -= 1
+                    deferred_sources += 1
+                    source_status = "deferred"
                 except Exception as error:
                     if isinstance(
                         error, urllib.error.HTTPError
@@ -419,6 +445,7 @@ def run_scan(
             collection = {
                 "due_sources": len(due),
                 "checked_sources": checked,
+                "deferred_sources": deferred_sources,
                 "remaining_due": len(due) - checked,
                 "unchanged_sources": unchanged_sources,
             }
@@ -437,7 +464,9 @@ def run_scan(
             dashboard_path = None
             if automatic_dashboard_enabled():
                 report("render")
-                dashboard_path = render_dashboard(database.dashboard_payload(), profile=profile)
+                dashboard_path = render_dashboard(
+                    database.dashboard_payload(), profile=profile
+                )
             database.optimize()
 
             notification_error = None
@@ -470,7 +499,9 @@ def run_scan(
                 "errors": errors,
                 "notification_error": notification_error,
                 "new_high_fit": new_high_fit,
-                "dashboard": str(dashboard_path) if dashboard_path is not None else None,
+                "dashboard": str(dashboard_path)
+                if dashboard_path is not None
+                else None,
             }
         except (Exception, KeyboardInterrupt) as error:
             database.finish_run(

@@ -18,6 +18,8 @@
   const VIEW_VALUES = new Set(["discover", "applications", "coverage"]);
   const SORT_VALUES = new Set(["fit", "newest", "found", "deadline", "organization"]);
   const DEADLINE_VALUES = new Set(["all", "week", "month", "rolling", "unlisted"]);
+  const DISCOVERY_FACETS = ["kind", "deadline", "activity", "benefit"];
+  const FACT_FACET_GROUPS = [["activity", "activities"], ["benefit", "benefits"]];
   const PROFILE_PAGE_VALUES = new Set(["basics", "sources", "advanced"]);
   const PROFILE_MANAGEMENT_OPERATIONS = new Set([
     "activate", "create", "duplicate", "rename", "delete", "import",
@@ -322,6 +324,8 @@
       sort: SORT_VALUES.has(value.sort) ? value.sort : "fit",
       kind: boundedInlineText(value.kind, 40) || "all",
       deadline: DEADLINE_VALUES.has(value.deadline) ? value.deadline : "all",
+      activity: boundedInlineText(value.activity, 80) || "all",
+      benefit: boundedInlineText(value.benefit, 80) || "all",
       page: Number.isInteger(value.page) ? Math.max(1, value.page) : 1,
     };
   }
@@ -384,7 +388,8 @@
         item.commitment,
         item.recommended_resume,
         facts.context,
-        ...[facts.activities, facts.benefits, facts.requirements].flatMap((entries) => (
+        ...[facts.activities, facts.benefits, facts.requirements,
+          facetEntries(facts, "activities"), facetEntries(facts, "benefits")].flatMap((entries) => (
           Array.isArray(entries) ? entries.map((entry) => entry && entry.label) : []
         )),
       ].join(" ")),
@@ -2195,10 +2200,20 @@
     return status === "apply" || status === "applied";
   }
 
-  function isAvailable(item) {
-    const availability = item.facts && item.facts.availability;
+  function listingAvailability(item, today = localCalendarDate()) {
+    const facts = item.facts || {};
+    const state = facts.availability;
+    if (["closed", "archived", "resource"].includes(state)) return state;
+    const dates = [item.deadline_at, facts.schedule && facts.schedule.ends_at];
+    if (dates.some((value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value) && value.slice(0, 10) < today)) {
+      return "closed";
+    }
+    return state;
+  }
+
+  function isAvailable(item, today) {
     return isCollected(item) && item.tier !== "skip"
-      && !["closed", "archived", "resource"].includes(availability);
+      && !["closed", "archived", "resource"].includes(listingAvailability(item, today));
   }
 
   function isCollected(item) {
@@ -2209,7 +2224,7 @@
     return workflow.status === "skip" || workflow.bookmarked || isApplication(workflow.status);
   }
 
-  function belongsInView(item, workflow, view, filter) {
+  function belongsInView(item, workflow, view, filter, today) {
     if (view === "applications") {
       if (filter === "dismissed") return workflow.status === "skip";
       if (workflow.status === "skip") return false;
@@ -2220,9 +2235,9 @@
     if (!isCollected(item) || workflow.status === "skip") return false;
     if (filter === "collected") return true;
     if (isApplication(workflow.status)) return false;
-    if (filter === "priority") return isAvailable(item) && item.tier === "priority";
-    if (filter === "new") return isAvailable(item) && workflow.status === "new";
-    return isAvailable(item);
+    if (filter === "priority") return isAvailable(item, today) && item.tier === "priority";
+    if (filter === "new") return isAvailable(item, today) && workflow.status === "new";
+    return isAvailable(item, today);
   }
 
   function localCalendarDate(offset = 0) {
@@ -2241,6 +2256,15 @@
     if (filter === "unlisted") return !deadline.value && !rolling;
     const value = deadline.value.slice(0, 10);
     return Boolean(value) && value >= today && value <= horizon;
+  }
+
+  function facetEntries(facts, group) {
+    const values = facts && facts.facets && facts.facets[group];
+    return Array.isArray(values) ? values : [];
+  }
+
+  function matchesFactFacet(item, group, value) {
+    return !value || value === "all" || facetEntries(item.facts, group).some((entry) => entry && entry.id === value);
   }
 
   function scheduleValue(value) {
@@ -2359,10 +2383,12 @@
     const horizon = localCalendarDate(state.deadline === "week" ? 7 : 30);
     opportunityRows.forEach((item) => {
       const workflow = effective(item);
-      if (!belongsInView(item, workflow, state.view, state.filter)) return;
+      if (!belongsInView(item, workflow, state.view, state.filter, today)) return;
       if (state.view === "discover") {
         if (state.kind && state.kind !== "all" && normalizedType(item) !== state.kind) return;
         if (!matchesDeadline(item, state.deadline, today, horizon)) return;
+        if (!matchesFactFacet(item, "activities", state.activity)) return;
+        if (!matchesFactFacet(item, "benefits", state.benefit)) return;
       }
       const relevance = queryRank(item, phrase, terms);
       if (relevance >= 0) ranked.push({item, relevance});
@@ -2521,6 +2547,20 @@
     }
   }
 
+  function listingEvidence(facts, group) {
+    const legacy = Array.isArray(facts[group]) ? facts[group] : [];
+    const seen = new Set();
+    return [...facetEntries(facts, group), ...legacy].filter((entry) => {
+      if (!entry || !entry.label) return false;
+      const label = normalizeSearchText(entry.label);
+      const evidence = normalizeSearchText(entry.evidence);
+      if (seen.has("label:" + label) || (evidence && seen.has("evidence:" + evidence))) return false;
+      seen.add("label:" + label);
+      if (evidence) seen.add("evidence:" + evidence);
+      return true;
+    });
+  }
+
   function appendListingDetails(article, item) {
     const facts = item.facts || {};
     const description = String(item.description || "").trim();
@@ -2550,8 +2590,8 @@
       content.appendChild(element("p", "listing-attribution", "The source listing is available. Its full description has yet to be collected."));
     }
     [
-      ["What you would do", facts.activities],
-      ["Compensation and benefits mentioned", facts.benefits],
+      ["Activities indicated by the listing", listingEvidence(facts, "activities")],
+      ["Compensation and benefits mentioned", listingEvidence(facts, "benefits")],
       ["Eligibility and requirements mentioned", facts.requirements],
     ].forEach(([title, entries]) => {
       if (!Array.isArray(entries) || !entries.some((entry) => entry && entry.label)) return;
@@ -2661,12 +2701,12 @@
     }
     if (directory) addTag(tags, "Directory page", "limited-details");
     if (item.facts && item.facts.coverage === "partial") addTag(tags, "Rolling source", "limited-details");
-    const availability = item.facts && item.facts.availability;
+    const availability = listingAvailability(item);
     if (availability === "closed") addTag(tags, "Closed", "warning");
     if (availability === "unconfirmed") addTag(tags, "Availability unconfirmed", "limited-details");
     if (workflow.status === "apply") addTag(tags, participation ? "Planning participation" : "Preparing application", "stage");
     if (workflow.status === "applied") addTag(tags, participation ? "Registered or applied" : "Applied", "stage");
-    if (!item.active) addTag(tags, "Listing no longer active", "warning");
+    if (!item.active) addTag(tags, "Archived locally", "warning");
     else if (item.source_enabled === 0) addTag(tags, "Source disabled", "warning");
     else if (item.tier === "skip") addTag(tags, "Outside current profile", "warning");
     const warning = Array.isArray(item.warnings) ? item.warnings[0] : "";
@@ -2779,7 +2819,7 @@
 
   function hasRefinements() {
     return Boolean(state.query) || state.filter !== "all"
-      || state.view === "discover" && (state.kind !== "all" || state.deadline !== "all");
+      || state.view === "discover" && DISCOVERY_FACETS.some((key) => state[key] !== "all");
   }
 
   function pageCount() {
@@ -2935,16 +2975,26 @@
     });
   }
 
-  function initializeKinds() {
-    const select = document.getElementById("kind-filter");
-    const kinds = new Map();
+  function initializeDiscoveryFacets() {
+    const choices = {kind: new Map(), activity: new Map(), benefit: new Map()};
     opportunityRows.forEach((item) => {
-      if (isCollected(item)) kinds.set(normalizedType(item), typeLabel(item));
+      if (!isCollected(item)) return;
+      choices.kind.set(normalizedType(item), typeLabel(item));
+      for (const [key, group] of FACT_FACET_GROUPS) {
+        facetEntries(item.facts, group).forEach((entry) => {
+          if (!entry || !entry.id || !entry.label || entry.id === "all") return;
+          choices[key].set(entry.id, entry.label);
+        });
+      }
     });
-    Array.from(kinds).sort((left, right) => left[1].localeCompare(right[1])).forEach(([value, label]) => {
-      const option = element("option", "", label);
-      option.value = value;
-      select.appendChild(option);
+    Object.entries(choices).forEach(([key, values]) => {
+      const select = document.getElementById(key + "-filter");
+      select.disabled = values.size === 0;
+      Array.from(values).sort((left, right) => left[1].localeCompare(right[1])).forEach(([value, label]) => {
+        const option = element("option", "", label);
+        option.value = value;
+        select.appendChild(option);
+      });
     });
   }
 
@@ -3242,10 +3292,11 @@
     search.placeholder = tracker ? "Search your tracker" : "e.g. policy research, Seattle, public health";
     search.value = state.query || "";
     document.getElementById("sort").value = state.sort || "fit";
-    const kinds = document.getElementById("kind-filter");
-    kinds.value = state.kind || "all";
-    if (!kinds.value) state.kind = kinds.value = "all";
-    document.getElementById("deadline-filter").value = state.deadline || "all";
+    DISCOVERY_FACETS.forEach((key) => {
+      const select = document.getElementById(key + "-filter");
+      select.value = state[key] || "all";
+      if (!select.value) state[key] = select.value = "all";
+    });
     document.querySelectorAll(".view-button").forEach((button) => {
       const active = button.dataset.view === state.view;
       button.classList.toggle("active", active);
@@ -3407,7 +3458,7 @@
   try { initialTheme = localStorage.getItem("opportunity-radar-theme") || "system"; } catch (_error) { /* optional */ }
   setTheme(initialTheme, false);
 
-  initializeKinds();
+  initializeDiscoveryFacets();
   renderView();
 
   document.getElementById("theme-select").addEventListener("change", (event) => {
@@ -3483,15 +3534,13 @@
     state.page = 1;
     renderList();
   });
-  document.getElementById("kind-filter").addEventListener("change", (event) => {
-    state.kind = event.target.value;
-    state.page = 1;
-    renderList();
-  });
-  document.getElementById("deadline-filter").addEventListener("change", (event) => {
-    state.deadline = event.target.value;
-    state.page = 1;
-    renderList();
+  DISCOVERY_FACETS.forEach((key) => {
+    document.getElementById(key + "-filter").addEventListener("change", (event) => {
+      state[key] = event.target.value;
+      state.page = 1;
+      window.clearTimeout(searchTimer);
+      renderList();
+    });
   });
   document.getElementById("filter-row").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
@@ -3504,11 +3553,7 @@
     if (replacement) replacement.focus();
   });
   document.getElementById("clear-filters").addEventListener("click", () => {
-    state.filter = "all";
-    state.query = "";
-    state.kind = "all";
-    state.deadline = "all";
-    state.page = 1;
+    Object.assign(state, viewControls({sort: state.sort}));
     window.clearTimeout(searchTimer);
     renderView();
     renderAll();

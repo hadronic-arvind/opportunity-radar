@@ -11,6 +11,7 @@ from monitor.fetchers import (
     MAX_LISTING_RESPONSE_BYTES,
     MAX_RESPONSE_BYTES,
     READ_CHUNK_BYTES,
+    CollectionDeadlineExceeded,
     ResponseTooLargeError,
     _PublicHTTPSConnection,
     _SafeRedirectHandler,
@@ -18,6 +19,7 @@ from monitor.fetchers import (
     _jibe_pages,
     _request,
     _validate_remote_url,
+    collection_request_deadline,
     fetch_ashby,
     fetch_greenhouse,
     fetch_html_links,
@@ -915,6 +917,32 @@ class FetcherTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(TimeoutError, "wall-clock"):
                 _request("https://example.com", timeout=1)
+
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "bounded transport requires Unix signals")
+    def test_collection_deadline_interrupts_http_and_restores_request_context(self):
+        url = "https://example.com/jobs"
+        handler = signal.getsignal(signal.SIGALRM)
+
+        def stalled_remote(*_args, **_kwargs):
+            time.sleep(1)
+            return FakeResponse(b"late")
+
+        with (
+            patch("monitor.fetchers._validate_remote_url", return_value=url),
+            patch("monitor.fetchers._open_remote", side_effect=stalled_remote) as open_remote,
+        ):
+            started = time.monotonic()
+            with (
+                collection_request_deadline(started + 0.1),
+                self.assertRaises(CollectionDeadlineExceeded),
+            ):
+                _request(url, timeout=5)
+            self.assertLess(time.monotonic() - started, 0.5)
+            self.assertEqual(signal.getsignal(signal.SIGALRM), handler)
+            self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0.0, 0.0))
+            open_remote.side_effect = None
+            open_remote.return_value = FakeResponse(b"next")
+            self.assertEqual(_request(url), b"next")
 
     @unittest.skipUnless(hasattr(signal, "setitimer"), "bounded resolver requires Unix signals")
     @patch("monitor.fetchers._open_remote")

@@ -6,7 +6,7 @@ const path = require("node:path");
 const source = fs.readFileSync(path.join(__dirname, "../dashboard/app.js"), "utf8");
 const sandbox = {
   opportunityRows: [],
-  state: {view: "discover", filter: "all", query: "", sort: "fit", kind: "all", deadline: "all"},
+  state: {view: "discover", filter: "all", query: "", sort: "fit", kind: "all", deadline: "all", activity: "all", benefit: "all"},
   searchIndex: new Map(),
   duplicateIndex: new Map(),
   URL,
@@ -18,18 +18,20 @@ const sandbox = {
     appendChild(child) { this.childNodes.push(child); }}),
 };
 vm.createContext(sandbox);
-for (const name of ["TYPE_LABELS", "ID_PATTERN"]) {
+for (const name of ["TYPE_LABELS", "ID_PATTERN", "SORT_VALUES", "DEADLINE_VALUES", "DISCOVERY_FACETS", "FACT_FACET_GROUPS"]) {
   const start = source.indexOf("  const " + name + " =");
   const end = source.indexOf(";", start) + 1;
   assert(start >= 0 && end > start, name);
   vm.runInContext(source.slice(start, end), sandbox);
 }
-for (const name of ["boundedInlineText", "normalizeSearchText", "buildSearchFields",
-  "normalizedType", "typeLabel", "isAvailable", "isCollected", "isTracked", "belongsInView",
-  "localCalendarDate", "matchesDeadline", "scheduleValue", "dateEntry", "dateSortValue", "compareNewestItems",
+for (const name of ["boundedInlineText", "normalizeSearchText", "buildSearchFields", "viewControls",
+  "normalizedType", "typeLabel", "listingAvailability", "isAvailable", "isCollected", "isTracked", "belongsInView",
+  "localCalendarDate", "matchesDeadline", "facetEntries", "matchesFactFacet", "scheduleValue",
+  "dateEntry", "dateSortValue", "compareNewestItems",
   "compareItems", "validId", "safeUrl", "discoveryIdentity", "addDateMeta", "formatDate",
   "isApplication", "hasWholeTerm", "valueRank", "queryRank", "filteredItems", "filtersForView",
-  "appendListingDetails", "appendMatchSummary", "appendMatchAudit", "sourceResourceSearchText",
+  "hasRefinements", "initializeDiscoveryFacets", "listingEvidence", "appendListingDetails",
+  "appendMatchSummary", "appendMatchAudit", "sourceResourceSearchText",
   "matchingSourceResources", "matchingCompanyResources"]) {
   const start = source.indexOf("  function " + name + "(");
   const end = source.indexOf("\n  function ", start + 1);
@@ -44,7 +46,7 @@ sandbox.opportunityRows = [record("a", "research_program"), record("b", "co_op")
   record("f", "job", {title: "Data Scientist", organization: "Museum of Modern Art", tier: "skip"}),
   record("g", "event", {title: "Civic Coding Weekend", facts: {kind: "hackathon", availability: "listed"},
     deadline_at: sandbox.localCalendarDate(4)}),
-  record("h", "event", {facts: {availability: "closed"}, deadline_at: sandbox.localCalendarDate(-1)}),
+  record("h", "event", {facts: {availability: "listed"}, deadline_at: sandbox.localCalendarDate(-1)}),
   record("i", "grant", {status: "skip", tier: "skip"}),
 ];
 const ids = () => Array.from(sandbox.filteredItems(), (item) => item.id);
@@ -88,6 +90,47 @@ sandbox.opportunityRows = [
   record("distinct", "job", {url: "https://example.org/details?posting=3"}),
 ];
 assert.deepEqual(ids(), ["duplicate-a", "distinct"], "Only known tracking parameters are ignored");
+
+const research = {id: "research", label: "Research"};
+const compensation = {id: "compensation", label: "Compensation"};
+const training = {id: "learn", label: "Courses and training"};
+sandbox.opportunityRows = [
+  record("research-fellowship", "fellowship", {facts: {facets: {activities: [research], benefits: [compensation]}}}),
+  record("research-internship", "internship", {title: "Summer program", tier: "skip",
+    detail_available: false, facts: {facets: {activities: [research], benefits: []}}}),
+  record("paid-training", "apprenticeship", {facts: {facets: {activities: [training], benefits: [compensation]}}}),
+  record("unknown", "program", {bookmarked: true}),
+];
+const facetControls = Object.fromEntries(["kind", "activity", "benefit"].map((key) => [
+  key + "-filter", sandbox.element("select", ""),
+]));
+sandbox.document = {getElementById: (id) => facetControls[id]};
+sandbox.initializeDiscoveryFacets();
+assert.deepEqual(facetControls["activity-filter"].childNodes.map((entry) => entry.textContent), ["Courses and training", "Research"]);
+assert.deepEqual(facetControls["benefit-filter"].childNodes.map((entry) => entry.textContent), ["Compensation"]);
+
+sandbox.state.activity = "research";
+assert.deepEqual(ids(), ["research-fellowship", "research-internship"], "Activity spans kinds and includes compact catalog rows");
+sandbox.state.kind = "internship";
+assert.deepEqual(ids(), ["research-internship"], "Kind and activity compose");
+sandbox.state.kind = "all";
+sandbox.state.benefit = "compensation";
+assert.deepEqual(ids(), ["research-fellowship"], "Activity and benefit compose");
+sandbox.state.activity = "all";
+assert.deepEqual(ids(), ["research-fellowship", "paid-training"], "A benefit spans kinds and excludes missing evidence");
+sandbox.state.benefit = "all";
+sandbox.state.query = "summer research";
+assert.deepEqual(ids(), ["research-internship"], "Compact facet labels contribute to keyword search");
+sandbox.state.query = "";
+sandbox.state.activity = "research";
+sandbox.state.view = "applications";
+sandbox.state.filter = "saved";
+assert.deepEqual(ids(), ["unknown"], "Discovery facets do not apply to the Tracker");
+Object.assign(sandbox.state, {view: "discover", filter: "all"});
+assert(sandbox.hasRefinements(), "A facet alone enables Clear filters");
+assert.equal(sandbox.viewControls(sandbox.state).activity, "research");
+assert.equal(sandbox.viewControls({sort: "deadline"}).activity, "all", "Reset clears facets without changing sort");
+
 const article = sandbox.element("article", "");
 const savedMismatch = {tier: "skip", match: {engine: "structured_v2",
   visibility: {anchor_matched: false, interest_matched: false, ceilings: [{id: "no_anchor", score: 49}]},
@@ -107,16 +150,20 @@ sandbox.appendListingDetails(listing, {
   facts: {
     activities: [{label: "Policy research", evidence: "Evaluate public services."}],
     benefits: [{label: "Stipend", evidence: "Monthly stipend"}],
+    facets: {benefits: [{...compensation, evidence: "Monthly stipend"}]},
     requirements: [{label: "Enrolled students", evidence: "Open to enrolled graduate students."}],
     source: {name: "Boston programs", url: "javascript:alert(1)"},
     schedule: {starts_at: "2027-03-01", attendance: "https://schema.org/MixedEventAttendanceMode"},
   },
 });
-for (const label of ["monthly stipend", "What you would do", "Enrolled students", "Boston programs", "Attendance · Hybrid"]) {
+for (const label of ["monthly stipend", "Activities indicated by the listing", "Enrolled students", "Boston programs", "Attendance · Hybrid"]) {
   assert(text(listing).includes(label), label);
 }
 const attribution = listing.childNodes[1].childNodes[1].childNodes.find((node) => node.className === "listing-attribution");
 assert.equal(attribution.childNodes[0].tag, "strong", "Unsafe source URLs do not produce links");
+const benefitEvidence = listing.childNodes[1].childNodes[1].childNodes
+  .find((node) => node.className === "listing-evidence" && text(node).includes("Compensation"));
+assert.equal(benefitEvidence.childNodes.length, 1, "A facet and older label share one listing evidence excerpt");
 const preview = sandbox.element("article", "");
 sandbox.appendListingDetails(preview, {id: "b".repeat(24), detail_available: false});
 assert(text(preview).includes("python3 -m monitor opportunities show"));

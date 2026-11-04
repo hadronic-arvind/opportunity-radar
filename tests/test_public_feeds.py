@@ -76,6 +76,16 @@ class PublicFeedTests(unittest.TestCase):
                     "employmentType": ["FULL_TIME"],
                     "jobLocationType": "TELECOMMUTE",
                     "applicantLocationRequirements": {"name": "Canada"},
+                    "baseSalary": {
+                        "@type": "MonetaryAmount",
+                        "currency": "CAD",
+                        "value": {
+                            "@type": "QuantitativeValue",
+                            "minValue": "65000",
+                            "maxValue": 75000,
+                            "unitText": "YEAR",
+                        },
+                    },
                 },
                 {
                     "@type": "EducationalOccupationalProgram",
@@ -85,6 +95,16 @@ class PublicFeedTests(unittest.TestCase):
                     "educationalCredentialAwarded": "Certificate",
                     "programPrerequisites": "High school diploma",
                 },
+                {
+                    "@type": "MonetaryGrant",
+                    "name": "Materials Research Seed Grant",
+                    "url": "/programs/grant",
+                    "amount": {
+                        "@type": "MonetaryAmount",
+                        "value": 5000,
+                        "currency": "CAD",
+                    },
+                },
             ]
         }
         body = (
@@ -92,15 +112,24 @@ class PublicFeedTests(unittest.TestCase):
         ).encode()
         with patch("monitor.fetchers._request", return_value=body):
             result = fetch_source(source("json_ld"))
-        job, program = result.opportunities
+        job, program, grant = result.opportunities
         self.assertEqual(job.organization, "Example University")
         self.assertEqual(job.location, "Remote · Canada")
         self.assertEqual(job.posted_at, "2026-11-03")
         self.assertEqual(job.deadline_at, "2026-12-01")
+        self.assertEqual(
+            job.metadata["listing"]["base_salary"],
+            {"minimum": 65000, "maximum": 75000, "currency": "CAD", "unit": "YEAR"},
+        )
         self.assertEqual(program.opportunity_type, "training")
         self.assertEqual(program.deadline_at, "2026-12-10")
         self.assertEqual(program.eligibility, "High school diploma")
         self.assertEqual(program.metadata["listing"]["credential"], "Certificate")
+        self.assertEqual(grant.opportunity_type, "grant")
+        self.assertEqual(
+            grant.metadata["listing"]["grant_amount"],
+            {"value": 5000, "currency": "CAD"},
+        )
 
     def test_microdata_uses_visible_heading_and_separates_event_dates(self):
         page = b"""

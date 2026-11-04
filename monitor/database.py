@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from .models import Opportunity
-from .opportunity_facts import opportunity_facts
+from .opportunity_facts import FACET_LABELS, opportunity_facts, participation_facets
 from .scoring import (
     LEGACY_CURATED_DOCUMENT_PROVENANCE,
     profile_fingerprint,
@@ -22,10 +22,12 @@ from .text import stable_hash
 MAX_DASHBOARD_DISCOVERY_ITEMS = 5000
 MAX_DASHBOARD_CATALOG_ITEMS = 50000
 PROFILE_FINGERPRINT_KEY = "profile_fingerprint"
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
+FACETS_SCHEMA_VERSION = 7
 SOURCE_HASH_SCHEMA_VERSION = 5
 SOURCE_SNAPSHOT_KEY_PREFIX = "scan_snapshot:"
 DETAIL_OFFSET_KEY_PREFIX = "scan_detail_offset:"
+DEFERRED_SOURCE_KEY_PREFIX = "scan_deferred:"
 COLLECTION_SUMMARY_KEY = "collection_summary"
 ROLLING_ARCHIVE_DAYS = 90
 WORKFLOW_STATUS_RANK = {
@@ -100,6 +102,17 @@ CREATE TABLE IF NOT EXISTS opportunities (
     active INTEGER NOT NULL DEFAULT 1,
     UNIQUE(source_id, external_id)
 );
+
+CREATE TABLE IF NOT EXISTS opportunity_facets (
+    opportunity_id TEXT NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+    facet_group TEXT NOT NULL,
+    facet_id TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    PRIMARY KEY (opportunity_id, facet_group, facet_id)
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS opportunity_facets_lookup_idx
+    ON opportunity_facets(facet_group, facet_id, opportunity_id);
 
 CREATE TABLE IF NOT EXISTS runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -354,6 +367,14 @@ class Database:
                         ],
                     )
                     last_identifier = rows[-1]["id"]
+            if previous_version < FACETS_SCHEMA_VERSION:
+                rows = connection.execute(
+                    "SELECT id, title, description, opportunity_type, metadata_json FROM opportunities"
+                )
+                for row in rows:
+                    item = dict(row)
+                    item["metadata"] = json.loads(item.pop("metadata_json"))
+                    self._write_facets(connection, row["id"], item)
             connection.execute("PRAGMA user_version = {}".format(SCHEMA_VERSION))
 
     @contextmanager
@@ -379,7 +400,7 @@ class Database:
             raise
 
     def sync_source(self, source: Dict[str, Any]) -> None:
-        url = source.get("url") or source.get("api_url") or ""
+        url = source.get("publisher_url") or source.get("url") or source.get("api_url") or ""
         with self.transaction() as connection:
             connection.execute(
                 """
@@ -435,11 +456,22 @@ class Database:
                 "SELECT id, last_checked_at, cadence_hours FROM sources WHERE enabled=1"
             )
         }
+        deferrals = {
+            row["key"][len(DEFERRED_SOURCE_KEY_PREFIX):]: datetime.fromisoformat(row["value"])
+            for row in self.connection.execute(
+                "SELECT key, value FROM runtime_state WHERE key GLOB ?",
+                (DEFERRED_SOURCE_KEY_PREFIX + "*",),
+            )
+        }
         due = []
         now = datetime.now(timezone.utc)
         for source in sources:
             check = checks.get(source["id"])
+            deferred = deferrals.get(source["id"])
             if check is None or not check["last_checked_at"]:
+                if deferred is not None:
+                    due.append((deferred.timestamp(), source))
+                    continue
                 packs = set(source.get("packs", []))
                 if packs.intersection(("professional-events", "funding-opportunities")):
                     priority = -2.0
@@ -454,8 +486,18 @@ class Database:
                 last_check = last_check.replace(tzinfo=timezone.utc)
             next_check = last_check + timedelta(hours=check["cadence_hours"])
             if force or next_check <= now:
-                due.append(((last_check if force else next_check).timestamp(), source))
+                scheduled = last_check if force else next_check
+                due.append((max(scheduled, deferred or scheduled).timestamp(), source))
         return [source for _, source in sorted(due, key=lambda entry: entry[0])]
+
+    def defer_source(self, source_id: str) -> None:
+        """Remember an interrupted turn for scheduling without changing source health."""
+        with self.transaction() as connection:
+            connection.execute(
+                "INSERT INTO runtime_state(key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (DEFERRED_SOURCE_KEY_PREFIX + source_id, datetime.now(timezone.utc).isoformat()),
+            )
 
     def source_hash(self, source_id: str) -> str:
         row = self.connection.execute(
@@ -726,6 +768,21 @@ class Database:
             and _without_query_key(candidate["url"], "page") == item.url
         ]
 
+    @staticmethod
+    def _write_facets(
+        connection: sqlite3.Connection, opportunity_id: str, item: Dict[str, Any]
+    ) -> None:
+        facets = participation_facets(item)
+        connection.execute("DELETE FROM opportunity_facets WHERE opportunity_id=?", (opportunity_id,))
+        connection.executemany(
+            "INSERT INTO opportunity_facets(opportunity_id, facet_group, facet_id, evidence) VALUES (?, ?, ?, ?)",
+            [
+                (opportunity_id, group, entry["id"], entry["evidence"])
+                for group, entries in facets.items()
+                for entry in entries
+            ],
+        )
+
     def upsert_opportunity(
         self,
         item: Opportunity,
@@ -859,8 +916,9 @@ class Database:
                     raw_hash,
                 ),
             )
+            canonical_id = existing["id"] if existing is not None else identifier
+            self._write_facets(connection, canonical_id, _opportunity_content(item))
             if merged_state is not None:
-                canonical_id = existing["id"] if existing is not None else identifier
                 connection.execute(
                     """
                     UPDATE opportunities
@@ -1000,6 +1058,9 @@ class Database:
         with self.transaction() as connection:
             cursor = connection.execute("INSERT INTO runs(started_at) VALUES (?)", (started,))
         return int(cursor.lastrowid), started
+
+    def has_scan_history(self) -> bool:
+        return self.connection.execute("SELECT 1 FROM runs LIMIT 1").fetchone() is not None
 
     def finish_run(
         self,
@@ -1142,6 +1203,7 @@ class Database:
             item.pop("description_length")
             item["detail_available"] = False
             catalog.append(item)
+        self._attach_dashboard_facets(opportunities, catalog)
         available_bookmarks = sum(
             bool(row["active"])
             and row["tier"] != "skip"
@@ -1226,6 +1288,26 @@ class Database:
                 > len(discovery_rows) + available_bookmarks,
             },
         }
+
+    def _attach_dashboard_facets(self, detailed: list, catalog: list) -> None:
+        rows = detailed + catalog
+        for start in range(0, len(rows), 400):
+            batch = {item["id"]: item for item in rows[start:start + 400]}
+            placeholders = ",".join("?" for _ in batch)
+            for facet in self.connection.execute(
+                "SELECT opportunity_id, facet_group, facet_id, evidence FROM opportunity_facets "
+                "WHERE opportunity_id IN ({}) ORDER BY facet_group, facet_id".format(placeholders),
+                tuple(batch),
+            ):
+                item = batch[facet["opportunity_id"]]
+                group = facet["facet_group"]
+                facet_id = facet["facet_id"]
+                label = FACET_LABELS.get(group, {}).get(facet_id)
+                if label:
+                    value = {"id": facet_id, "label": label}
+                    if item.get("detail_available") is not False:
+                        value["evidence"] = facet["evidence"]
+                    item["facts"].setdefault("facets", {}).setdefault(group, []).append(value)
 
     def _decode_row(self, row: sqlite3.Row) -> Dict[str, Any]:
         item = dict(row)

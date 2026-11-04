@@ -312,7 +312,10 @@ h1 {
 .coverage-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; }
 .coverage-actions .source-resource-button { width: auto; margin: 0; }
 .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 12px 20px 8px; }
-.facets { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 20px 8px; }
+.facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px 10px; padding: 0 20px 8px; }
+.facets .sort { min-width: 0; text-overflow: ellipsis; }
+.facets .sort:disabled { color: var(--muted); background: var(--surface-muted); }
+.facet-evidence-note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; }
 .facet-field { min-width: 0; }
 .field-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 650; }
 .search-input-wrap { position: relative; display: block; }
@@ -723,7 +726,6 @@ dialog p:not(.kicker) { color: var(--muted); font-size: 13px; }
   .toolbar { grid-template-columns: 1fr; }
   .toolbar, .facets, .filter-row { padding-inline: 14px; }
   .panel-intro { padding-inline: 14px; }
-  .facets > label { flex: 1 1 125px; }
   .search-field input, .sort { min-height: 44px; font-size: 16px; }
   .side-column { grid-template-columns: 1fr; }
   .side-column .guidance { grid-column: auto; }

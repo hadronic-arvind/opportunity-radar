@@ -70,7 +70,8 @@ Open Opportunity Radar whenever you want to review the latest dashboard.
 Use Refresh for due sources or Scan all when you deliberately want to ignore source cadences.
 
 Run `python3 -m monitor scan --progress` to check due sources and see what remains.
-A regular scan stops starting sources after 45 seconds of collection, finishes the in-flight source, and publishes the results so far.
+The first automatic scan caps network collection at 15 seconds to publish useful results early.
+Later automatic scans stop starting sources after 45 seconds of collection, finish the in-flight source, and publish the results so far.
 Repeat it to continue through due sources, add `--source SOURCE_ID` to focus on a specific source, or add `--force` for a deliberate full refresh.
 `./scripts/open_dashboard.sh` opens the last local snapshot immediately.
 
@@ -78,6 +79,7 @@ Repeat it to continue through due sources, add `--source SOURCE_ID` to focus on 
 - **Tracker** keeps saved, planned, applied, and dismissed items available when their source or profile fit changes.
 - **Coverage** shows which sources are enabled, what the last run checked, and which directories are available for manual exploration.
 
+Use the Activity and Benefit filters to find overlapping opportunities, such as research with funding across fellowships, grants, and programs.
 Open a listing to review source passages, known dates, availability, and profile checks.
 An ambiguous requirement stays visible for review.
 The native app and CLI update the same SQLite tracker.
@@ -164,6 +166,7 @@ python3 -m monitor sources add \
 ```
 
 Hosted Greenhouse, Lever, and Ashby URLs are recognized automatically.
+On employer careers pages, automatic detection can follow a single recognized hosted job board.
 Other public pages are checked for structured listing data, then for bounded same-site links.
 Use `--kind syndication` for an RSS or Atom feed, `--kind json_ld` for structured page data, or `--kind watch_page` to monitor a directory for changes.
 New sources are live-tested before saving by default and are written atomically to the private registry.
@@ -175,6 +178,7 @@ The CLI can also search, inspect, and export stored opportunities without openin
 python3 -m monitor opportunities list --matched --available
 python3 -m monitor opportunities search "technical writer" --location "Montréal" --unique
 python3 -m monitor opportunities search "robotics" --type hackathon --sort deadline --json
+python3 -m monitor opportunities list --activity research --benefit funding --available
 python3 -m monitor opportunities list --saved
 python3 -m monitor opportunities list --status apply --include-inactive --csv
 python3 -m monitor opportunities show OPPORTUNITY_ID

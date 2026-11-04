@@ -4,10 +4,12 @@ import json
 import re
 import urllib.parse
 from copy import deepcopy
+from html.parser import HTMLParser
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from . import config
+from . import config, fetchers
 from .fetchers import MAX_HTML_LINK_PAGES, _remote_url_parts
+from .models import FetchResult
 from .pipeline import exclusive_lock
 from .profile import (
     ProfileValidationError,
@@ -18,12 +20,28 @@ from .profile import (
     profile_lifecycle_lock,
     refresh_profile_state,
 )
-from .public_feeds import ARBEITNOW_HOSTS, GRANTS_SEARCH_URL, arbeitnow_publisher
+from .public_feeds import (
+    ARBEITNOW_HOSTS,
+    GRANTS_SEARCH_URL,
+    arbeitnow_publisher,
+    fetch_public_page,
+)
 from .text import normalize_opportunity_type
 
 
 SOURCE_ID_RE = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
 SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$")
+GREENHOUSE_HOSTS = {"boards.greenhouse.io", "job-boards.greenhouse.io"}
+GREENHOUSE_EMBED_PATHS = {"/embed/job_board", "/embed/job_board/js"}
+BOARD_URLS = {
+    "ashby": ("board", "https://jobs.ashbyhq.com/{}"),
+    "greenhouse": ("board", "https://job-boards.greenhouse.io/{}"),
+    "lever": ("site", "https://{}/{}"),
+    "rippling": ("board", "https://ats.rippling.com/{}/jobs"),
+    "smartrecruiters": ("company", "https://jobs.smartrecruiters.com/{}"),
+    "workable": ("board", "https://apply.workable.com/{}"),
+}
+MAX_DISCOVERED_BOARDS = 8
 SUPPORTED_KINDS = {
     "arbeitnow",
     "ashby",
@@ -373,7 +391,12 @@ def detect_source(url: str) -> Tuple[str, Dict[str, str]]:
     parsed = urllib.parse.urlsplit(validated)
     host = (parsed.hostname or "").casefold()
     parts = [urllib.parse.unquote(value) for value in parsed.path.split("/") if value]
-    if host in {"boards.greenhouse.io", "job-boards.greenhouse.io"} and parts:
+    if host in GREENHOUSE_HOSTS and parsed.path.rstrip("/") in GREENHOUSE_EMBED_PATHS:
+        tokens = urllib.parse.parse_qs(parsed.query).get("for", [])
+        if len(tokens) == 1 and SLUG_RE.fullmatch(tokens[0]):
+            return "greenhouse", {"board": tokens[0]}
+        return "public_page", {}
+    if host in GREENHOUSE_HOSTS and parts and parts[0] != "embed":
         return "greenhouse", {"board": parts[0]}
     if host in {"jobs.lever.co", "jobs.eu.lever.co"} and parts:
         settings = {"site": parts[0]}
@@ -402,6 +425,74 @@ def detect_source(url: str) -> Tuple[str, Dict[str, str]]:
     if parsed.path.casefold().rstrip("/").endswith((".rss", ".atom", "/feed", "/rss", "/atom")):
         return "syndication", {}
     return "public_page", {}
+
+
+class _CareerBoardLinks(HTMLParser):
+    """Extract allowlisted provider board URLs without following arbitrary links."""
+
+    def __init__(self, page_url: str) -> None:
+        super().__init__()
+        self.page_url = page_url
+        self.boards = set()
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, str]]) -> None:
+        attribute = {"a": "href", "iframe": "src", "script": "src"}.get(tag)
+        if not attribute:
+            return
+        value = (dict(attrs).get(attribute) or "").strip()
+        if (
+            not value.casefold().startswith(("https://", "//"))
+            or len(value) > 2000
+            or any(ord(character) < 32 or character == "\\" for character in value)
+        ):
+            return
+        try:
+            url = urllib.parse.urljoin(self.page_url, value)
+            parsed = urllib.parse.urlsplit(url)
+            host = parsed.hostname or ""
+            if tag == "script":
+                path = parsed.path.rstrip("/")
+                greenhouse_embed = (
+                    host in GREENHOUSE_HOSTS and path in GREENHOUSE_EMBED_PATHS
+                )
+                ashby_embed = host == "jobs.ashbyhq.com" and re.fullmatch(
+                    r"/[A-Za-z0-9_-]{1,200}/embed", path
+                )
+                if not (greenhouse_embed or ashby_embed):
+                    return
+            kind, settings = detect_source(url)
+            if kind in BOARD_URLS:
+                field, template = BOARD_URLS[kind]
+                slug = settings[field]
+                if not SLUG_RE.fullmatch(slug):
+                    return
+                parts = (host, slug) if kind == "lever" else (slug,)
+                board = template.format(*parts)
+            elif kind == "workday":
+                from .employer_feeds import workday_board
+
+                _tenant, site = workday_board(url)
+                board = "https://{}/en-US/{}".format(host, site)
+            elif kind == "comeet":
+                slugs = [
+                    urllib.parse.unquote(part)
+                    for part in parsed.path.split("/")[2:]
+                    if part
+                ]
+                if len(slugs) != 2 or not all(
+                    SLUG_RE.fullmatch(part) for part in slugs
+                ):
+                    return
+                board = "https://www.comeet.com" + parsed.path.rstrip("/")
+            else:
+                return
+        except (ValueError, KeyError):
+            return
+        self.boards.add(board)
+        if len(self.boards) > MAX_DISCOVERED_BOARDS:
+            raise ProfileValidationError(
+                "The career page links to several job boards. Paste the specific public board URL to add."
+            )
 
 
 def build_custom_source(
@@ -478,6 +569,36 @@ def build_custom_source(
             }
         )
     return validate_source(source)
+
+
+def inspect_automatic_source(
+    source: Dict[str, Any],
+    opportunity_type: str = "",
+) -> Tuple[Dict[str, Any], FetchResult]:
+    """Resolve an employer page once at setup, then store its tested board."""
+    payload = fetchers._request(source["url"])
+    parser = _CareerBoardLinks(source["url"])
+    parser.feed(payload.decode("utf-8-sig", errors="replace"))
+    parser.close()
+    if not parser.boards:
+        result = fetch_public_page(source, prefetched=payload)
+        return source, fetchers.filter_items(source, result)
+    if len(parser.boards) > 1:
+        raise ProfileValidationError(
+            "The career page links to multiple job boards. Paste the one you want: {}".format(
+                ", ".join(sorted(parser.boards))
+            )
+        )
+    board = build_custom_source(
+        name=source["name"],
+        url=next(iter(parser.boards)),
+        source_id=source["id"],
+        packs=source["packs"],
+        cadence_hours=source["cadence_hours"],
+        opportunity_type=opportunity_type,
+    )
+    board["publisher_url"] = source["url"]
+    return board, fetchers.fetch_source(board)
 
 
 def add_source(source: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:

@@ -1,11 +1,13 @@
 import tempfile
 import unittest
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 from monitor import pipeline
 from monitor.database import Database
+from monitor.fetchers import CollectionDeadlineExceeded
 from monitor.models import FetchResult, Opportunity
 from monitor.pipeline import _import_curated, _register_sources, _target_year
 
@@ -423,6 +425,88 @@ class ScanRefreshTests(unittest.TestCase):
         )
         self.assertEqual(events[-1]["remaining_due"], 3)
         self.assertEqual(events[2]["source_id"], "events")
+
+    def test_cold_network_slice_leaves_time_for_other_sources_and_retries_later(self):
+        self.sources = [self.source("slow"), self.source("fast")]
+        seconds = [0.0]
+
+        def fetch(source):
+            if source["id"] == "slow" and seconds[0] == 0:
+                seconds[0] += pipeline.FIRST_REFRESH_PER_SOURCE_SECONDS
+                raise CollectionDeadlineExceeded("Cold source budget elapsed")
+            return FetchResult([], source["id"])
+
+        self.start_patch("fetch_source", side_effect=fetch)
+        deadlines = self.start_patch(
+            "collection_request_deadline", side_effect=lambda _: nullcontext()
+        )
+        with patch.object(pipeline.time, "monotonic", side_effect=lambda: seconds[0]):
+            first = pipeline.run_scan()
+            second = pipeline.run_scan()
+        self.assertEqual(
+            (
+                first["checked_sources"],
+                first["deferred_sources"],
+                first["remaining_due"],
+            ),
+            (1, 1, 1),
+        )
+        self.assertEqual(
+            (
+                second["checked_sources"],
+                second["deferred_sources"],
+                second["remaining_due"],
+            ),
+            (1, 0, 0),
+        )
+        self.assertEqual(
+            [call.args[0] for call in deadlines.call_args_list], [6, 12, None]
+        )
+
+    def test_explicit_network_deferral_keeps_source_health_and_rotates_next_turn(self):
+        self.sources = [self.source("fixture"), self.source("fast")]
+        fetch = self.start_patch(
+            "fetch_source",
+            side_effect=[
+                FetchResult([self.item("preserved")], "first"),
+                CollectionDeadlineExceeded("Explicit network deadline elapsed"),
+                FetchResult([], "fast"),
+            ],
+        )
+        pipeline.run_scan(force=True, source_ids=["fixture"])
+        observer = Database(self.database_path)
+        self.addCleanup(observer.close)
+        observer.connection.execute(
+            "UPDATE sources SET last_checked_at='2025-01-01T00:00:00+00:00'"
+        )
+        observer.connection.commit()
+        events = []
+        first = pipeline.run_scan(
+            force=True, source_ids=["fixture"], max_seconds=0.05, progress=events.append
+        )
+        second = pipeline.run_scan(force=True, max_seconds=0.05, max_sources=1)
+        self.assertEqual(
+            (
+                first["checked_sources"],
+                first["deferred_sources"],
+                first["remaining_due"],
+            ),
+            (0, 1, 1),
+        )
+        self.assertEqual(second["checked_sources"], 1)
+        self.assertEqual(observer.source_status("fixture"), "ok")
+        self.assertEqual(observer.source_status("fast"), "ok")
+        self.assertEqual(
+            observer.connection.execute("SELECT active FROM opportunities").fetchone()[
+                0
+            ],
+            1,
+        )
+        self.assertEqual(events[2]["status"], "deferred")
+        self.assertEqual(
+            [call.args[0]["id"] for call in fetch.call_args_list],
+            ["fixture", "fixture", "fast"],
+        )
 
     def test_rolling_history_archives_old_unseen_rows_and_preserves_workflow(self):
         self.start_patch(

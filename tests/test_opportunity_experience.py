@@ -118,6 +118,105 @@ class OpportunityExperienceTests(unittest.TestCase):
         )
         self.assertEqual([entry["title"] for entry in result], [item.title])
 
+    def test_facets_overlap_listing_kinds_and_require_source_evidence(self):
+        funded = self.insert(
+            "university",
+            "fellow",
+            "Open Field Fellowship",
+            opportunity_type="fellowship",
+            tier="skip",
+            description=(
+                "Fellows will conduct field research. "
+                "A travel grant is available. No stipend is provided."
+            ),
+        )
+        paid = self.insert(
+            "board",
+            "job",
+            "Research Analyst",
+            opportunity_type="job",
+            description="You will perform ecological research.",
+            metadata={
+                "listing": {"base_salary": {"minimum": 40000, "currency": "USD"}}
+            },
+        )
+        prize = self.insert(
+            "university",
+            "prize",
+            "Field Research Challenge",
+            opportunity_type="competition",
+            description="Teams will conduct field research. The winning team receives a cash prize.",
+        )
+        result = self.command(
+            "opportunities", "list", "--activity", "research", "--json"
+        )
+        self.assertEqual(
+            {row["id"] for row in json.loads(result)}, {funded, paid, prize}
+        )
+        result = self.command(
+            "opportunities",
+            "list",
+            "--activity",
+            "research",
+            "--benefit",
+            "funding",
+            "--json",
+        )
+        self.assertEqual([row["id"] for row in json.loads(result)], [funded])
+        result = self.command(
+            "opportunities", "list", "--benefit", "compensation", "--json"
+        )
+        self.assertEqual([row["id"] for row in json.loads(result)], [paid])
+        result = self.command("opportunities", "list", "--benefit", "prize", "--json")
+        self.assertEqual([row["id"] for row in json.loads(result)], [prize])
+        catalog = self.database.dashboard_payload()["catalog"]
+        self.assertEqual(
+            catalog[0]["facts"]["facets"]["benefits"],
+            [{"id": "funding", "label": "Funding"}],
+        )
+        show = json.loads(self.command("opportunities", "show", funded, "--json"))
+        self.assertEqual(show["facts"]["facets"]["activities"][0]["id"], "research")
+        self.assertIn(
+            "travel grant", show["facts"]["facets"]["benefits"][0]["evidence"]
+        )
+
+    def test_facets_backfill_existing_rows_and_follow_source_updates(self):
+        identifier = self.insert(
+            "university",
+            "program",
+            "Open Field Fellowship",
+            opportunity_type="fellowship",
+            description="Fellows will conduct field research. Travel reimbursement is provided.",
+        )
+        self.database.set_bookmarked(identifier, True)
+        with self.database.transaction() as connection:
+            connection.execute("DROP TABLE opportunity_facets")
+            connection.execute("PRAGMA user_version = 6")
+        result = self.command(
+            "opportunities", "list", "--benefit", "funding", "--saved", "--json"
+        )
+        self.assertEqual([row["id"] for row in json.loads(result)], [identifier])
+        self.insert(
+            "university",
+            "program",
+            "Open Field Fellowship",
+            opportunity_type="fellowship",
+            description="Fellows will conduct field research. Travel reimbursement is not provided.",
+        )
+        result = self.command(
+            "opportunities", "list", "--benefit", "funding", "--saved", "--json"
+        )
+        self.assertEqual(json.loads(result), [])
+        self.assertEqual(
+            [
+                row["id"]
+                for row in json.loads(
+                    self.command("opportunities", "list", "--saved", "--json")
+                )
+            ],
+            [identifier],
+        )
+
     def test_listing_review_exposes_evidence_dates_and_publisher(self):
         identifier = self.insert(
             "university",

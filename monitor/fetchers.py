@@ -13,8 +13,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from html.parser import HTMLParser
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from . import __version__
 from .dates import (
@@ -47,6 +48,28 @@ MAX_HTML_LINK_PAGES = 20
 MAX_HTML_LINK_TOTAL_BYTES = 32 * 1024 * 1024
 MAX_HTML_LINK_WALL_SECONDS = 60
 MAX_RESOLVED_ADDRESSES = 8
+_COLLECTION_DEADLINE: ContextVar[Optional[float]] = ContextVar(
+    "collection_deadline", default=None
+)
+
+
+class CollectionDeadlineExceeded(TimeoutError):
+    """A refresh's network budget ended before this source could finish."""
+
+
+@contextmanager
+def collection_request_deadline(deadline: Optional[float]) -> Iterator[None]:
+    if deadline is None:
+        yield
+        return
+    inherited = _COLLECTION_DEADLINE.get()
+    token = _COLLECTION_DEADLINE.set(
+        deadline if inherited is None else min(inherited, deadline)
+    )
+    try:
+        yield
+    finally:
+        _COLLECTION_DEADLINE.reset(token)
 
 
 def _string_list(value: Any) -> List[str]:
@@ -91,6 +114,13 @@ def _source_metadata(source: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
         )
     if "official" in source:
         metadata["official"] = bool(source["official"])
+    if source.get("publisher_url") and not extra.get("collection"):
+        metadata["collection"] = {
+            "evidence": "structured_listing",
+            "context": "listing",
+            "source_url": source["url"],
+            "publisher_url": source["publisher_url"],
+        }
     metadata.update({key: value for key, value in extra.items() if value not in (None, "", [], {})})
     return metadata
 
@@ -562,10 +592,28 @@ def _request(
         raise ValueError("Response limit must be positive")
     if timeout <= 0:
         raise ValueError("Request timeout must be positive")
+    collection_deadline = _COLLECTION_DEADLINE.get()
     request_deadline = min(
         float(deadline) if deadline is not None else float("inf"),
         time.monotonic() + timeout,
+        collection_deadline if collection_deadline is not None else float("inf"),
     )
+    try:
+        return _request_until(url, request_deadline, max_bytes, json_body)
+    except (TimeoutError, urllib.error.URLError) as error:
+        timed_out = isinstance(error, TimeoutError) or isinstance(
+            getattr(error, "reason", None), TimeoutError
+        )
+        if (
+            timed_out
+            and request_deadline == collection_deadline
+            and time.monotonic() >= request_deadline
+        ):
+            raise CollectionDeadlineExceeded("Refresh network budget elapsed") from error
+        raise
+
+
+def _request_until(url: str, request_deadline: float, max_bytes: int, json_body: Any) -> bytes:
     remaining = request_deadline - time.monotonic()
     if remaining <= 0:
         raise TimeoutError("Source request exceeded its wall-clock deadline")
